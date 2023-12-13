@@ -1,7 +1,16 @@
 [workspace]
 resolver = "2"
 
-members = ["sanctum-solores-utils"]
+members = ["sanctum-solana-test-utils", "sanctum-solores-utils"]
 
 [workspace.dependencies]
+async-trait = ">=0.1"
+num-traits = ">=0.2"
+serde = "^1"
+serde_json = "^1"
+solana-account-decoder = "^1"
 solana-program = "^1"
+solana-program-test = "^1"
+solana-readonly-account = "^1"
+solana-sdk = "^1"
+spl-token = ">=0.1.0"

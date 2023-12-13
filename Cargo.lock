@@ -3027,6 +3027,7 @@ name = "sanctum-solana-test-utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "borsh 0.9.3",
  "num-traits",
  "serde",
  "serde_json",
@@ -3040,6 +3041,13 @@ dependencies = [
 
 [[package]]
 name = "sanctum-solores-utils"
+version = "0.1.0"
+dependencies = [
+ "solana-program",
+]
+
+[[package]]
+name = "sanctum-system-program-lib"
 version = "0.1.0"
 dependencies = [
  "solana-program",

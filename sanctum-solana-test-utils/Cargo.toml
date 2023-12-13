@@ -9,6 +9,7 @@ token = ["spl-token"]
 
 [dependencies]
 async-trait = { workspace = true }
+borsh = { workspace = true }
 num-traits = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

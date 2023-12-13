@@ -1,0 +1,8 @@
+[package]
+name = "sanctum-associated-token-lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+solana-program = { workspace = true }
+spl-associated-token-account = { workspace = true }

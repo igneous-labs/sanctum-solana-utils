@@ -3023,6 +3023,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sanctum-associated-token-lib"
+version = "0.1.0"
+dependencies = [
+ "solana-program",
+ "spl-associated-token-account",
+]
+
+[[package]]
 name = "sanctum-solana-test-utils"
 version = "0.1.0"
 dependencies = [

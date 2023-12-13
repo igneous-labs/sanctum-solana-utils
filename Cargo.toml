@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+
+members = ["sanctum-solores-utils"]
+
+[workspace.dependencies]
+solana-program = "^1"

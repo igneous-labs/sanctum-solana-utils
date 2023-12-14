@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use solana_program::pubkey::Pubkey;
+use solana_program::{pubkey::Pubkey, system_program};
 use solana_program_test::ProgramTest;
 use solana_readonly_account::sdk::KeyedAccount;
 use solana_sdk::account::Account;
@@ -13,6 +13,7 @@ pub trait ExtendedProgramTest {
     fn add_keyed_account(self, keyed_account: KeyedAccount) -> Self;
     fn add_keyed_ui_account(self, keyed_ui_account: KeyedUiAccount) -> Self;
     fn add_account_from_file<P: AsRef<Path>>(self, json_file_path: P) -> Self;
+    fn add_system_account(self, address: Pubkey, lamports: u64) -> Self;
 }
 
 impl ExtendedProgramTest for ProgramTest {
@@ -31,5 +32,18 @@ impl ExtendedProgramTest for ProgramTest {
 
     fn add_account_from_file<P: AsRef<Path>>(self, json_file_path: P) -> Self {
         self.add_keyed_ui_account(KeyedUiAccount::from_file(json_file_path))
+    }
+
+    fn add_system_account(self, address: Pubkey, lamports: u64) -> Self {
+        self.add_account_chained(
+            address,
+            Account {
+                lamports,
+                data: Vec::new(),
+                owner: system_program::ID,
+                executable: false,
+                rent_epoch: u64::MAX,
+            },
+        )
     }
 }

@@ -1,5 +1,7 @@
-pub const ZERO_SIZE_RENT_EXEMPT_LAMPORTS: u64 = 890880;
+/// These might change in the future
+pub const ZERO_SIZE_RENT_EXEMPT_LAMPORTS: u64 = 890_880;
 
+/// These might change in the future
 pub const RENT_EXEMPT_LAMPORT_PER_BYTE: u64 = 6960;
 
 pub const fn est_rent_exempt_lamports(account_data_len: usize) -> u64 {

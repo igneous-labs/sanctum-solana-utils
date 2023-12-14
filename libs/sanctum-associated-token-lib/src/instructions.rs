@@ -29,12 +29,6 @@ pub struct CreateAtaKeys {
     pub token_program: Pubkey,
 }
 
-impl CreateAtaKeys {
-    pub fn to_ix(&self) -> Instruction {
-        create_associated_token_account(&self.payer, &self.wallet, &self.mint, &self.token_program)
-    }
-}
-
 impl From<CreateAtaAccounts<'_, '_>> for CreateAtaKeys {
     fn from(
         CreateAtaAccounts {
@@ -79,8 +73,21 @@ impl<'info> From<CreateAtaAccounts<'_, 'info>> for [AccountInfo<'info>; CREATE_A
     }
 }
 
+pub fn create_ata_ix(
+    CreateAtaKeys {
+        payer,
+        wallet,
+        mint,
+        system_program: _,
+        ata_to_create: _,
+        token_program,
+    }: CreateAtaKeys,
+) -> Instruction {
+    create_associated_token_account(&payer, &wallet, &mint, &token_program)
+}
+
 pub fn create_ata_invoke(accounts: CreateAtaAccounts) -> ProgramResult {
-    let ix = CreateAtaKeys::from(accounts).to_ix();
+    let ix = create_ata_ix(CreateAtaKeys::from(accounts));
     let account_infos: [AccountInfo; CREATE_ATA_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
@@ -89,7 +96,7 @@ pub fn create_ata_invoke_signed(
     accounts: CreateAtaAccounts,
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let ix = CreateAtaKeys::from(accounts).to_ix();
+    let ix = create_ata_ix(CreateAtaKeys::from(accounts));
     let account_infos: [AccountInfo; CREATE_ATA_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

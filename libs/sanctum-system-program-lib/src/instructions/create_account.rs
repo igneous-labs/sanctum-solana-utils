@@ -5,10 +5,10 @@ use solana_program::{
     program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
-    rent::Rent,
     system_instruction,
-    sysvar::Sysvar,
 };
+
+use crate::{onchain_rent_exempt_calc, OnchainRentExemptCalcResult};
 
 pub const CREATE_ACCOUNT_ACCOUNTS_LEN: usize = 2;
 
@@ -22,19 +22,6 @@ pub struct CreateAccountAccounts<'me, 'info> {
 pub struct CreateAccountKeys {
     pub from: Pubkey,
     pub to: Pubkey,
-}
-
-impl CreateAccountKeys {
-    pub fn to_ix(
-        &self,
-        CreateAccountArgs {
-            space,
-            owner,
-            lamports,
-        }: CreateAccountArgs,
-    ) -> Instruction {
-        system_instruction::create_account(&self.from, &self.to, lamports, space, &owner)
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -61,11 +48,22 @@ impl<'info> From<CreateAccountAccounts<'_, 'info>>
     }
 }
 
+pub fn create_account_ix(
+    CreateAccountKeys { from, to }: CreateAccountKeys,
+    CreateAccountArgs {
+        space,
+        owner,
+        lamports,
+    }: CreateAccountArgs,
+) -> Instruction {
+    system_instruction::create_account(&from, &to, lamports, space, &owner)
+}
+
 pub fn create_account_invoke(
     accounts: CreateAccountAccounts,
     args: CreateAccountArgs,
 ) -> ProgramResult {
-    let ix = CreateAccountKeys::from(accounts).to_ix(args);
+    let ix = create_account_ix(CreateAccountKeys::from(accounts), args);
     let account_infos: [AccountInfo; CREATE_ACCOUNT_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
@@ -75,7 +73,7 @@ pub fn create_account_invoke_signed(
     args: CreateAccountArgs,
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let ix = CreateAccountKeys::from(accounts).to_ix(args);
+    let ix = create_account_ix(CreateAccountKeys::from(accounts), args);
     let account_infos: [AccountInfo; CREATE_ACCOUNT_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }
@@ -88,13 +86,9 @@ pub struct CreateRentExemptAccountArgs {
 
 impl CreateRentExemptAccountArgs {
     pub fn try_calc_lamports(&self) -> Result<CreateAccountArgs, ProgramError> {
-        let lamports = Rent::get()?.minimum_balance(self.space);
-        let space_u64: u64 = self
-            .space
-            .try_into()
-            .map_err(|_e| ProgramError::InvalidArgument)?;
+        let OnchainRentExemptCalcResult { space, lamports } = onchain_rent_exempt_calc(self.space)?;
         Ok(CreateAccountArgs {
-            space: space_u64,
+            space,
             owner: self.owner,
             lamports,
         })

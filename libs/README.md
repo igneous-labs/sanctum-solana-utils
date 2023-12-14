@@ -1,4 +1,4 @@
-# interfaces
+# libs
 
 Like `anchor-spl`, but still under construction.
 

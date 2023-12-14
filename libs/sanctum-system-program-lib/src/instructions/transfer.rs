@@ -21,12 +21,6 @@ pub struct TransferKeys {
     pub to: Pubkey,
 }
 
-impl TransferKeys {
-    pub fn to_ix(&self, lamports: u64) -> Instruction {
-        system_instruction::transfer(&self.from, &self.to, lamports)
-    }
-}
-
 impl From<TransferAccounts<'_, '_>> for TransferKeys {
     fn from(TransferAccounts { from, to }: TransferAccounts<'_, '_>) -> Self {
         Self {
@@ -42,8 +36,12 @@ impl<'info> From<TransferAccounts<'_, 'info>> for [AccountInfo<'info>; TRANSFER_
     }
 }
 
+pub fn transfer_ix(TransferKeys { from, to }: TransferKeys, lamports: u64) -> Instruction {
+    system_instruction::transfer(&from, &to, lamports)
+}
+
 pub fn transfer_invoke(accounts: TransferAccounts, lamports: u64) -> ProgramResult {
-    let ix = TransferKeys::from(accounts).to_ix(lamports);
+    let ix = transfer_ix(TransferKeys::from(accounts), lamports);
     let account_infos: [AccountInfo; TRANSFER_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
@@ -53,7 +51,7 @@ pub fn transfer_invoke_signed(
     lamports: u64,
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let ix = TransferKeys::from(accounts).to_ix(lamports);
+    let ix = transfer_ix(TransferKeys::from(accounts), lamports);
     let account_infos: [AccountInfo; TRANSFER_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

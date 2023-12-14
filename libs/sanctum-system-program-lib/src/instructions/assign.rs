@@ -6,6 +6,8 @@ use solana_program::{
     system_instruction,
 };
 
+pub const ASSIGN_ACCOUNTS_LEN: usize = 1;
+
 pub fn assign_invoke(account: &AccountInfo, owner: Pubkey) -> ProgramResult {
     let ix = system_instruction::assign(account.key, &owner);
     invoke(&ix, &[account.clone()])

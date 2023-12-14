@@ -3027,7 +3027,15 @@ name = "sanctum-associated-token-lib"
 version = "0.1.0"
 dependencies = [
  "solana-program",
+ "solana-readonly-account",
  "spl-associated-token-account",
+]
+
+[[package]]
+name = "sanctum-misc-utils"
+version = "0.1.0"
+dependencies = [
+ "solana-program",
 ]
 
 [[package]]
@@ -3048,17 +3056,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "sanctum-solores-utils"
+name = "sanctum-system-program-lib"
 version = "0.1.0"
 dependencies = [
  "solana-program",
 ]
 
 [[package]]
-name = "sanctum-system-program-lib"
+name = "sanctum-token-lib"
 version = "0.1.0"
 dependencies = [
  "solana-program",
+ "solana-readonly-account",
+ "spl-token-2022",
 ]
 
 [[package]]

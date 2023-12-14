@@ -5,6 +5,8 @@ use solana_program::{
     system_instruction,
 };
 
+pub const ALLOCATE_ACCOUNTS_LEN: usize = 1;
+
 pub fn allocate_invoke(account: &AccountInfo, space: u64) -> ProgramResult {
     let ix = system_instruction::allocate(account.key, space);
     invoke(&ix, &[account.clone()])

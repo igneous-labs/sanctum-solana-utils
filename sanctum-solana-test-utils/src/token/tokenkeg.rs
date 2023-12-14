@@ -67,7 +67,7 @@ pub fn mock_tokenkeg_account(
 
 impl IntoAccount for spl_token::state::Account {
     fn into_account(self) -> Account {
-        let mut data = Vec::with_capacity(spl_token::state::Account::LEN);
+        let mut data = vec![0u8; spl_token::state::Account::LEN];
         let mut lamports = TOKENKEG_ACC_RENT_EXEMPT_LAMPORTS;
         if self.is_native.is_some() {
             lamports += self.amount;
@@ -102,7 +102,7 @@ pub fn mock_tokenkeg_mint(
 
 impl IntoAccount for Mint {
     fn into_account(self) -> Account {
-        let mut data = Vec::with_capacity(Mint::LEN);
+        let mut data = vec![0u8; Mint::LEN];
         Mint::pack(self, &mut data).unwrap();
         Account {
             lamports: est_rent_exempt_lamports(Mint::LEN),

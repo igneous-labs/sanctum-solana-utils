@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["token"]
-token = ["spl-token"]
+default = []
+token = ["spl-token"] # TODO: token-22
+stake = []
 
 [dependencies]
 async-trait = { workspace = true }

@@ -14,5 +14,8 @@ pub use keyed_ui_account::*;
 pub use paths::*;
 pub use tx::*;
 
+#[cfg(feature = "stake")]
+pub mod stake;
+
 #[cfg(feature = "token")]
 pub mod token;

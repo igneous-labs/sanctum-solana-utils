@@ -3043,7 +3043,7 @@ name = "sanctum-solana-test-utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "borsh 0.9.3",
+ "borsh 0.10.3",
  "num-traits",
  "serde",
  "serde_json",

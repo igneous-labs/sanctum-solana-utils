@@ -8,7 +8,7 @@ use solana_program::{
     system_instruction,
 };
 
-use crate::{onchain_rent_exempt_calc, OnchainRentExemptCalcResult};
+use crate::{onchain_rent_exempt_lamports_for, space_to_u64};
 
 pub const CREATE_ACCOUNT_ACCOUNTS_LEN: usize = 2;
 
@@ -85,8 +85,9 @@ pub struct CreateRentExemptAccountArgs {
 }
 
 impl CreateRentExemptAccountArgs {
-    pub fn try_calc_lamports(&self) -> Result<CreateAccountArgs, ProgramError> {
-        let OnchainRentExemptCalcResult { space, lamports } = onchain_rent_exempt_calc(self.space)?;
+    pub fn try_calc_lamports_onchain(&self) -> Result<CreateAccountArgs, ProgramError> {
+        let lamports = onchain_rent_exempt_lamports_for(self.space)?;
+        let space = space_to_u64(self.space)?;
         Ok(CreateAccountArgs {
             space,
             owner: self.owner,
@@ -99,7 +100,7 @@ pub fn create_rent_exempt_account_invoke(
     accounts: CreateAccountAccounts,
     args: CreateRentExemptAccountArgs,
 ) -> ProgramResult {
-    let args = args.try_calc_lamports()?;
+    let args = args.try_calc_lamports_onchain()?;
     create_account_invoke(accounts, args)
 }
 
@@ -108,6 +109,6 @@ pub fn create_rent_exempt_account_invoke_signed(
     args: CreateRentExemptAccountArgs,
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let args = args.try_calc_lamports()?;
+    let args = args.try_calc_lamports_onchain()?;
     create_account_invoke_signed(accounts, args, signer_seeds)
 }

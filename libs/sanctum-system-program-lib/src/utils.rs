@@ -1,18 +1,12 @@
 use solana_program::{program_error::ProgramError, rent::Rent, sysvar::Sysvar};
 
-pub struct OnchainRentExemptCalcResult {
-    /// most system instructions accept u64 space instead of usize
-    pub space: u64,
-    pub lamports: u64,
+/// Returns the rent exempt minimum lamports for `space` calculated from the `Rent` sysvar
+pub fn onchain_rent_exempt_lamports_for(space: usize) -> Result<u64, ProgramError> {
+    Ok(Rent::get()?.minimum_balance(space))
 }
 
-pub fn onchain_rent_exempt_calc(space: usize) -> Result<OnchainRentExemptCalcResult, ProgramError> {
-    let lamports = Rent::get()?.minimum_balance(space);
-    let space_u64: u64 = space
-        .try_into()
-        .map_err(|_e| ProgramError::InvalidArgument)?;
-    Ok(OnchainRentExemptCalcResult {
-        space: space_u64,
-        lamports,
-    })
+/// Most system instructions expects space as u64 instead of usize.
+/// This fn performs the conversion.
+pub fn space_to_u64(space: usize) -> Result<u64, ProgramError> {
+    space.try_into().map_err(|_e| ProgramError::InvalidArgument)
 }

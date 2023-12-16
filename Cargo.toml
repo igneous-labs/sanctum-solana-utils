@@ -1,12 +1,18 @@
 [workspace]
 resolver = "2"
 
-members = ["libs/*", "sanctum-solana-test-utils", "sanctum-misc-utils"]
+members = [
+    "libs/*",
+    "sanctum-misc-utils",
+    "sanctum-solana-test-utils",
+    "sanctum-token-ratio",
+]
 
 [workspace.dependencies]
 async-trait = ">=0.1"
 borsh = ">=0.9"
 num-traits = ">=0.2"
+proptest = "^1"
 serde = "^1"
 serde_json = "^1"
 solana-account-decoder = "^1"

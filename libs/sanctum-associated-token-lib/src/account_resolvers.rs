@@ -11,7 +11,7 @@ pub struct CreateAtaFreeArgs<M: ReadonlyAccountPubkey + ReadonlyAccountOwner> {
 }
 
 impl<M: ReadonlyAccountPubkey + ReadonlyAccountOwner> CreateAtaFreeArgs<M> {
-    pub fn resolve(&self) -> CreateAtaKeys {
+    pub fn resolve(&self) -> (CreateAtaKeys, u8) {
         let Self {
             payer,
             wallet,
@@ -19,19 +19,22 @@ impl<M: ReadonlyAccountPubkey + ReadonlyAccountOwner> CreateAtaFreeArgs<M> {
         } = self;
         let token_program = *mint.owner();
         let mint = *mint.pubkey();
-        let (ata_to_create, _bump) = FindAtaAddressArgs {
+        let (ata_to_create, bump) = FindAtaAddressArgs {
             wallet: *wallet,
             mint,
             token_program,
         }
         .find_ata_address();
-        CreateAtaKeys {
-            payer: *payer,
-            ata_to_create,
-            wallet: *wallet,
-            mint,
-            system_program: system_program::ID,
-            token_program,
-        }
+        (
+            CreateAtaKeys {
+                payer: *payer,
+                ata_to_create,
+                wallet: *wallet,
+                mint,
+                system_program: system_program::ID,
+                token_program,
+            },
+            bump,
+        )
     }
 }

@@ -1,18 +1,16 @@
-use crate::{AmtsAfterFee, MathError, U64FeeCeil, BPS_DENOMINATOR};
+use crate::{AmtsAfterFee, MathError, U64FeeFloor, BPS_DENOMINATOR};
 
 /// A bps fee applied to a token amount
 ///
-/// `amt_after_fee = amt * (10_000 - bps) // 10_000`
+/// `fee_charged = amt * bps // 10_000``
 ///
-/// `fee_charged = amt - amt_after_fee`
-///
-/// Effectively maximizes fee charged
+/// `amt_after_fee = amt - fee_charged`
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
-pub struct U64BpsFeeCeil(pub u16);
+pub struct U64BpsFeeFloor(pub u16);
 
-impl U64BpsFeeCeil {
-    pub const fn as_u64_fee_ceil(&self) -> U64FeeCeil<u16, u16> {
-        U64FeeCeil {
+impl U64BpsFeeFloor {
+    pub const fn to_u64_fee_floor(&self) -> U64FeeFloor<u16, u16> {
+        U64FeeFloor {
             fee_num: self.0,
             fee_denom: BPS_DENOMINATOR,
         }
@@ -23,7 +21,7 @@ impl U64BpsFeeCeil {
     /// Errors if:
     /// - bps > 10_000 (fee > 100%)
     pub fn apply(&self, amt: u64) -> Result<AmtsAfterFee, MathError> {
-        self.as_u64_fee_ceil().apply(amt)
+        self.to_u64_fee_floor().apply(amt)
     }
 
     /// Returns a possible amount that was fed into self.apply()
@@ -34,7 +32,7 @@ impl U64BpsFeeCeil {
     /// - bps > 10_000 (fee > 100%)
     /// - bps == 10_000: infinite possibilities if fee = 100%
     pub fn pseudo_reverse_from_amt_after_fee(&self, amt_after_fee: u64) -> Result<u64, MathError> {
-        self.as_u64_fee_ceil()
+        self.to_u64_fee_floor()
             .pseudo_reverse_from_amt_after_fee(amt_after_fee)
     }
 
@@ -46,7 +44,7 @@ impl U64BpsFeeCeil {
     /// - bps > 10_000 (fee > 100%)
     /// - bps == 0: can't compute amt_before_fee if no fees charged
     pub fn pseudo_reverse_from_fee_charged(&self, fee_charged: u64) -> Result<u64, MathError> {
-        self.as_u64_fee_ceil()
+        self.to_u64_fee_floor()
             .pseudo_reverse_from_fee_charged(fee_charged)
     }
 
@@ -63,8 +61,8 @@ mod tests {
 
     prop_compose! {
         fn valid_u64_fees()
-            (fee_bps in 0..=BPS_DENOMINATOR) -> U64BpsFeeCeil {
-                U64BpsFeeCeil(fee_bps)
+            (fee_bps in 0..=BPS_DENOMINATOR) -> U64BpsFeeFloor {
+                U64BpsFeeFloor(fee_bps)
             }
     }
 
@@ -82,7 +80,7 @@ mod tests {
     proptest! {
         #[test]
         fn u64_zero_fee(amt: u64) {
-            let fee = U64BpsFeeCeil(0u16);
+            let fee = U64BpsFeeFloor(0u16);
             let amts_after_fee = fee.apply(amt).unwrap();
 
             prop_assert_eq!(amts_after_fee.amt_after_fee, amt);
@@ -108,7 +106,7 @@ mod tests {
     proptest! {
         #[test]
         fn u64_fee_zero_amt_after_fee_reverse_no_op(amt_after_fee: u64) {
-            let zero_fee = U64BpsFeeCeil(0u16);
+            let zero_fee = U64BpsFeeFloor(0u16);
             let amt = zero_fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
             prop_assert_eq!(amt_after_fee, amt);
         }
@@ -118,8 +116,8 @@ mod tests {
 
     prop_compose! {
         fn valid_nonzero_u64_fees()
-            (fee_bps in 1..=BPS_DENOMINATOR) -> U64BpsFeeCeil {
-                U64BpsFeeCeil(fee_bps)
+            (fee_bps in 1..=BPS_DENOMINATOR) -> U64BpsFeeFloor {
+                U64BpsFeeFloor(fee_bps)
             }
     }
 
@@ -139,7 +137,7 @@ mod tests {
     proptest! {
         #[test]
         fn u64_fee_zero_fee_charged_reverse_err(fee_charged: u64) {
-            let zero_fee = U64BpsFeeCeil(0u16);
+            let zero_fee = U64BpsFeeFloor(0u16);
             prop_assert_eq!(zero_fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
         }
     }
@@ -157,7 +155,7 @@ mod tests {
     proptest! {
         #[test]
         fn valid_invalid(bps: u16) {
-            let fee = U64BpsFeeCeil(bps);
+            let fee = U64BpsFeeFloor(bps);
             if bps > BPS_DENOMINATOR {
                 prop_assert!(!fee.is_valid())
             } else {

@@ -1,7 +1,10 @@
 use crate::{AmtsAfterFee, MathError, U64RatioFloor};
 
-/// A fee ratio that should be <= 1.0.
-/// fee_amt = floor(amt * fee_num / fee_denom)
+/// A fee ratio applied to a token amount. Should be <= 1.0.
+///
+/// `fee_charged = amt * fee_num // fee_denom``
+///
+/// `amt_after_fee = amt - fee_charged`
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
 pub struct U64FeeFloor<N: Copy + Into<u128>, D: Copy + Into<u128>> {
     pub fee_num: N,
@@ -16,25 +19,30 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeFloor<N, D> {
         }
     }
 
-    /// Returns no fees charged if fee_num == 0 || fee_denom == 0
+    /// Returns the results of applying this fee to a token amount
+    ///
+    /// Returns:
+    /// - no fees charged if fee_num == 0 || fee_denom == 0
     ///
     /// Errors if:
     /// - fee_num > fee_denom (fee > 100%)
     pub fn apply(&self, amt: u64) -> Result<AmtsAfterFee, MathError> {
-        let fees_charged = self.fee_ratio_floor().apply(amt)?;
-        let amt_after_fee = amt.checked_sub(fees_charged).ok_or(MathError)?;
+        let fee_charged = self.fee_ratio_floor().apply(amt)?;
+        let amt_after_fee = amt.checked_sub(fee_charged).ok_or(MathError)?;
         Ok(AmtsAfterFee {
             amt_after_fee,
-            fees_charged,
+            fee_charged,
         })
     }
 
     /// Returns a possible amount that was fed into self.apply()
     ///
-    /// Returns `amt_after_apply` if fee_num == 0 || fee_denom == 0
+    /// Returns:
+    /// - `amt_after_fee` if fee_num == 0 || fee_denom == 0 (zero fees)
     ///
     /// Errors if:
     /// - fee_num > fee_denom (fee > 100%)
+    /// - fee_num == fee_denom (fee = 100%): infinite possibilities if fee = 100%
     pub fn pseudo_reverse_from_amt_after_fee(&self, amt_after_fee: u64) -> Result<u64, MathError> {
         let n = self.fee_num.into();
         let d = self.fee_denom.into();
@@ -54,21 +62,21 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeFloor<N, D> {
 
     /// Returns a possible amount that was fed into self.apply().
     ///
-    /// Returns `fees_charged` if fee_num == fee_denom (fee == 100%)
+    /// Returns `fee_charged` if fee_num == fee_denom (fee == 100%)
     ///
     /// Errors if:
     /// - fee_num > fee_denom (fee > 100%)
     /// - fee_num == 0 || fee_denom == 0: can't compute amt_before_fee if no fees charged
-    pub fn pseudo_reverse_from_fees_charged(&self, fees_charged: u64) -> Result<u64, MathError> {
+    pub fn pseudo_reverse_from_fee_charged(&self, fee_charged: u64) -> Result<u64, MathError> {
         let n = self.fee_num.into();
         let d = self.fee_denom.into();
         if n > d || n == 0 || d == 0 {
             return Err(MathError);
         }
         if n == d {
-            return Ok(fees_charged);
+            return Ok(fee_charged);
         }
-        self.fee_ratio_floor().pseudo_reverse(fees_charged)
+        self.fee_ratio_floor().pseudo_reverse(fee_charged)
     }
 
     pub fn is_valid(&self) -> bool {
@@ -116,9 +124,9 @@ mod tests {
     proptest! {
         #[test]
         fn u64_fee_invariants(amt: u64, fee in valid_u64_fees()) {
-            let AmtsAfterFee { amt_after_fee, fees_charged } = fee.apply(amt).unwrap();
+            let AmtsAfterFee { amt_after_fee, fee_charged } = fee.apply(amt).unwrap();
             prop_assert!(amt_after_fee <= amt);
-            prop_assert_eq!(amt, amt_after_fee + fees_charged);
+            prop_assert_eq!(amt, amt_after_fee + fee_charged);
         }
     }
 
@@ -126,9 +134,9 @@ mod tests {
         #[test]
         fn u64_fee_zero_no_op(amt: u64, zero_fees in zero_u64_fees()) {
             for fee in zero_fees {
-                let AmtsAfterFee { amt_after_fee, fees_charged } = fee.apply(amt).unwrap();
+                let AmtsAfterFee { amt_after_fee, fee_charged } = fee.apply(amt).unwrap();
                 prop_assert_eq!(amt_after_fee, amt);
-                prop_assert_eq!(fees_charged, 0);
+                prop_assert_eq!(fee_charged, 0);
             }
         }
     }
@@ -143,7 +151,7 @@ mod tests {
             let reversed = fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
             let apply_on_reversed = fee.apply(reversed).unwrap();
 
-            // cannot guarantee reversed == amt or fees_charged == apply_on_reversed.fees_charged
+            // cannot guarantee reversed == amt or fee_charged == apply_on_reversed.fee_charged
             prop_assert_eq!(amt_after_fee, apply_on_reversed.amt_after_fee);
         }
     }
@@ -158,7 +166,7 @@ mod tests {
         }
     }
 
-    // pseudo_reverse_from_fees_charged()
+    // pseudo_reverse_from_fee_charged()
 
     prop_compose! {
         fn valid_nonzero_u64_fees()
@@ -170,22 +178,22 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_round_trip_fees_charged(amt: u64, fee in valid_nonzero_u64_fees()) {
-            let AmtsAfterFee { fees_charged, .. } = fee.apply(amt).unwrap();
+        fn u64_fee_round_trip_fee_charged(amt: u64, fee in valid_nonzero_u64_fees()) {
+            let AmtsAfterFee { fee_charged, .. } = fee.apply(amt).unwrap();
 
-            let reversed = fee.pseudo_reverse_from_fees_charged(fees_charged).unwrap();
+            let reversed = fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
             let apply_on_reversed = fee.apply(reversed).unwrap();
 
             // cannot guarantee reversed == amt or amt_after_fee == apply_on_reversed.amt_after_fee
-            prop_assert_eq!(fees_charged, apply_on_reversed.fees_charged);
+            prop_assert_eq!(fee_charged, apply_on_reversed.fee_charged);
         }
     }
 
     proptest! {
         #[test]
-        fn u64_fee_zero_fees_charged_reverse_err(fees_charged: u64, zero_fees in zero_u64_fees()) {
+        fn u64_fee_zero_fee_charged_reverse_err(fee_charged: u64, zero_fees in zero_u64_fees()) {
             for zero_fee in zero_fees {
-                prop_assert_eq!(zero_fee.pseudo_reverse_from_fees_charged(fees_charged).unwrap_err(), MathError);
+                prop_assert_eq!(zero_fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
             }
         }
     }

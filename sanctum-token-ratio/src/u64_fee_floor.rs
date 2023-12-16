@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::{AmtsAfterFee, MathError, U64RatioFloor};
 
 /// A fee ratio applied to a token amount. Should be <= 1.0.
@@ -5,8 +7,8 @@ use crate::{AmtsAfterFee, MathError, U64RatioFloor};
 /// `fee_charged = amt * fee_num // fee_denom``
 ///
 /// `amt_after_fee = amt - fee_charged`
-#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
-pub struct U64FeeFloor<N: Copy + Into<u128>, D: Copy + Into<u128>> {
+#[derive(Debug, Copy, Clone, Default, Hash)]
+pub struct U64FeeFloor<N, D> {
     pub fee_num: N,
     pub fee_denom: D,
 }
@@ -81,6 +83,38 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeFloor<N, D> {
 
     pub fn is_valid(&self) -> bool {
         self.fee_num.into() <= self.fee_denom.into()
+    }
+}
+
+impl<
+        LN: Copy + Into<u128>,
+        LD: Copy + Into<u128>,
+        RN: Copy + Into<u128>,
+        RD: Copy + Into<u128>,
+    > PartialEq<U64FeeFloor<RN, RD>> for U64FeeFloor<LN, LD>
+{
+    fn eq(&self, other: &U64FeeFloor<RN, RD>) -> bool {
+        self.fee_ratio_floor().eq(&other.fee_ratio_floor())
+    }
+}
+
+impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Eq for U64FeeFloor<N, D> {}
+
+impl<
+        LN: Copy + Into<u128>,
+        LD: Copy + Into<u128>,
+        RN: Copy + Into<u128>,
+        RD: Copy + Into<u128>,
+    > PartialOrd<U64FeeFloor<RN, RD>> for U64FeeFloor<LN, LD>
+{
+    fn partial_cmp(&self, other: &U64FeeFloor<RN, RD>) -> Option<Ordering> {
+        self.fee_ratio_floor().partial_cmp(&other.fee_ratio_floor())
+    }
+}
+
+impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Ord for U64FeeFloor<N, D> {
+    fn cmp(&self, rhs: &Self) -> Ordering {
+        self.partial_cmp(rhs).unwrap()
     }
 }
 
@@ -277,6 +311,34 @@ mod tests {
         #[test]
         fn correct_invalid_conditions(invalid in invalid_fees()) {
             prop_assert!(!invalid.is_valid());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn ord(common: u64, a: u64, b: u64) {
+            if a == b {
+                prop_assert_eq!(
+                    U64FeeFloor { fee_num: a, fee_denom: common },
+                    U64FeeFloor { fee_num: b, fee_denom: common }
+                );
+                prop_assert_eq!(
+                    U64FeeFloor { fee_num: common, fee_denom: a },
+                    U64FeeFloor { fee_num: common, fee_denom: b }
+                );
+            }
+            let (smaller, larger) = if a < b {
+                (a, b)
+            } else {
+                (b, a)
+            };
+            let s = U64FeeFloor { fee_num: smaller, fee_denom: common };
+            let l = U64FeeFloor { fee_num: larger, fee_denom: common };
+            prop_assert!(s < l);
+
+            let s = U64FeeFloor { fee_num: common, fee_denom: larger };
+            let l = U64FeeFloor { fee_num: common, fee_denom: smaller };
+            prop_assert!(s < l);
         }
     }
 }

@@ -7,7 +7,7 @@ use crate::{AmtsAfterFee, MathError, U64FeeCeil, BPS_DENOMINATOR};
 /// `fee_charged = amt - amt_after_fee`
 ///
 /// Effectively maximizes fee charged
-#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct U64BpsFeeCeil(pub u16);
 
 impl U64BpsFeeCeil {

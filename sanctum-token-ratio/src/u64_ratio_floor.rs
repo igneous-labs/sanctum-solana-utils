@@ -1,9 +1,11 @@
+use std::cmp::Ordering;
+
 use crate::MathError;
 
 /// A ratio that is applied to a u64 token amount
 /// with floor division
-#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
-pub struct U64RatioFloor<N: Copy + Into<u128>, D: Copy + Into<u128>> {
+#[derive(Debug, Copy, Clone, Default, Hash)]
+pub struct U64RatioFloor<N, D> {
     pub num: N,
     pub denom: D,
 }
@@ -56,6 +58,56 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
     }
 }
 
+impl<
+        LN: Copy + Into<u128>,
+        LD: Copy + Into<u128>,
+        RN: Copy + Into<u128>,
+        RD: Copy + Into<u128>,
+    > PartialEq<U64RatioFloor<RN, RD>> for U64RatioFloor<LN, LD>
+{
+    fn eq(&self, rhs: &U64RatioFloor<RN, RD>) -> bool {
+        let ln: u128 = self.num.into();
+        let ld: u128 = self.denom.into();
+        let rn: u128 = rhs.num.into();
+        let rd: u128 = rhs.denom.into();
+
+        // panic on overflow, even if overflow checks off
+        let lhs = ln.checked_mul(rd).unwrap();
+        let rhs = rn.checked_mul(ld).unwrap();
+
+        lhs == rhs
+    }
+}
+
+impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Eq for U64RatioFloor<N, D> {}
+
+impl<
+        LN: Copy + Into<u128>,
+        LD: Copy + Into<u128>,
+        RN: Copy + Into<u128>,
+        RD: Copy + Into<u128>,
+    > PartialOrd<U64RatioFloor<RN, RD>> for U64RatioFloor<LN, LD>
+{
+    fn partial_cmp(&self, rhs: &U64RatioFloor<RN, RD>) -> Option<Ordering> {
+        let ln: u128 = self.num.into();
+        let ld: u128 = self.denom.into();
+        let rn: u128 = rhs.num.into();
+        let rd: u128 = rhs.denom.into();
+
+        // panic on overflow, even if overflow checks off
+        let lhs = ln.checked_mul(rd).unwrap();
+        let rhs = rn.checked_mul(ld).unwrap();
+
+        Some(lhs.cmp(&rhs))
+    }
+}
+
+impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Ord for U64RatioFloor<N, D> {
+    fn cmp(&self, rhs: &Self) -> Ordering {
+        self.partial_cmp(rhs).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
@@ -63,7 +115,7 @@ mod tests {
     use super::*;
 
     prop_compose! {
-        fn u64_ratio_gte_one()
+        fn ratio_gte_one()
             (denom in any::<u64>())
             (num in denom..=u64::MAX, denom in Just(denom)) -> U64RatioFloor<u64, u64> {
                 U64RatioFloor { num, denom }
@@ -71,7 +123,7 @@ mod tests {
     }
 
     prop_compose! {
-        fn u64_ratio_lte_one()
+        fn ratio_lte_one()
             (denom in any::<u64>())
             (num in 0..=denom, denom in Just(denom)) -> U64RatioFloor<u64, u64> {
                 U64RatioFloor { num, denom }
@@ -80,8 +132,8 @@ mod tests {
 
     prop_compose! {
         /// max_limit is the max number that ratio can be applied to without overflowing u64
-        fn u64_ratio_gte_one_and_overflow_max_limit()
-            (u64ratio in u64_ratio_gte_one()) -> (u64, U64RatioFloor<u64, u64>) {
+        fn ratio_gte_one_and_overflow_max_limit()
+            (u64ratio in ratio_gte_one()) -> (u64, U64RatioFloor<u64, u64>) {
                 if u64ratio.num == 0 {
                     return (u64::MAX, u64ratio);
                 }
@@ -94,8 +146,8 @@ mod tests {
     }
 
     prop_compose! {
-        fn u64_ratio_gte_one_amt_no_overflow()
-            ((maxlimit, u64ratio) in u64_ratio_gte_one_and_overflow_max_limit())
+        fn ratio_gte_one_amt_no_overflow()
+            ((maxlimit, u64ratio) in ratio_gte_one_and_overflow_max_limit())
             (amt in 0..=maxlimit, u64ratio in Just(u64ratio)) -> (u64, U64RatioFloor<u64, u64>) {
                 (amt, u64ratio)
             }
@@ -103,7 +155,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_ratio_gte_one_round_trip((amt, ratio) in u64_ratio_gte_one_amt_no_overflow()) {
+        fn ratio_gte_one_round_trip((amt, ratio) in ratio_gte_one_amt_no_overflow()) {
             let applied = ratio.apply(amt).unwrap();
             let reversed = ratio.pseudo_reverse(applied).unwrap();
             prop_assert_eq!(reversed, amt);
@@ -112,7 +164,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_ratio_lte_one_round_trip(amt: u64, ratio in u64_ratio_lte_one()) {
+        fn ratio_lte_one_round_trip(amt: u64, ratio in ratio_lte_one()) {
             let applied = ratio.apply(amt).unwrap();
             let reversed = ratio.pseudo_reverse(applied).unwrap();
             // will not always be eq due to floor
@@ -125,7 +177,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_zero_denom(num: u64, denom in Just(0u64), amt: u64) {
+        fn zero_denom(num: u64, denom in Just(0u64), amt: u64) {
             let ratio = U64RatioFloor { num, denom };
             prop_assert_eq!(ratio.apply(amt).unwrap(), 0);
             prop_assert_eq!(ratio.pseudo_reverse(amt).unwrap(), 0);
@@ -134,10 +186,38 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_zero_num(num in Just(0u64), denom: u64, amt: u64) {
+        fn zero_num(num in Just(0u64), denom: u64, amt: u64) {
             let ratio = U64RatioFloor { num, denom };
             prop_assert_eq!(ratio.apply(amt).unwrap(), 0);
             prop_assert_eq!(ratio.pseudo_reverse(amt).unwrap(), 0);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn ord(common: u64, a: u64, b: u64) {
+            if a == b {
+                prop_assert_eq!(
+                    U64RatioFloor { num: a, denom: common },
+                    U64RatioFloor { num: b, denom: common }
+                );
+                prop_assert_eq!(
+                    U64RatioFloor { num: common, denom: a },
+                    U64RatioFloor { num: common, denom: b }
+                );
+            }
+            let (smaller, larger) = if a < b {
+                (a, b)
+            } else {
+                (b, a)
+            };
+            let s = U64RatioFloor { num: smaller, denom: common };
+            let l = U64RatioFloor { num: larger, denom: common };
+            prop_assert!(s < l);
+
+            let s = U64RatioFloor { num: common, denom: larger };
+            let l = U64RatioFloor { num: common, denom: smaller };
+            prop_assert!(s < l);
         }
     }
 }

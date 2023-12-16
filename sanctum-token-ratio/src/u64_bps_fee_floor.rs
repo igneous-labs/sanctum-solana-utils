@@ -5,7 +5,7 @@ use crate::{AmtsAfterFee, MathError, U64FeeFloor, BPS_DENOMINATOR};
 /// `fee_charged = amt * bps // 10_000``
 ///
 /// `amt_after_fee = amt - fee_charged`
-#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct U64BpsFeeFloor(pub u16);
 
 impl U64BpsFeeFloor {

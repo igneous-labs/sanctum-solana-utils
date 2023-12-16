@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 93a6eaf855f5e81be6b70c681eae0f47820d836d54b6d2b3be84ead5352787a4 # shrinks to amt = 273631845844944766, fee = U64FeeFloor { fee_num: 2535615, fee_denom: 48200875422105 }

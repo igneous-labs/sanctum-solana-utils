@@ -59,10 +59,35 @@ mod tests {
 
     use super::*;
 
+    const ZERO_FEE: U64BpsFeeFloor = U64BpsFeeFloor(0);
+
+    const MAX_FEE: U64BpsFeeFloor = U64BpsFeeFloor(BPS_DENOMINATOR);
+
     prop_compose! {
-        fn valid_u64_fees()
-            (fee_bps in 0..=BPS_DENOMINATOR) -> U64BpsFeeFloor {
-                U64BpsFeeFloor(fee_bps)
+        fn invalid_fees()
+            (bps in 10_001..=u16::MAX) -> U64BpsFeeFloor {
+                U64BpsFeeFloor(bps)
+            }
+    }
+
+    prop_compose! {
+        fn valid_fees()
+            (bps in 0..=BPS_DENOMINATOR) -> U64BpsFeeFloor {
+                U64BpsFeeFloor(bps)
+            }
+    }
+
+    prop_compose! {
+        fn valid_nonzero_fees()
+            (bps in 1..=BPS_DENOMINATOR) -> U64BpsFeeFloor {
+                U64BpsFeeFloor(bps)
+            }
+    }
+
+    prop_compose! {
+        fn valid_nonmax_fees()
+            (bps in 0..BPS_DENOMINATOR) -> U64BpsFeeFloor {
+                U64BpsFeeFloor(bps)
             }
     }
 
@@ -70,7 +95,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_invariants(amt: u64, fee in valid_u64_fees()) {
+        fn fee_invariants(amt: u64, fee in valid_fees()) {
             let AmtsAfterFee { amt_after_fee, fee_charged } = fee.apply(amt).unwrap();
             prop_assert!(amt_after_fee <= amt);
             prop_assert_eq!(amt, amt_after_fee + fee_charged);
@@ -79,12 +104,24 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_zero_fee(amt: u64) {
-            let fee = U64BpsFeeFloor(0u16);
-            let amts_after_fee = fee.apply(amt).unwrap();
+        fn zero_fee_apply_no_op(amt: u64) {
+            let AmtsAfterFee { amt_after_fee, fee_charged } = ZERO_FEE.apply(amt).unwrap();
+            prop_assert_eq!(amt_after_fee, amt);
+            prop_assert_eq!(fee_charged, 0);
+        }
+    }
 
-            prop_assert_eq!(amts_after_fee.amt_after_fee, amt);
-            prop_assert_eq!(amts_after_fee.fee_charged, 0);
+    proptest! {
+        #[test]
+        fn max_fee_apply_zero(amt: u64) {
+            prop_assert_eq!(MAX_FEE.apply(amt).unwrap(), AmtsAfterFee { amt_after_fee: 0, fee_charged: amt });
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn invalid_fee_apply_err(amt: u64, fee in invalid_fees()) {
+            prop_assert_eq!(fee.apply(amt).unwrap_err(), MathError);
         }
     }
 
@@ -92,7 +129,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_round_trip_amt_after_fee(amt: u64, fee in valid_u64_fees()) {
+        fn amt_after_fee_round_trip(amt: u64, fee in valid_nonmax_fees()) {
             let AmtsAfterFee { amt_after_fee, .. } = fee.apply(amt).unwrap();
 
             let reversed = fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
@@ -105,25 +142,31 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_zero_amt_after_fee_reverse_no_op(amt_after_fee: u64) {
-            let zero_fee = U64BpsFeeFloor(0u16);
-            let amt = zero_fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
+        fn zero_fee_amt_after_fee_reverse_no_op(amt_after_fee: u64) {
+            let amt = ZERO_FEE.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
             prop_assert_eq!(amt_after_fee, amt);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn max_fee_amt_after_fee_reverse_err(amt_after_fee: u64) {
+            prop_assert_eq!(MAX_FEE.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn invalid_fee_amt_after_fee_reverse_err(amt_after_fee: u64, fee in invalid_fees()) {
+            prop_assert_eq!(fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
         }
     }
 
     // pseudo_reverse_from_fee_charged()
 
-    prop_compose! {
-        fn valid_nonzero_u64_fees()
-            (fee_bps in 1..=BPS_DENOMINATOR) -> U64BpsFeeFloor {
-                U64BpsFeeFloor(fee_bps)
-            }
-    }
-
     proptest! {
         #[test]
-        fn u64_fee_round_trip_fee_charged(amt: u64, fee in valid_nonzero_u64_fees()) {
+        fn fee_charged_round_trip(amt: u64, fee in valid_nonzero_fees()) {
             let AmtsAfterFee { fee_charged, .. } = fee.apply(amt).unwrap();
 
             let reversed = fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
@@ -136,31 +179,39 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_zero_fee_charged_reverse_err(fee_charged: u64) {
-            let zero_fee = U64BpsFeeFloor(0u16);
-            prop_assert_eq!(zero_fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
+        fn zero_fee_fee_charged_reverse_err(fee_charged: u64) {
+            prop_assert_eq!(ZERO_FEE.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn max_fee_fee_charged_reverse_no_op(fee_charged: u64) {
+            let amt = MAX_FEE.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
+            prop_assert_eq!(fee_charged, amt);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn invalid_fee_fee_charged_reverse_err(fee_charged: u64, fee in invalid_fees()) {
+            prop_assert_eq!(fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
         }
     }
 
     // is_valid()
 
-    prop_compose! {
-        fn u64_smaller_larger()
-            (boundary in any::<u64>())
-            (smaller in 0..=boundary, larger in boundary..=u64::MAX) -> (u64, u64) {
-                (smaller, larger)
-            }
+    proptest! {
+        #[test]
+        fn correct_valid_conditions(valid in valid_fees()) {
+            prop_assert!(valid.is_valid());
+        }
     }
 
     proptest! {
         #[test]
-        fn valid_invalid(bps: u16) {
-            let fee = U64BpsFeeFloor(bps);
-            if bps > BPS_DENOMINATOR {
-                prop_assert!(!fee.is_valid())
-            } else {
-                prop_assert!(fee.is_valid())
-            }
+        fn correct_invalid_conditions(invalid in invalid_fees()) {
+            prop_assert!(!invalid.is_valid());
         }
     }
 }

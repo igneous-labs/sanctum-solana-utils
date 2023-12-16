@@ -100,7 +100,15 @@ mod tests {
     use super::*;
 
     prop_compose! {
-        fn valid_u64_fees()
+        fn invalid_fees()
+            (fee_num in any::<u64>())
+            (fee_denom in 1..fee_num, fee_num in Just(fee_num)) -> U64FeeCeil<u64, u64> {
+                U64FeeCeil { fee_num, fee_denom }
+            }
+    }
+
+    prop_compose! {
+        fn valid_fees()
             (fee_denom in any::<u64>())
             (fee_num in 0..=fee_denom, fee_denom in Just(fee_denom)) -> U64FeeCeil<u64, u64> {
                 U64FeeCeil { fee_num, fee_denom }
@@ -108,22 +116,45 @@ mod tests {
     }
 
     prop_compose! {
-        fn zero_denom_u64_fees()
+        fn valid_nonzero_fees()
+            (fee_denom in any::<u64>())
+            (fee_num in 1..=fee_denom, fee_denom in Just(fee_denom)) -> U64FeeCeil<u64, u64> {
+                U64FeeCeil { fee_num, fee_denom }
+            }
+    }
+
+    prop_compose! {
+        fn valid_nonmax_fees()
+            (fee_denom in any::<u64>())
+            (fee_num in 0..fee_denom, fee_denom in Just(fee_denom)) -> U64FeeCeil<u64, u64> {
+                U64FeeCeil { fee_num, fee_denom }
+            }
+    }
+
+    prop_compose! {
+        fn valid_max_fees()
+            (n in 1..=u64::MAX) -> U64FeeCeil<u64, u64> {
+                U64FeeCeil { fee_num: n, fee_denom: n }
+            }
+    }
+
+    prop_compose! {
+        fn valid_zero_denom_fees()
             (fee_num in 0..=u64::MAX, fee_denom in Just(0)) -> U64FeeCeil<u64, u64> {
                 U64FeeCeil { fee_num, fee_denom }
             }
     }
 
     prop_compose! {
-        fn zero_num_u64_fees()
+        fn valid_zero_num_fees()
             (fee_num in Just(0), fee_denom in 0..=u64::MAX) -> U64FeeCeil<u64, u64> {
                 U64FeeCeil { fee_num, fee_denom }
             }
     }
 
     prop_compose! {
-        fn zero_u64_fees()
-            (zero_num in zero_num_u64_fees(), zero_denom in zero_denom_u64_fees()) -> [U64FeeCeil<u64, u64>; 2] {
+        fn valid_zero_fees()
+            (zero_num in valid_zero_num_fees(), zero_denom in valid_zero_denom_fees()) -> [U64FeeCeil<u64, u64>; 2] {
                 [zero_num, zero_denom]
             }
     }
@@ -132,7 +163,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_invariants(amt: u64, fee in valid_u64_fees()) {
+        fn fee_invariants(amt: u64, fee in valid_fees()) {
             let AmtsAfterFee { amt_after_fee, fee_charged } = fee.apply(amt).unwrap();
             prop_assert!(amt_after_fee <= amt);
             prop_assert_eq!(amt, amt_after_fee + fee_charged);
@@ -141,7 +172,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_zero_no_op(amt: u64, zero_fees in zero_u64_fees()) {
+        fn zero_fee_apply_no_op(amt: u64, zero_fees in valid_zero_fees()) {
             for fee in zero_fees {
                 let AmtsAfterFee { amt_after_fee, fee_charged } = fee.apply(amt).unwrap();
                 prop_assert_eq!(amt_after_fee, amt);
@@ -150,11 +181,25 @@ mod tests {
         }
     }
 
+    proptest! {
+        #[test]
+        fn max_fee_apply_zero(amt: u64, fee in valid_max_fees()) {
+            prop_assert_eq!(fee.apply(amt).unwrap(), AmtsAfterFee { amt_after_fee: 0, fee_charged: amt });
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn invalid_fee_apply_err(amt: u64, fee in invalid_fees()) {
+            prop_assert_eq!(fee.apply(amt).unwrap_err(), MathError);
+        }
+    }
+
     // pseudo_reverse_from_amt_after_fee()
 
     proptest! {
         #[test]
-        fn u64_fee_round_trip_amt_after_fee(amt: u64, fee in valid_u64_fees()) {
+        fn amt_after_fee_round_trip(amt: u64, fee in valid_nonmax_fees()) {
             let AmtsAfterFee { amt_after_fee, .. } = fee.apply(amt).unwrap();
 
             let reversed = fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
@@ -167,7 +212,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_zero_amt_after_fee_reverse_no_op(amt_after_fee: u64, zero_fees in zero_u64_fees()) {
+        fn zero_fee_amt_after_fee_reverse_no_op(amt_after_fee: u64, zero_fees in valid_zero_fees()) {
             for zero_fee in zero_fees {
                 let amt = zero_fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
                 prop_assert_eq!(amt_after_fee, amt);
@@ -175,19 +220,25 @@ mod tests {
         }
     }
 
-    // pseudo_reverse_from_fee_charged()
-
-    prop_compose! {
-        fn valid_nonzero_u64_fees()
-            (fee_denom in any::<u64>())
-            (fee_num in 1..=fee_denom, fee_denom in Just(fee_denom)) -> U64FeeCeil<u64, u64> {
-                U64FeeCeil { fee_num, fee_denom }
-            }
+    proptest! {
+        #[test]
+        fn max_fee_amt_after_fee_reverse_err(amt_after_fee: u64, fee in valid_max_fees()) {
+            prop_assert_eq!(fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+        }
     }
 
     proptest! {
         #[test]
-        fn u64_fee_round_trip_fee_charged(amt: u64, fee in valid_nonzero_u64_fees()) {
+        fn invalid_fee_amt_after_fee_reverse_err(amt_after_fee: u64, fee in invalid_fees()) {
+            prop_assert_eq!(fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+        }
+    }
+
+    // pseudo_reverse_from_fee_charged()
+
+    proptest! {
+        #[test]
+        fn fee_charged_round_trip(amt: u64, fee in valid_nonzero_fees()) {
             let AmtsAfterFee { fee_charged, .. } = fee.apply(amt).unwrap();
 
             let reversed = fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
@@ -200,32 +251,41 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_zero_fee_charged_reverse_err(fee_charged: u64, zero_fees in zero_u64_fees()) {
+        fn zero_fee_fee_charged_reverse_err(fee_charged: u64, zero_fees in valid_zero_fees()) {
             for zero_fee in zero_fees {
                 prop_assert_eq!(zero_fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
             }
         }
     }
 
-    // is_valid()
-
-    prop_compose! {
-        fn u64_smaller_larger()
-            (boundary in any::<u64>())
-            (smaller in 0..=boundary, larger in boundary..=u64::MAX) -> (u64, u64) {
-                (smaller, larger)
-            }
+    proptest! {
+        #[test]
+        fn max_fee_fee_charged_reverse_no_op(fee_charged: u64, fee in valid_max_fees()) {
+            let amt = fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
+            prop_assert_eq!(fee_charged, amt);
+        }
     }
 
     proptest! {
         #[test]
-        fn correct_valid_invalid_conditions((smaller, larger) in u64_smaller_larger()) {
-            let valid = U64FeeCeil { fee_num: smaller, fee_denom: larger };
+        fn invalid_fee_fee_charged_reverse_err(fee_charged: u64, fee in invalid_fees()) {
+            prop_assert_eq!(fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
+        }
+    }
+
+    // is_valid()
+
+    proptest! {
+        #[test]
+        fn correct_valid_conditions(valid in valid_fees()) {
             prop_assert!(valid.is_valid());
-            if smaller != larger {
-                let invalid = U64FeeCeil { fee_num: larger, fee_denom: smaller };
-                prop_assert!(!invalid.is_valid());
-            }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn correct_invalid_conditions(invalid in invalid_fees()) {
+            prop_assert!(!invalid.is_valid());
         }
     }
 }

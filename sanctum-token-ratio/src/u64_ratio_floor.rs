@@ -12,11 +12,11 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
     /// Returns amt * num // denom
     /// Returns 0 if denominator == 0
     pub fn apply(&self, amt: u64) -> Result<u64, MathError> {
-        let d = self.denom.into();
+        let d: u128 = self.denom.into();
         if d == 0 {
             return Ok(0);
         }
-        let n = self.num.into();
+        let n: u128 = self.num.into();
         let x: u128 = amt.into();
         x.checked_mul(n)
             .map(|nx| nx / d) // d != 0
@@ -26,8 +26,8 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
 
     /// Returns 0 if denominator == 0 || numerator == 0
     pub fn pseudo_reverse(&self, amt_after_apply: u64) -> Result<u64, MathError> {
-        let d = self.denom.into();
-        let n = self.num.into();
+        let d: u128 = self.denom.into();
+        let n: u128 = self.num.into();
         if d == 0 || n == 0 {
             return Ok(0);
         }

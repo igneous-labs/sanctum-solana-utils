@@ -9,7 +9,7 @@ pub struct U64FeeFloor<N: Copy + Into<u128>, D: Copy + Into<u128>> {
 }
 
 impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeFloor<N, D> {
-    pub const fn fee_ratio_floor(&self) -> U64RatioFloor<N, D> {
+    const fn fee_ratio_floor(&self) -> U64RatioFloor<N, D> {
         U64RatioFloor {
             num: self.fee_num,
             denom: self.fee_denom,
@@ -34,7 +34,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeFloor<N, D> {
     /// Returns `amt_after_apply` if fee_num == 0 || fee_denom == 0
     ///
     /// Errors if:
-    /// - fee_num >= fee_denom (fee >= 100%)
+    /// - fee_num > fee_denom (fee > 100%)
     pub fn pseudo_reverse_from_amt_after_fee(&self, amt_after_fee: u64) -> Result<u64, MathError> {
         let n = self.fee_num.into();
         let d = self.fee_denom.into();
@@ -52,16 +52,21 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeFloor<N, D> {
         q_floor.try_into().map_err(|_e| MathError)
     }
 
-    /// Returns a possible amount that was fed into self.apply()
+    /// Returns a possible amount that was fed into self.apply().
+    ///
+    /// Returns `fees_charged` if fee_num == fee_denom (fee == 100%)
     ///
     /// Errors if:
-    /// - fee_num >= fee_denom (fee >= 100%)
+    /// - fee_num > fee_denom (fee > 100%)
     /// - fee_num == 0 || fee_denom == 0: can't compute amt_before_fee if no fees charged
     pub fn pseudo_reverse_from_fees_charged(&self, fees_charged: u64) -> Result<u64, MathError> {
         let n = self.fee_num.into();
         let d = self.fee_denom.into();
-        if n >= d || n == 0 || d == 0 {
+        if n > d || n == 0 || d == 0 {
             return Err(MathError);
+        }
+        if n == d {
+            return Ok(fees_charged);
         }
         self.fee_ratio_floor().pseudo_reverse(fees_charged)
     }
@@ -106,6 +111,8 @@ mod tests {
             }
     }
 
+    // basic
+
     proptest! {
         #[test]
         fn u64_fee_invariants(amt: u64, fee in valid_u64_fees()) {
@@ -114,6 +121,19 @@ mod tests {
             prop_assert_eq!(amt, amt_after_fee + fees_charged);
         }
     }
+
+    proptest! {
+        #[test]
+        fn u64_fee_zero_no_op(amt: u64, zero_fees in zero_u64_fees()) {
+            for fee in zero_fees {
+                let AmtsAfterFee { amt_after_fee, fees_charged } = fee.apply(amt).unwrap();
+                prop_assert_eq!(amt_after_fee, amt);
+                prop_assert_eq!(fees_charged, 0);
+            }
+        }
+    }
+
+    // pseudo_reverse_from_amt_after_fee()
 
     proptest! {
         #[test]
@@ -130,17 +150,6 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u64_fee_zero_no_op(amt: u64, zero_fees in zero_u64_fees()) {
-            for fee in zero_fees {
-                let AmtsAfterFee { amt_after_fee, fees_charged } = fee.apply(amt).unwrap();
-                prop_assert_eq!(amt_after_fee, amt);
-                prop_assert_eq!(fees_charged, 0);
-            }
-        }
-    }
-
-    proptest! {
-        #[test]
         fn u64_fee_zero_amt_after_fee_reverse_no_op(amt_after_fee: u64, zero_fees in zero_u64_fees()) {
             for zero_fee in zero_fees {
                 let amt = zero_fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
@@ -148,6 +157,8 @@ mod tests {
             }
         }
     }
+
+    // pseudo_reverse_from_fees_charged()
 
     prop_compose! {
         fn valid_nonzero_u64_fees()
@@ -178,6 +189,8 @@ mod tests {
             }
         }
     }
+
+    // is_valid()
 
     prop_compose! {
         fn u64_smaller_larger()

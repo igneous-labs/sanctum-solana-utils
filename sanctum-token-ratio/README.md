@@ -6,7 +6,11 @@ Utils for working with applying ratios to `u64` token amounts.
 
 ### "Inverting" a floor division
 
-Many stake pools convert LST amount to SOL amount by taking `sol_amount = lst_amount * pool_sol // lst_supply`.
+Many stake pools convert LST amount to SOL amount by taking
+
+```
+sol_amount = lst_amount * pool_sol // lst_supply
+```
 
 Let y = sol_amount, x = lst_amount, n = pool_sol, d = lst_supply.
 
@@ -47,7 +51,11 @@ Implemented in `U64RatioFloor::pseudo_reverse()`
 
 ### "Inverting" a floor fee charge
 
-Many stake pools charge a percentage fee on stuff by taking `fee_amount = amount * fee_numerator // fee_denominator, output_amount = amount - fee_amount`.
+Many stake pools charge a percentage fee on stuff by taking
+
+```
+fee_amount = amount * fee_numerator // fee_denominator, output_amount = amount - fee_amount
+```
 
 Let y = output_amount, x = amount, n = fee_numerator, d = fee_denominator
 
@@ -86,3 +94,35 @@ fees = floor(nx/d)
 ```
 
 Same as ["Inverting" a floor division](#inverting-a-floor-division) above.
+
+### "Inverting" a ceiling fee charge from fees amount
+
+Many stake pools charge a percentage fee on stuff by taking
+
+```
+amount_after_fee = amount * (fee_denominator - fee_numerator) // fee_denominator
+fee = amount - amount_after_fee
+```
+
+Let f = fee, x = amount, n = fee_numerator, d = fee_denominator
+
+```
+f = x - floor(x(d-n)/d)
+floor(x(d-n)/d) = x-f
+floor(x - nx/d) = x-f
+x-f <= x-nx/d < x-f+1
+
+LHS:
+x-f <= x-nx/d
+nx/d <= f
+x <= df/n
+
+RHS:
+x-nx/d < x-f+1
+f-1 < nx/d
+d(f-1)/n < x
+df/n - d/n < x
+
+Since d >= n, d/n >= 1,
+x = floor(df/n) is always a valid candidate
+```

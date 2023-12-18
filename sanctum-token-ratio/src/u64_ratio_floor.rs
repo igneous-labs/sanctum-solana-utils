@@ -58,7 +58,6 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
         // n != 0 here, safe to do unchecked division
 
         let dy = y.checked_mul(d).ok_or(MathError)?;
-        println!("{}", dy / n);
         let mut min: u64 = (dy / n).try_into().map_err(|_e| MathError)?;
         let min_rem = dy % n;
         if min_rem != 0 {

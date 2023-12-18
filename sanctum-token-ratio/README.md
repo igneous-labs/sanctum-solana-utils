@@ -48,7 +48,7 @@ r <= n-r-d
 2r <= n - d
 ```
 
-Implemented in `U64RatioFloor::pseudo_reverse()`
+Implemented in `U64RatioFloor::reverse()`
 
 ### "Inverting" a floor fee charge
 
@@ -88,7 +88,7 @@ d/(d-n) >= 1,
 x = floor(dy/(d-n)) is always a possible candidate
 ```
 
-Implemented in `U64FeeFloor::pseudo_reverse_from_amt_after_fee()`
+Implemented in `U64FeeFloor::reverse_from_amt_after_fee()`
 
 ### "Inverting" a floor fee charge from fees amount
 

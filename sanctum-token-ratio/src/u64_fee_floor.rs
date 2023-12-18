@@ -160,7 +160,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Ord for U64FeeFloor<N, D> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use proptest::prelude::*;
 

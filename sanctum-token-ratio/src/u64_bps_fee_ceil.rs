@@ -71,7 +71,7 @@ impl U64BpsFeeCeil {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use proptest::prelude::*;
 
@@ -143,7 +143,7 @@ mod tests {
         }
     }
 
-    // pseudo_reverse_from_amt_after_fee()
+    // reverse_from_amt_after_fee()
 
     proptest! {
         #[test]
@@ -187,7 +187,7 @@ mod tests {
         }
     }
 
-    // pseudo_reverse_from_fee_charged()
+    // reverse_from_fee_charged()
 
     proptest! {
         #[test]

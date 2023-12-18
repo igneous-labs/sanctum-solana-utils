@@ -2,10 +2,9 @@
 resolver = "2"
 
 members = [
-    # libs/* results in crates being undiscoverable when imported via git
-    "libs/sanctum-associated-token-lib",
-    "libs/sanctum-system-program-lib",
-    "libs/sanctum-token-lib",
+    "sanctum-associated-token-lib",
+    "sanctum-system-program-lib",
+    "sanctum-token-lib",
     "sanctum-misc-utils",
     "sanctum-solana-test-utils",
     "sanctum-token-ratio",

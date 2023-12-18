@@ -15,7 +15,13 @@ use crate::{AmtsAfterFee, MathError, U64FeeCeil, U64ValueRange, BPS_DENOMINATOR}
 )]
 pub struct U64BpsFeeCeil(pub u16);
 
+#[cfg(feature = "borsh")]
+pub const U64_BPS_FEE_CEIL_BORSH_SER_LEN: usize = 2;
+
 impl U64BpsFeeCeil {
+    pub const ZERO: Self = Self(0);
+    pub const MAX: Self = Self(BPS_DENOMINATOR);
+
     pub const fn as_u64_fee_ceil(&self) -> U64FeeCeil<u16, u16> {
         U64FeeCeil {
             fee_num: self.0,
@@ -77,10 +83,6 @@ mod tests {
 
     use super::*;
 
-    const ZERO_FEE: U64BpsFeeCeil = U64BpsFeeCeil(0);
-
-    const MAX_FEE: U64BpsFeeCeil = U64BpsFeeCeil(BPS_DENOMINATOR);
-
     prop_compose! {
         fn invalid_fees()
             (bps in 10_001..=u16::MAX) -> U64BpsFeeCeil {
@@ -123,7 +125,7 @@ mod tests {
     proptest! {
         #[test]
         fn zero_fee_apply_no_op(amt: u64) {
-            let AmtsAfterFee { amt_after_fee, fee_charged } = ZERO_FEE.apply(amt).unwrap();
+            let AmtsAfterFee { amt_after_fee, fee_charged } = U64BpsFeeCeil::ZERO.apply(amt).unwrap();
             prop_assert_eq!(amt_after_fee, amt);
             prop_assert_eq!(fee_charged, 0);
         }
@@ -132,7 +134,7 @@ mod tests {
     proptest! {
         #[test]
         fn max_fee_apply_zero(amt: u64) {
-            prop_assert_eq!(MAX_FEE.apply(amt).unwrap(), AmtsAfterFee { amt_after_fee: 0, fee_charged: amt });
+            prop_assert_eq!(U64BpsFeeCeil::MAX.apply(amt).unwrap(), AmtsAfterFee { amt_after_fee: 0, fee_charged: amt });
         }
     }
 
@@ -161,21 +163,21 @@ mod tests {
     proptest! {
         #[test]
         fn zero_fee_amt_after_fee_reverse_no_op(amt_after_fee: u64) {
-            prop_assert_eq!(ZERO_FEE.reverse_from_amt_after_fee(amt_after_fee).unwrap(), U64ValueRange::single(amt_after_fee));
+            prop_assert_eq!(U64BpsFeeCeil::ZERO.reverse_from_amt_after_fee(amt_after_fee).unwrap(), U64ValueRange::single(amt_after_fee));
         }
     }
 
     proptest! {
         #[test]
         fn max_fee_nonzero_amt_after_fee_reverse_err(non_zero_amt_after_fee in 1..=u64::MAX) {
-            prop_assert_eq!(MAX_FEE.reverse_from_amt_after_fee(non_zero_amt_after_fee).unwrap_err(), MathError);
+            prop_assert_eq!(U64BpsFeeCeil::MAX.reverse_from_amt_after_fee(non_zero_amt_after_fee).unwrap_err(), MathError);
         }
     }
 
     #[test]
     fn max_fee_zero_amt_after_fee_reverse_range_full() {
         assert_eq!(
-            MAX_FEE.reverse_from_amt_after_fee(0).unwrap(),
+            U64BpsFeeCeil::MAX.reverse_from_amt_after_fee(0).unwrap(),
             U64ValueRange::full()
         );
     }
@@ -205,14 +207,14 @@ mod tests {
     proptest! {
         #[test]
         fn zero_fee_nonzero_fee_charged_reverse_err(nonzero_fee_charged in 1..=u64::MAX) {
-            prop_assert_eq!(ZERO_FEE.reverse_from_fee_charged(nonzero_fee_charged).unwrap_err(), MathError);
+            prop_assert_eq!(U64BpsFeeCeil::ZERO.reverse_from_fee_charged(nonzero_fee_charged).unwrap_err(), MathError);
         }
     }
 
     #[test]
     fn zero_fee_zero_fee_charged_reverse_range_full() {
         assert_eq!(
-            ZERO_FEE.reverse_from_fee_charged(0).unwrap(),
+            U64BpsFeeCeil::ZERO.reverse_from_fee_charged(0).unwrap(),
             U64ValueRange::full()
         );
     }
@@ -220,7 +222,7 @@ mod tests {
     proptest! {
         #[test]
         fn max_fee_fee_charged_reverse_no_op(fee_charged: u64) {
-            prop_assert_eq!(MAX_FEE.reverse_from_fee_charged(fee_charged).unwrap(), U64ValueRange::single(fee_charged));
+            prop_assert_eq!(U64BpsFeeCeil::MAX.reverse_from_fee_charged(fee_charged).unwrap(), U64ValueRange::single(fee_charged));
         }
     }
 

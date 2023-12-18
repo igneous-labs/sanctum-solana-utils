@@ -10,6 +10,9 @@ pub struct AmtsAfterFee {
     pub fee_charged: u64,
 }
 
+#[cfg(feature = "borsh")]
+pub const AMTS_AFTER_FEE_BORSH_SER_LEN: usize = 16;
+
 /// A range of u64 values. Values inclusive.
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -21,6 +24,9 @@ pub struct U64ValueRange {
     pub min: u64,
     pub max: u64,
 }
+
+#[cfg(feature = "borsh")]
+pub const U64_VALUE_RANGE_BORSH_SER_LEN: usize = 16;
 
 impl U64ValueRange {
     /// `[0, 0]`

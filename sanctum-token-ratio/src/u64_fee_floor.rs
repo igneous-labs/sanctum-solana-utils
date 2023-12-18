@@ -1,6 +1,6 @@
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
-use crate::{AmtsAfterFee, MathError, U64RatioFloor};
+use crate::{AmtsAfterFee, MathError, U64RatioFloor, U64ValueRange};
 
 /// A fee ratio applied to a token amount. Should be <= 1.0.
 ///
@@ -8,6 +8,11 @@ use crate::{AmtsAfterFee, MathError, U64RatioFloor};
 ///
 /// `amt_after_fee = amt - fee_charged`
 #[derive(Debug, Copy, Clone, Default, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 pub struct U64FeeFloor<N, D> {
     pub fee_num: N,
     pub fee_denom: D,
@@ -40,49 +45,86 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeFloor<N, D> {
     /// Returns a possible amount that was fed into self.apply()
     ///
     /// Returns:
-    /// - `amt_after_fee` if fee_num == 0 || fee_denom == 0 (zero fees)
+    /// - `U64ValueRange::single(amt_after_fee)` if fee_num == 0 || fee_denom == 0 (zero fees)
+    /// - `U64ValueRange::full()` if fee_num == fee_denom (fee = 100%) and amt_after_fee == 0
+    /// - `U64ValueRange::zero()` if fee != 100% and fee != 0 and amt_after_fee = 0
     ///
     /// Errors if:
     /// - fee_num > fee_denom (fee > 100%)
-    /// - fee_num == fee_denom (fee = 100%): infinite possibilities if fee = 100%
-    pub fn pseudo_reverse_from_amt_after_fee(&self, amt_after_fee: u64) -> Result<u64, MathError> {
+    /// - fee_num == fee_denom but amt_after_fee != 0
+    pub fn reverse_from_amt_after_fee(
+        &self,
+        amt_after_fee: u64,
+    ) -> Result<U64ValueRange, MathError> {
         let n = self.fee_num.into();
         let d = self.fee_denom.into();
         if n == 0 || d == 0 {
-            return Ok(amt_after_fee);
+            return Ok(U64ValueRange::single(amt_after_fee));
         }
-        if n >= d {
+        if n > d {
             return Err(MathError);
         }
-        let y: u128 = amt_after_fee.into();
-        let dy = y.checked_mul(d).ok_or(MathError)?;
-        let d_minus_n = d - n; // n < d checked above
-        let q_floor = dy / d_minus_n; // d_minus_n != 0 since d != n
+        if n == d {
+            if amt_after_fee != 0 {
+                return Err(MathError);
+            } else {
+                return Ok(U64ValueRange::full());
+            }
+        }
+        if amt_after_fee == 0 {
+            return Ok(U64ValueRange::zero());
+        }
 
-        q_floor.try_into().map_err(|_e| MathError)
+        let y: u128 = amt_after_fee.into();
+        let d_minus_n = d - n; // n < d checked above
+
+        let dy = d.checked_mul(y).ok_or(MathError)?;
+        let max = (dy / d_minus_n).try_into().map_err(|_e| MathError)?; // d_minus_n != 0 since d != n
+
+        let y_minus_1 = y - 1; // y != 0 checked above
+        let dy_minus_1 = d.checked_mul(y_minus_1).ok_or(MathError)?;
+        let min = (dy_minus_1 / d_minus_n) // d_minus_n != 0 since d != n
+            .saturating_add(1)
+            .try_into()
+            .map_err(|_e| MathError)?;
+
+        Ok(U64ValueRange { min, max })
     }
 
     /// Returns a possible amount that was fed into self.apply().
     ///
-    /// Returns `fee_charged` if fee_num == fee_denom (fee == 100%)
+    /// Returns:
+    /// - `U64ValueRange::full()` if zero fee and fee_charged == 0
+    /// - `fee_charged` if fee_num == fee_denom (fee == 100%)
     ///
     /// Errors if:
     /// - fee_num > fee_denom (fee > 100%)
-    /// - fee_num == 0 || fee_denom == 0: can't compute amt_before_fee if no fees charged
-    pub fn pseudo_reverse_from_fee_charged(&self, fee_charged: u64) -> Result<u64, MathError> {
+    /// - zero fee but fee_charged != 0
+    pub fn reverse_from_fee_charged(&self, fee_charged: u64) -> Result<U64ValueRange, MathError> {
         let n = self.fee_num.into();
         let d = self.fee_denom.into();
-        if n > d || n == 0 || d == 0 {
+        if n == 0 || d == 0 {
+            if fee_charged == 0 {
+                return Ok(U64ValueRange::full());
+            } else {
+                return Err(MathError);
+            }
+        }
+        if n > d {
             return Err(MathError);
         }
         if n == d {
-            return Ok(fee_charged);
+            return Ok(U64ValueRange::single(fee_charged));
         }
-        self.fee_ratio_floor().pseudo_reverse(fee_charged)
+        self.fee_ratio_floor().reverse(fee_charged)
     }
 
     pub fn is_valid(&self) -> bool {
         self.fee_num.into() <= self.fee_denom.into()
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.fee_denom.into() == 0 || self.fee_num.into() == 0
     }
 }
 
@@ -118,7 +160,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Ord for U64FeeFloor<N, D> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use proptest::prelude::*;
 
@@ -220,18 +262,18 @@ mod tests {
         }
     }
 
-    // pseudo_reverse_from_amt_after_fee()
+    // reverse_from_amt_after_fee()
 
     proptest! {
         #[test]
         fn amt_after_fee_round_trip(amt: u64, fee in valid_nonmax_fees()) {
             let AmtsAfterFee { amt_after_fee, .. } = fee.apply(amt).unwrap();
 
-            let reversed = fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
-            let apply_on_reversed = fee.apply(reversed).unwrap();
+            let U64ValueRange { min, max } = fee.reverse_from_amt_after_fee(amt_after_fee).unwrap();
 
             // cannot guarantee reversed == amt or fee_charged == apply_on_reversed.fee_charged
-            prop_assert_eq!(amt_after_fee, apply_on_reversed.amt_after_fee);
+            prop_assert_eq!(amt_after_fee, fee.apply(min).unwrap().amt_after_fee);
+            prop_assert_eq!(amt_after_fee, fee.apply(max).unwrap().amt_after_fee);
         }
     }
 
@@ -239,46 +281,61 @@ mod tests {
         #[test]
         fn zero_fee_amt_after_fee_reverse_no_op(amt_after_fee: u64, zero_fees in valid_zero_fees()) {
             for zero_fee in zero_fees {
-                let amt = zero_fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
-                prop_assert_eq!(amt_after_fee, amt);
+                prop_assert_eq!(zero_fee.reverse_from_amt_after_fee(amt_after_fee).unwrap(), U64ValueRange::single(amt_after_fee));
             }
         }
     }
 
     proptest! {
         #[test]
-        fn max_fee_amt_after_fee_reverse_err(amt_after_fee: u64, fee in valid_max_fees()) {
-            prop_assert_eq!(fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+        fn max_fee_nonzero_amt_after_fee_reverse_err(non_zero_amt_after_fee in 1..=u64::MAX, fee in valid_max_fees()) {
+            prop_assert_eq!(fee.reverse_from_amt_after_fee(non_zero_amt_after_fee).unwrap_err(), MathError);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn max_fee_zero_amt_after_fee_reverse_range_full(fee in valid_max_fees()) {
+            prop_assert_eq!(fee.reverse_from_amt_after_fee(0).unwrap(), U64ValueRange::full());
         }
     }
 
     proptest! {
         #[test]
         fn invalid_fee_amt_after_fee_reverse_err(amt_after_fee: u64, fee in invalid_fees()) {
-            prop_assert_eq!(fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+            prop_assert_eq!(fee.reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
         }
     }
 
-    // pseudo_reverse_from_fee_charged()
+    // reverse_from_fee_charged()
 
     proptest! {
         #[test]
         fn fee_charged_round_trip(amt: u64, fee in valid_nonzero_fees()) {
             let AmtsAfterFee { fee_charged, .. } = fee.apply(amt).unwrap();
 
-            let reversed = fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
-            let apply_on_reversed = fee.apply(reversed).unwrap();
+            let U64ValueRange { min, max } = fee.reverse_from_fee_charged(fee_charged).unwrap();
 
             // cannot guarantee reversed == amt or amt_after_fee == apply_on_reversed.amt_after_fee
-            prop_assert_eq!(fee_charged, apply_on_reversed.fee_charged);
+            prop_assert_eq!(fee_charged, fee.apply(min).unwrap().fee_charged);
+            prop_assert_eq!(fee_charged, fee.apply(max).unwrap().fee_charged);
         }
     }
 
     proptest! {
         #[test]
-        fn zero_fee_fee_charged_reverse_err(fee_charged: u64, zero_fees in valid_zero_fees()) {
+        fn zero_fee_nonzero_fee_charged_reverse_err(nonzero_fee_charged in 1..=u64::MAX, zero_fees in valid_zero_fees()) {
             for zero_fee in zero_fees {
-                prop_assert_eq!(zero_fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
+                prop_assert_eq!(zero_fee.reverse_from_fee_charged(nonzero_fee_charged).unwrap_err(), MathError);
+            }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn zero_fee_zero_fee_charged_reverse_range_full(zero_fees in valid_zero_fees()) {
+            for zero_fee in zero_fees {
+                prop_assert_eq!(zero_fee.reverse_from_fee_charged(0).unwrap(), U64ValueRange::full());
             }
         }
     }
@@ -286,15 +343,14 @@ mod tests {
     proptest! {
         #[test]
         fn max_fee_fee_charged_reverse_no_op(fee_charged: u64, fee in valid_max_fees()) {
-            let amt = fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
-            prop_assert_eq!(fee_charged, amt);
+            prop_assert_eq!(fee.reverse_from_fee_charged(fee_charged).unwrap(), U64ValueRange::single(fee_charged));
         }
     }
 
     proptest! {
         #[test]
         fn invalid_fee_fee_charged_reverse_err(fee_charged: u64, fee in invalid_fees()) {
-            prop_assert_eq!(fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
+            prop_assert_eq!(fee.reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
         }
     }
 

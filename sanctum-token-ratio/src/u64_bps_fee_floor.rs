@@ -1,4 +1,4 @@
-use crate::{AmtsAfterFee, MathError, U64FeeFloor, BPS_DENOMINATOR};
+use crate::{AmtsAfterFee, MathError, U64FeeFloor, U64ValueRange, BPS_DENOMINATOR};
 
 /// A bps fee applied to a token amount
 ///
@@ -6,6 +6,11 @@ use crate::{AmtsAfterFee, MathError, U64FeeFloor, BPS_DENOMINATOR};
 ///
 /// `amt_after_fee = amt - fee_charged`
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 pub struct U64BpsFeeFloor(pub u16);
 
 impl U64BpsFeeFloor {
@@ -26,34 +31,46 @@ impl U64BpsFeeFloor {
 
     /// Returns a possible amount that was fed into self.apply()
     ///
-    /// Returns `amt_after_fee` if bps == 0
+    /// Returns:
+    /// - `U64ValueRange::single(amt_after_fee)` if bps == 0
+    /// - `U64ValueRange::full()` if bps == 10_000 and amt_after_fee == 0
+    /// - `U64ValueRange::zero()` if bps != 0 and bps != 10_000 and amt_after_fee = 0
     ///
     /// Errors if:
     /// - bps > 10_000 (fee > 100%)
-    /// - bps == 10_000: infinite possibilities if fee = 100%
-    pub fn pseudo_reverse_from_amt_after_fee(&self, amt_after_fee: u64) -> Result<u64, MathError> {
+    /// - bps == 10_000 but amt_after_fee != 0
+    pub fn reverse_from_amt_after_fee(
+        &self,
+        amt_after_fee: u64,
+    ) -> Result<U64ValueRange, MathError> {
         self.to_u64_fee_floor()
-            .pseudo_reverse_from_amt_after_fee(amt_after_fee)
+            .reverse_from_amt_after_fee(amt_after_fee)
     }
 
     /// Returns a possible amount that was fed into self.apply().
     ///
-    /// Returns `fee_charged` if fee_num == fee_denom (fee == 100%)
+    /// Returns:
+    /// - `U64ValueRange::full()` if zero fee and fee_charged == 0
+    /// - `fee_charged` if bps == 10_000 (fee == 100%)
     ///
     /// Errors if:
     /// - bps > 10_000 (fee > 100%)
-    /// - bps == 0: can't compute amt_before_fee if no fees charged
-    pub fn pseudo_reverse_from_fee_charged(&self, fee_charged: u64) -> Result<u64, MathError> {
+    /// - zero fee but fee_charged != 0
+    pub fn reverse_from_fee_charged(&self, fee_charged: u64) -> Result<U64ValueRange, MathError> {
         self.to_u64_fee_floor()
-            .pseudo_reverse_from_fee_charged(fee_charged)
+            .reverse_from_fee_charged(fee_charged)
     }
 
     pub fn is_valid(&self) -> bool {
         self.0 <= BPS_DENOMINATOR
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
+    }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use proptest::prelude::*;
 
@@ -125,77 +142,91 @@ mod tests {
         }
     }
 
-    // pseudo_reverse_from_amt_after_fee()
+    // reverse_from_amt_after_fee()
 
     proptest! {
         #[test]
         fn amt_after_fee_round_trip(amt: u64, fee in valid_nonmax_fees()) {
             let AmtsAfterFee { amt_after_fee, .. } = fee.apply(amt).unwrap();
 
-            let reversed = fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
-            let apply_on_reversed = fee.apply(reversed).unwrap();
+            let U64ValueRange { min, max } = fee.reverse_from_amt_after_fee(amt_after_fee).unwrap();
 
             // cannot guarantee reversed == amt or fee_charged == apply_on_reversed.fee_charged
-            prop_assert_eq!(amt_after_fee, apply_on_reversed.amt_after_fee);
+            prop_assert_eq!(amt_after_fee, fee.apply(min).unwrap().amt_after_fee);
+            prop_assert_eq!(amt_after_fee, fee.apply(max).unwrap().amt_after_fee);
         }
     }
 
     proptest! {
         #[test]
         fn zero_fee_amt_after_fee_reverse_no_op(amt_after_fee: u64) {
-            let amt = ZERO_FEE.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap();
-            prop_assert_eq!(amt_after_fee, amt);
+            prop_assert_eq!(ZERO_FEE.reverse_from_amt_after_fee(amt_after_fee).unwrap(), U64ValueRange::single(amt_after_fee));
         }
     }
 
     proptest! {
         #[test]
-        fn max_fee_amt_after_fee_reverse_err(amt_after_fee: u64) {
-            prop_assert_eq!(MAX_FEE.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+        fn max_fee_nonzero_amt_after_fee_reverse_err(non_zero_amt_after_fee in 1..=u64::MAX) {
+            prop_assert_eq!(MAX_FEE.reverse_from_amt_after_fee(non_zero_amt_after_fee).unwrap_err(), MathError);
         }
+    }
+
+    #[test]
+    fn max_fee_zero_amt_after_fee_reverse_range_full() {
+        assert_eq!(
+            MAX_FEE.reverse_from_amt_after_fee(0).unwrap(),
+            U64ValueRange::full()
+        );
     }
 
     proptest! {
         #[test]
         fn invalid_fee_amt_after_fee_reverse_err(amt_after_fee: u64, fee in invalid_fees()) {
-            prop_assert_eq!(fee.pseudo_reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+            prop_assert_eq!(fee.reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
         }
     }
 
-    // pseudo_reverse_from_fee_charged()
+    // reverse_from_fee_charged()
 
     proptest! {
         #[test]
         fn fee_charged_round_trip(amt: u64, fee in valid_nonzero_fees()) {
             let AmtsAfterFee { fee_charged, .. } = fee.apply(amt).unwrap();
 
-            let reversed = fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
-            let apply_on_reversed = fee.apply(reversed).unwrap();
+            let U64ValueRange { min, max } = fee.reverse_from_fee_charged(fee_charged).unwrap();
 
             // cannot guarantee reversed == amt or amt_after_fee == apply_on_reversed.amt_after_fee
-            prop_assert_eq!(fee_charged, apply_on_reversed.fee_charged);
+            prop_assert_eq!(fee_charged, fee.apply(min).unwrap().fee_charged);
+            prop_assert_eq!(fee_charged, fee.apply(max).unwrap().fee_charged);
         }
     }
 
     proptest! {
         #[test]
-        fn zero_fee_fee_charged_reverse_err(fee_charged: u64) {
-            prop_assert_eq!(ZERO_FEE.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
+        fn zero_fee_nonzero_fee_charged_reverse_err(nonzero_fee_charged in 1..=u64::MAX) {
+            prop_assert_eq!(ZERO_FEE.reverse_from_fee_charged(nonzero_fee_charged).unwrap_err(), MathError);
         }
+    }
+
+    #[test]
+    fn zero_fee_zero_fee_charged_reverse_range_full() {
+        assert_eq!(
+            ZERO_FEE.reverse_from_fee_charged(0).unwrap(),
+            U64ValueRange::full()
+        );
     }
 
     proptest! {
         #[test]
         fn max_fee_fee_charged_reverse_no_op(fee_charged: u64) {
-            let amt = MAX_FEE.pseudo_reverse_from_fee_charged(fee_charged).unwrap();
-            prop_assert_eq!(fee_charged, amt);
+            prop_assert_eq!(MAX_FEE.reverse_from_fee_charged(fee_charged).unwrap(), U64ValueRange::single(fee_charged));
         }
     }
 
     proptest! {
         #[test]
         fn invalid_fee_fee_charged_reverse_err(fee_charged: u64, fee in invalid_fees()) {
-            prop_assert_eq!(fee.pseudo_reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
+            prop_assert_eq!(fee.reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
         }
     }
 

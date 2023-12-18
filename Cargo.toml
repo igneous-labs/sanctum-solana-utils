@@ -10,10 +10,12 @@ members = [
 
 [workspace.dependencies]
 async-trait = ">=0.1"
-borsh = ">=0.9"
+borsh = { version = ">=0.9", default-features = false } # no_std support
 num-traits = ">=0.2"
 proptest = "^1"
-serde = "^1"
+serde = { version = "^1", default-features = false, features = [
+    "derive",
+] } # no_std support
 serde_json = "^1"
 solana-account-decoder = "^1"
 solana-program = "^1"

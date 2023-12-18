@@ -28,7 +28,8 @@ RHS:
 x < d(y + 1) / n
 x < dy/n + d/n
 
-d/n <= 1,
+y(d/n) <= x < (y+1)(d/n)
+
 x = ceil(dy/n) is a possible candidate, error at most 1 if RHS doesnt hold
 
 When RHS doesn't hold:
@@ -81,6 +82,8 @@ dy-d < dx-nx
 dy-d < x(d-n)
 dy/(d-n) - d/(d-n) < x
 
+(y-1)(d/(d-n)) < x <= y(d/(d-n))
+
 d/(d-n) >= 1,
 x = floor(dy/(d-n)) is always a possible candidate
 ```
@@ -94,6 +97,17 @@ fees = floor(nx/d)
 ```
 
 Same as ["Inverting" a floor division](#inverting-a-floor-division) above.
+
+### "Inverting a ceiling fee charge
+
+Many stake pools charge a percentage fee on stuff by taking
+
+```
+amount_after_fee = amount * (fee_denominator - fee_numerator) // fee_denominator
+fee = amount - amount_after_fee
+```
+
+Use ["Inverting" a floor division](#inverting-a-floor-division) with ratio = `(fee_denominator - fee_numerator) // fee_denominator` on `amount_after_fee`
 
 ### "Inverting" a ceiling fee charge from fees amount
 
@@ -122,6 +136,8 @@ x-nx/d < x-f+1
 f-1 < nx/d
 d(f-1)/n < x
 df/n - d/n < x
+
+(f-1)(d/n) < x <= f(d/n)
 
 Since d >= n, d/n >= 1,
 x = floor(df/n) is always a valid candidate

@@ -36,6 +36,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
     ///
     /// Returns:
     /// - `U64ValueRange::full()` if denom == 0 || num == 0 and amt_after_apply == 0
+    /// - Exclusive range if (dy%n + d) < n, RHS doesn't hold. Actual range is a decimal range between min and max
     ///
     /// Range outputs are capped to u64 range (saturating_add/sub)
     ///
@@ -73,7 +74,10 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
 
         // (dy%n + d) < n, RHS doesn't hold
         if min > max {
-            return Err(MathError);
+            if (min - 1) > max {
+                return Err(MathError);
+            }
+            core::mem::swap(&mut min, &mut max);
         }
 
         Ok(U64ValueRange { min, max })
@@ -136,6 +140,20 @@ mod tests {
 
     use super::*;
 
+    /// RHS doesn't hold for these values
+    #[test]
+    fn problem_case_1() {
+        const NUM: u64 = 3571888240897306429;
+        const DENOM: u64 = 1886854692549596243;
+        const RATIO: U64RatioFloor<u64, u64> = U64RatioFloor {
+            num: NUM,
+            denom: DENOM,
+        };
+        // assert!(NUM > DENOM);
+        const AMT_AFTER_APPLY: u64 = 239994113087062952;
+        RATIO.reverse(AMT_AFTER_APPLY).unwrap();
+    }
+
     prop_compose! {
         fn ratio_gte_one()
             (denom in any::<u64>())
@@ -197,6 +215,23 @@ mod tests {
             {
                 U64RatioFloor { num, denom: 0 }
             }
+    }
+
+    proptest! {
+        #[test]
+        fn ratio_gte_one_min_max_invariant((amt, ratio) in ratio_gte_one_amt_no_overflow()) {
+            let applied = ratio.apply(amt).unwrap();
+            let U64ValueRange { min, max } = ratio.reverse(applied).unwrap();
+            prop_assert!(min <= max);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn ratio_lte_one_min_max_invariant((amt_after_apply, ratio) in ratio_lte_one_reverse_no_overflow()) {
+            let U64ValueRange { min, max } = ratio.reverse(amt_after_apply).unwrap();
+            prop_assert!(min <= max);
+        }
     }
 
     proptest! {

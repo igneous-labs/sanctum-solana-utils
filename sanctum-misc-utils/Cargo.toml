@@ -3,6 +3,9 @@ name = "sanctum-misc-utils"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["lib"]
+
 [dependencies]
 borsh = { workspace = true }
 solana-program = { workspace = true }

@@ -45,22 +45,74 @@ pub fn close_account(
     close.realloc(0, false)
 }
 
-/// `realloc()`s an account without zeroing data, returning the rent-exempt minimum balance for its new length
-pub fn realloc_account(account: &AccountInfo, new_len: usize) -> Result<u64, ProgramError> {
-    account.realloc(new_len, false)?;
-    onchain_rent_exempt_lamports_for(new_len)
+pub trait ResizableAccount {
+    /// `realloc()`s an account without zeroing data, returning the rent-exempt minimum balance for its new length
+    fn realloc_return_new_rent_exempt_balance(&self, new_len: usize) -> Result<u64, ProgramError>;
+
+    fn curr_lamports(&self) -> u64;
+
+    fn curr_data_len(&self) -> usize;
+
+    /// Extend this account to `new_len` with `realloc()`, returning the additional lamports that needs to be transferred in
+    /// given its new rent-exempt balance requirements
+    fn extend_to(&self, new_len: usize) -> Result<u64, ProgramError> {
+        let new_rent_exempt_min = self.realloc_return_new_rent_exempt_balance(new_len)?;
+        Ok(new_rent_exempt_min.saturating_sub(self.curr_lamports()))
+    }
+
+    /// Extend this account by `inc` bytes with `realloc()`, returning the additional lamports that needs to be transferred in
+    /// given its new rent-exempt balance requirements
+    fn extend_by(&self, inc: usize) -> Result<u64, ProgramError> {
+        let new_len = self
+            .curr_data_len()
+            .checked_add(inc)
+            .ok_or(ProgramError::InvalidAccountData)?;
+        self.extend_to(new_len)
+    }
+
+    /// Shrinks this account to `new_len` with `realloc()`, returning the excess lamports that can be transferred out
+    /// given its new rent-exempt balance requirements
+    fn shrink_to(&self, new_len: usize) -> Result<u64, ProgramError> {
+        let new_rent_exempt_min = self.realloc_return_new_rent_exempt_balance(new_len)?;
+        Ok(self.curr_lamports().saturating_sub(new_rent_exempt_min))
+    }
+
+    /// Shrinks this account by `dec` bytes with `realloc()`, returning the excess lamports that can be transferred out
+    /// given its new rent-exempt balance requirements
+    fn shrink_by(&self, dec: usize) -> Result<u64, ProgramError> {
+        let new_len = self
+            .curr_data_len()
+            .checked_sub(dec)
+            .ok_or(ProgramError::InvalidAccountData)?;
+        self.shrink_to(new_len)
+    }
 }
 
-/// Extend an account to `new_len` with `realloc()`, returning the additional lamports that needs to be transferred in
-/// given its new rent-exempt balance requirements
-pub fn extend_account(account: &AccountInfo, new_len: usize) -> Result<u64, ProgramError> {
-    let new_rent_exempt_min = realloc_account(account, new_len)?;
-    Ok(new_rent_exempt_min.saturating_sub(account.lamports()))
+impl ResizableAccount for AccountInfo<'_> {
+    fn realloc_return_new_rent_exempt_balance(&self, new_len: usize) -> Result<u64, ProgramError> {
+        self.realloc(new_len, false)?;
+        onchain_rent_exempt_lamports_for(new_len)
+    }
+
+    fn curr_lamports(&self) -> u64 {
+        self.lamports()
+    }
+
+    fn curr_data_len(&self) -> usize {
+        self.data_len()
+    }
 }
 
-/// Shrinks an account to `new_len` with `realloc()`, returning the excess lamports that can be transferred out
-/// given its new rent-exempt balance requirements
-pub fn shrink_account(account: &AccountInfo, new_len: usize) -> Result<u64, ProgramError> {
-    let new_rent_exempt_min = realloc_account(account, new_len)?;
-    Ok(account.lamports().saturating_sub(new_rent_exempt_min))
+impl<T: ResizableAccount + ?Sized> ResizableAccount for &T {
+    fn realloc_return_new_rent_exempt_balance(&self, new_len: usize) -> Result<u64, ProgramError> {
+        (*self).realloc_return_new_rent_exempt_balance(new_len)
+    }
+
+    fn curr_lamports(&self) -> u64 {
+        (*self).curr_lamports()
+    }
+
+    fn curr_data_len(&self) -> usize {
+        (*self).curr_data_len()
+    }
 }

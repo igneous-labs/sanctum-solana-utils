@@ -3,7 +3,7 @@
 
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, system_program};
 
-use crate::TransferAccounts;
+use crate::{onchain_rent_exempt_lamports_for, TransferAccounts};
 
 /// Transfer by directly decrementing one account's lamports and
 /// incrementing another's
@@ -43,4 +43,24 @@ pub fn close_account(
     )?;
     close.assign(&system_program::ID);
     close.realloc(0, false)
+}
+
+/// `realloc()`s an account without zeroing data, returning the rent-exempt minimum balance for its new length
+pub fn realloc_account(account: &AccountInfo, new_len: usize) -> Result<u64, ProgramError> {
+    account.realloc(new_len, false)?;
+    onchain_rent_exempt_lamports_for(new_len)
+}
+
+/// Extend an account to `new_len` with `realloc()`, returning the additional lamports that needs to be transferred in
+/// given its new rent-exempt balance requirements
+pub fn extend_account(account: &AccountInfo, new_len: usize) -> Result<u64, ProgramError> {
+    let new_rent_exempt_min = realloc_account(account, new_len)?;
+    Ok(new_rent_exempt_min.saturating_sub(account.lamports()))
+}
+
+/// Shrinks an account to `new_len` with `realloc()`, returning the excess lamports that can be transferred out
+/// given its new rent-exempt balance requirements
+pub fn shrink_account(account: &AccountInfo, new_len: usize) -> Result<u64, ProgramError> {
+    let new_rent_exempt_min = realloc_account(account, new_len)?;
+    Ok(account.lamports().saturating_sub(new_rent_exempt_min))
 }

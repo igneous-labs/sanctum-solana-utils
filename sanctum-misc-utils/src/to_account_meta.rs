@@ -4,7 +4,7 @@ pub trait ToAccountMeta {
     fn to_account_meta(&self) -> AccountMeta;
 }
 
-impl<T: ToAccountMeta> ToAccountMeta for &T {
+impl<T: ToAccountMeta + ?Sized> ToAccountMeta for &T {
     fn to_account_meta(&self) -> AccountMeta {
         (*self).to_account_meta()
     }

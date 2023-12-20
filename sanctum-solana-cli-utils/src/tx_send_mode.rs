@@ -26,8 +26,9 @@ impl Display for TxSendMode {
 impl TxSendMode {
     /// Creates the enum from a `should_dry_run` boolean flag.
     ///
-    /// This can be used with `clap`'s [`TypedValueParser::map`](https://docs.rs/clap/latest/clap/builder/trait.TypedValueParser.html#method.map)
-    /// to parse a `--dry-run` flag arg
+    /// clap v4 ONLY: This can be used with `clap`'s [`TypedValueParser::map`](https://docs.rs/clap/latest/clap/builder/trait.TypedValueParser.html#method.map),
+    /// [`BoolishValueParser`](https://docs.rs/clap/latest/clap/builder/struct.BoolishValueParser.html),
+    /// and [`ArgAction::SetTrue`](https://docs.rs/clap/latest/clap/builder/enum.ArgAction.html#variant.SetTrue) to parse a `--dry-run` flag arg
     ///
     /// # Example:
     ///

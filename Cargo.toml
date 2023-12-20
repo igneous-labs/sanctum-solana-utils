@@ -4,6 +4,7 @@ resolver = "2"
 members = [
     "libs/*",
     "sanctum-misc-utils",
+    "sanctum-solana-cli-utils",
     "sanctum-solana-test-utils",
     "sanctum-token-ratio",
 ]
@@ -21,6 +22,9 @@ serde = { version = "^1", default-features = false, features = [
 ] } # no_std support
 serde_json = "^1"
 solana-account-decoder = "^1"
+solana-clap-utils = "^1"
+solana-cli-config = "^1"
+solana-client = "^1"
 solana-program = "^1"
 solana-program-test = "^1"
 solana-readonly-account = "^1"

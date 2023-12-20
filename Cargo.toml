@@ -8,6 +8,9 @@ members = [
     "sanctum-token-ratio",
 ]
 
+[workspace.package]
+license = "MIT OR Apache-2.0"
+
 [workspace.dependencies]
 async-trait = ">=0.1"
 borsh = { version = ">=0.9", default-features = false } # no_std support

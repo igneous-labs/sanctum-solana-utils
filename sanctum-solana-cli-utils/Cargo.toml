@@ -1,0 +1,16 @@
+[package]
+name = "sanctum-solana-cli-utils"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+clap2 = { package = "clap", version = "^2.0" } # ^2.0 required for solana-clap-utils
+solana-clap-utils = { workspace = true }
+solana-cli-config = { workspace = true }
+solana-client = { workspace = true }
+solana-sdk = { workspace = true }
+
+[dev-dependencies]
+clap = { version = "^4.0", features = ["derive"] }

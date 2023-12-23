@@ -14,6 +14,9 @@ pub use keyed_ui_account::*;
 pub use paths::*;
 pub use tx::*;
 
+// re-export KeyedAccount
+pub use solana_readonly_account::sdk::KeyedAccount;
+
 #[cfg(feature = "stake")]
 pub mod stake;
 

@@ -8,7 +8,7 @@ use solana_program::{
 };
 use spl_token_2022::instruction::initialize_account3;
 
-pub const INITIALIZE_ACCOUNT_3_ACCOUNTS_LEN: usize = 2;
+pub const INITIALIZE_ACCOUNT_3_IX_ACCOUNTS_LEN: usize = 2;
 
 #[derive(Clone, Copy, Debug)]
 pub struct InitializeAccount3Accounts<'me, 'info> {
@@ -41,7 +41,7 @@ impl From<InitializeAccount3Accounts<'_, '_>> for InitializeAccount3Keys {
 }
 
 impl<'info> From<InitializeAccount3Accounts<'_, 'info>>
-    for [AccountInfo<'info>; INITIALIZE_ACCOUNT_3_ACCOUNTS_LEN]
+    for [AccountInfo<'info>; INITIALIZE_ACCOUNT_3_IX_ACCOUNTS_LEN]
 {
     fn from(
         InitializeAccount3Accounts {
@@ -70,7 +70,7 @@ pub fn initialize_account_3_invoke(
     authority: Pubkey,
 ) -> ProgramResult {
     let ix = initialize_account_3_ix(InitializeAccount3Keys::from(accounts), authority)?;
-    let account_infos: [AccountInfo; INITIALIZE_ACCOUNT_3_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; INITIALIZE_ACCOUNT_3_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -80,6 +80,6 @@ pub fn initialize_account_3_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = initialize_account_3_ix(InitializeAccount3Keys::from(accounts), authority)?;
-    let account_infos: [AccountInfo; INITIALIZE_ACCOUNT_3_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; INITIALIZE_ACCOUNT_3_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

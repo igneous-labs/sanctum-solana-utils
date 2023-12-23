@@ -8,7 +8,7 @@ use solana_program::{
 };
 use spl_token_2022::instruction::{set_authority, AuthorityType};
 
-pub const SET_AUTHORITY_ACCOUNTS_LEN: usize = 2;
+pub const SET_AUTHORITY_IX_ACCOUNTS_LEN: usize = 2;
 
 #[derive(Clone, Copy, Debug)]
 pub struct SetAuthorityAccounts<'me, 'info> {
@@ -47,7 +47,7 @@ impl From<SetAuthorityAccounts<'_, '_>> for SetAuthorityKeys {
 }
 
 impl<'info> From<SetAuthorityAccounts<'_, 'info>>
-    for [AccountInfo<'info>; SET_AUTHORITY_ACCOUNTS_LEN]
+    for [AccountInfo<'info>; SET_AUTHORITY_IX_ACCOUNTS_LEN]
 {
     fn from(
         SetAuthorityAccounts {
@@ -86,7 +86,7 @@ pub fn set_authority_invoke(
     args: SetAuthorityArgs,
 ) -> ProgramResult {
     let ix = set_authority_ix(SetAuthorityKeys::from(accounts), args)?;
-    let account_infos: [AccountInfo; SET_AUTHORITY_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; SET_AUTHORITY_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -96,6 +96,6 @@ pub fn set_authority_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = set_authority_ix(SetAuthorityKeys::from(accounts), args)?;
-    let account_infos: [AccountInfo; SET_AUTHORITY_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; SET_AUTHORITY_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

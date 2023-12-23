@@ -7,7 +7,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-pub const MINT_TO_ACCOUNTS_LEN: usize = 3;
+pub const MINT_TO_IX_ACCOUNTS_LEN: usize = 3;
 
 #[derive(Clone, Copy, Debug)]
 pub struct MintToAccounts<'me, 'info> {
@@ -43,7 +43,7 @@ impl From<MintToAccounts<'_, '_>> for MintToKeys {
     }
 }
 
-impl<'info> From<MintToAccounts<'_, 'info>> for [AccountInfo<'info>; MINT_TO_ACCOUNTS_LEN] {
+impl<'info> From<MintToAccounts<'_, 'info>> for [AccountInfo<'info>; MINT_TO_IX_ACCOUNTS_LEN] {
     fn from(
         MintToAccounts {
             token_program: _,
@@ -77,7 +77,7 @@ pub fn mint_to_ix(
 
 pub fn mint_to_invoke(accounts: MintToAccounts, amount: u64) -> ProgramResult {
     let ix = mint_to_ix(MintToKeys::from(accounts), amount)?;
-    let account_infos: [AccountInfo; MINT_TO_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; MINT_TO_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -87,6 +87,6 @@ pub fn mint_to_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = mint_to_ix(MintToKeys::from(accounts), amount)?;
-    let account_infos: [AccountInfo; MINT_TO_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; MINT_TO_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

@@ -10,23 +10,29 @@ use solana_program::{
 
 use crate::{onchain_rent_exempt_lamports_for, space_to_u64};
 
-pub const CREATE_ACCOUNT_WITH_SEED_ACCOUNTS_LEN: usize = 3;
+pub const CREATE_ACCOUNT_WITH_SEED_IX_ACCOUNTS_LEN: usize = 3;
 
 #[derive(Clone, Copy, Debug)]
 pub struct CreateAccountWithSeedAccounts<'me, 'info> {
+    /// The funder
     pub from: &'me AccountInfo<'info>,
+
+    /// The account to create.
+    /// `Pubkey::create_with_seed(base.key, <seed>, owner)`
     pub to: &'me AccountInfo<'info>,
+
+    /// The base signer to create `to` from
     pub base: &'me AccountInfo<'info>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CreateAccountWithSeedKeys {
     pub from: Pubkey,
     pub to: Pubkey,
     pub base: Pubkey,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CreateAccountWithSeedArgs<'a> {
     pub space: u64,
     pub owner: Pubkey,
@@ -47,7 +53,7 @@ impl From<CreateAccountWithSeedAccounts<'_, '_>> for CreateAccountWithSeedKeys {
 }
 
 impl<'info> From<CreateAccountWithSeedAccounts<'_, 'info>>
-    for [AccountInfo<'info>; CREATE_ACCOUNT_WITH_SEED_ACCOUNTS_LEN]
+    for [AccountInfo<'info>; CREATE_ACCOUNT_WITH_SEED_IX_ACCOUNTS_LEN]
 {
     fn from(
         CreateAccountWithSeedAccounts { from, to, base }: CreateAccountWithSeedAccounts<'_, 'info>,
@@ -76,7 +82,7 @@ pub fn create_account_with_seed_invoke(
     args: CreateAccountWithSeedArgs,
 ) -> ProgramResult {
     let ix = create_account_with_seed_ix(CreateAccountWithSeedKeys::from(accounts), args);
-    let account_infos: [AccountInfo; CREATE_ACCOUNT_WITH_SEED_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; CREATE_ACCOUNT_WITH_SEED_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -86,7 +92,7 @@ pub fn create_account_with_seed_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = create_account_with_seed_ix(CreateAccountWithSeedKeys::from(accounts), args);
-    let account_infos: [AccountInfo; CREATE_ACCOUNT_WITH_SEED_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; CREATE_ACCOUNT_WITH_SEED_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }
 

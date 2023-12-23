@@ -8,7 +8,7 @@ use solana_program::{
 };
 use spl_token_2022::instruction::close_account;
 
-pub const CLOSE_TOKEN_ACCOUNT_ACCOUNTS_LEN: usize = 3;
+pub const CLOSE_TOKEN_ACCOUNT_IX_ACCOUNTS_LEN: usize = 3;
 
 #[derive(Clone, Copy, Debug)]
 pub struct CloseTokenAccountAccounts<'me, 'info> {
@@ -45,7 +45,7 @@ impl From<CloseTokenAccountAccounts<'_, '_>> for CloseTokenAccountKeys {
 }
 
 impl<'info> From<CloseTokenAccountAccounts<'_, 'info>>
-    for [AccountInfo<'info>; CLOSE_TOKEN_ACCOUNT_ACCOUNTS_LEN]
+    for [AccountInfo<'info>; CLOSE_TOKEN_ACCOUNT_IX_ACCOUNTS_LEN]
 {
     fn from(
         CloseTokenAccountAccounts {
@@ -82,7 +82,7 @@ pub fn close_token_account_ix(
 
 pub fn close_token_account_invoke(accounts: CloseTokenAccountAccounts) -> ProgramResult {
     let ix = close_token_account_ix(CloseTokenAccountKeys::from(accounts))?;
-    let account_infos: [AccountInfo; CLOSE_TOKEN_ACCOUNT_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; CLOSE_TOKEN_ACCOUNT_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -91,6 +91,6 @@ pub fn close_token_account_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = close_token_account_ix(CloseTokenAccountKeys::from(accounts))?;
-    let account_infos: [AccountInfo; CLOSE_TOKEN_ACCOUNT_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; CLOSE_TOKEN_ACCOUNT_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

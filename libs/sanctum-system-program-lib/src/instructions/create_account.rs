@@ -10,7 +10,7 @@ use solana_program::{
 
 use crate::{onchain_rent_exempt_lamports_for, space_to_u64};
 
-pub const CREATE_ACCOUNT_ACCOUNTS_LEN: usize = 2;
+pub const CREATE_ACCOUNT_IX_ACCOUNTS_LEN: usize = 2;
 
 #[derive(Clone, Copy, Debug)]
 pub struct CreateAccountAccounts<'me, 'info> {
@@ -41,7 +41,7 @@ impl From<CreateAccountAccounts<'_, '_>> for CreateAccountKeys {
 }
 
 impl<'info> From<CreateAccountAccounts<'_, 'info>>
-    for [AccountInfo<'info>; CREATE_ACCOUNT_ACCOUNTS_LEN]
+    for [AccountInfo<'info>; CREATE_ACCOUNT_IX_ACCOUNTS_LEN]
 {
     fn from(CreateAccountAccounts { from, to }: CreateAccountAccounts<'_, 'info>) -> Self {
         [from.clone(), to.clone()]
@@ -64,7 +64,7 @@ pub fn create_account_invoke(
     args: CreateAccountArgs,
 ) -> ProgramResult {
     let ix = create_account_ix(CreateAccountKeys::from(accounts), args);
-    let account_infos: [AccountInfo; CREATE_ACCOUNT_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; CREATE_ACCOUNT_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -74,7 +74,7 @@ pub fn create_account_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = create_account_ix(CreateAccountKeys::from(accounts), args);
-    let account_infos: [AccountInfo; CREATE_ACCOUNT_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; CREATE_ACCOUNT_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }
 

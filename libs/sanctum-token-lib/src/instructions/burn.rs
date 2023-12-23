@@ -8,7 +8,7 @@ use solana_program::{
 };
 use spl_token_2022::instruction::burn;
 
-pub const BURN_ACCOUNTS_LEN: usize = 3;
+pub const BURN_IX_ACCOUNTS_LEN: usize = 3;
 
 #[derive(Clone, Copy, Debug)]
 pub struct BurnAccounts<'me, 'info> {
@@ -44,7 +44,7 @@ impl From<BurnAccounts<'_, '_>> for BurnKeys {
     }
 }
 
-impl<'info> From<BurnAccounts<'_, 'info>> for [AccountInfo<'info>; BURN_ACCOUNTS_LEN] {
+impl<'info> From<BurnAccounts<'_, 'info>> for [AccountInfo<'info>; BURN_IX_ACCOUNTS_LEN] {
     fn from(
         BurnAccounts {
             token_program: _,
@@ -90,7 +90,7 @@ pub fn burn_ix(
 
 pub fn burn_invoke(accounts: BurnAccounts, amount: u64) -> ProgramResult {
     let ix = burn_ix(BurnKeys::from(accounts), amount)?;
-    let account_infos: [AccountInfo; BURN_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; BURN_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -100,6 +100,6 @@ pub fn burn_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = burn_ix(BurnKeys::from(accounts), amount)?;
-    let account_infos: [AccountInfo; BURN_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; BURN_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

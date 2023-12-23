@@ -7,7 +7,7 @@ use solana_program::{
     system_instruction,
 };
 
-pub const TRANSFER_ACCOUNTS_LEN: usize = 2;
+pub const TRANSFER_IX_ACCOUNTS_LEN: usize = 2;
 
 #[derive(Clone, Copy, Debug)]
 pub struct TransferAccounts<'me, 'info> {
@@ -30,7 +30,7 @@ impl From<TransferAccounts<'_, '_>> for TransferKeys {
     }
 }
 
-impl<'info> From<TransferAccounts<'_, 'info>> for [AccountInfo<'info>; TRANSFER_ACCOUNTS_LEN] {
+impl<'info> From<TransferAccounts<'_, 'info>> for [AccountInfo<'info>; TRANSFER_IX_ACCOUNTS_LEN] {
     fn from(TransferAccounts { from, to }: TransferAccounts<'_, 'info>) -> Self {
         [from.clone(), to.clone()]
     }
@@ -42,7 +42,7 @@ pub fn transfer_ix(TransferKeys { from, to }: TransferKeys, lamports: u64) -> In
 
 pub fn transfer_invoke(accounts: TransferAccounts, lamports: u64) -> ProgramResult {
     let ix = transfer_ix(TransferKeys::from(accounts), lamports);
-    let account_infos: [AccountInfo; TRANSFER_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; TRANSFER_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -52,6 +52,6 @@ pub fn transfer_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = transfer_ix(TransferKeys::from(accounts), lamports);
-    let account_infos: [AccountInfo; TRANSFER_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; TRANSFER_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

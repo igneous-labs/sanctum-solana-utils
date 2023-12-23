@@ -12,7 +12,7 @@ use spl_token_2022::instruction::transfer_checked;
 
 use crate::mint_decimals;
 
-pub const TRANSFER_CHECKED_ACCOUNTS_LEN: usize = 4;
+pub const TRANSFER_CHECKED_IX_ACCOUNTS_LEN: usize = 4;
 
 #[derive(Clone, Copy, Debug)]
 pub struct TransferCheckedAccounts<'me, 'info> {
@@ -59,7 +59,7 @@ impl From<TransferCheckedAccounts<'_, '_>> for TransferCheckedKeys {
 }
 
 impl<'info> From<TransferCheckedAccounts<'_, 'info>>
-    for [AccountInfo<'info>; TRANSFER_CHECKED_ACCOUNTS_LEN]
+    for [AccountInfo<'info>; TRANSFER_CHECKED_IX_ACCOUNTS_LEN]
 {
     fn from(
         TransferCheckedAccounts {
@@ -101,7 +101,7 @@ pub fn transfer_checked_invoke(
     args: TransferCheckedArgs,
 ) -> ProgramResult {
     let ix = transfer_checked_ix(TransferCheckedKeys::from(accounts), args)?;
-    let account_infos: [AccountInfo; TRANSFER_CHECKED_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; TRANSFER_CHECKED_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -111,7 +111,7 @@ pub fn transfer_checked_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = transfer_checked_ix(TransferCheckedKeys::from(accounts), args)?;
-    let account_infos: [AccountInfo; TRANSFER_CHECKED_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; TRANSFER_CHECKED_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }
 
@@ -130,7 +130,7 @@ pub fn transfer_checked_decimal_agnostic_invoke(
         TransferCheckedKeys::from(accounts),
         TransferCheckedArgs { amount, decimals },
     )?;
-    let account_infos: [AccountInfo; TRANSFER_CHECKED_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; TRANSFER_CHECKED_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -150,6 +150,6 @@ pub fn transfer_checked_decimal_agnostic_invoke_signed(
         TransferCheckedKeys::from(accounts),
         TransferCheckedArgs { amount, decimals },
     )?;
-    let account_infos: [AccountInfo; TRANSFER_CHECKED_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; TRANSFER_CHECKED_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

@@ -7,7 +7,7 @@ use solana_program::{
 };
 use spl_associated_token_account::instruction::create_associated_token_account;
 
-pub const CREATE_ATA_ACCOUNTS_LEN: usize = 6;
+pub const CREATE_ATA_IX_ACCOUNTS_LEN: usize = 6;
 
 #[derive(Clone, Copy, Debug)]
 pub struct CreateAtaAccounts<'me, 'info> {
@@ -51,7 +51,9 @@ impl From<CreateAtaAccounts<'_, '_>> for CreateAtaKeys {
     }
 }
 
-impl<'info> From<CreateAtaAccounts<'_, 'info>> for [AccountInfo<'info>; CREATE_ATA_ACCOUNTS_LEN] {
+impl<'info> From<CreateAtaAccounts<'_, 'info>>
+    for [AccountInfo<'info>; CREATE_ATA_IX_ACCOUNTS_LEN]
+{
     fn from(
         CreateAtaAccounts {
             payer,
@@ -88,7 +90,7 @@ pub fn create_ata_ix(
 
 pub fn create_ata_invoke(accounts: CreateAtaAccounts) -> ProgramResult {
     let ix = create_ata_ix(CreateAtaKeys::from(accounts));
-    let account_infos: [AccountInfo; CREATE_ATA_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; CREATE_ATA_IX_ACCOUNTS_LEN] = accounts.into();
     invoke(&ix, &account_infos)
 }
 
@@ -97,6 +99,6 @@ pub fn create_ata_invoke_signed(
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix = create_ata_ix(CreateAtaKeys::from(accounts));
-    let account_infos: [AccountInfo; CREATE_ATA_ACCOUNTS_LEN] = accounts.into();
+    let account_infos: [AccountInfo; CREATE_ATA_IX_ACCOUNTS_LEN] = accounts.into();
     invoke_signed(&ix, &account_infos, signer_seeds)
 }

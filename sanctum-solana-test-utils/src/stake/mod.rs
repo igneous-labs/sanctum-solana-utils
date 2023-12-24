@@ -1,3 +1,5 @@
+//! TODO: switch to StakeStateV2 for solana-program >= 1.17
+
 use borsh::BorshSerialize;
 use solana_program::{
     pubkey::Pubkey,
@@ -168,8 +170,11 @@ impl<T: ExtendedProgramTest> StakeProgramTest for T {
 
 impl IntoAccount for StakeStateAndLamports {
     fn into_account(self) -> Account {
-        let mut data = Vec::new();
-        self.stake_state.serialize(&mut data).unwrap();
+        // The BorshDeserialize impl expects exactly 200 bytes
+        let mut data = vec![0u8; StakeState::size_of()];
+        self.stake_state
+            .serialize(&mut data.as_mut_slice())
+            .unwrap();
         Account {
             lamports: self.total_lamports,
             data,

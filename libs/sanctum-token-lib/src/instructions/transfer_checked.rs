@@ -10,7 +10,7 @@ use solana_program::{
 };
 use spl_token_2022::instruction::transfer_checked;
 
-use crate::mint_decimals;
+use crate::ReadonlyMintAccount;
 
 pub const TRANSFER_CHECKED_IX_ACCOUNTS_LEN: usize = 4;
 
@@ -117,15 +117,11 @@ pub fn transfer_checked_invoke_signed(
 
 /// Reads `decimals` from deserializing the mint account.
 /// Basically "transfer_checked_unchecked"
-///
-/// Deserializes the mint account, so it's more efficient to
-/// just use [`transfer_checked_invoke`] with the decimals
-/// read from the min account if you already have it deserialized.
 pub fn transfer_checked_decimal_agnostic_invoke(
     accounts: TransferCheckedAccounts,
     amount: u64,
 ) -> ProgramResult {
-    let decimals = mint_decimals(accounts.mint)?;
+    let decimals = accounts.mint.mint_decimals();
     let ix = transfer_checked_ix(
         TransferCheckedKeys::from(accounts),
         TransferCheckedArgs { amount, decimals },
@@ -135,17 +131,13 @@ pub fn transfer_checked_decimal_agnostic_invoke(
 }
 
 /// Reads `decimals` from deserializing the mint account.
-/// Basically "transfer_checked_unchecked".
-///
-/// Deserializes the mint account, so it's more efficient to
-/// just use [`transfer_checked_invoke_signed`] with the decimals
-/// read from the min account if you already have it deserialized.
+/// Basically "transfer_checked_unchecked"
 pub fn transfer_checked_decimal_agnostic_invoke_signed(
     accounts: TransferCheckedAccounts,
     amount: u64,
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let decimals = mint_decimals(accounts.mint)?;
+    let decimals = accounts.mint.mint_decimals();
     let ix = transfer_checked_ix(
         TransferCheckedKeys::from(accounts),
         TransferCheckedArgs { amount, decimals },

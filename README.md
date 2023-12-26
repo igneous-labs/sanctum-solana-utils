@@ -30,6 +30,8 @@ transfer(
 )
 ```
 
+In general for instructions you wanna split stuff up into `Accounts` and `Args` just like how solores does.
+
 ### Pass `Pubkey`s by value
 
 TODO: profile performance impact of this.

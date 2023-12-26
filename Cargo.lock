@@ -3293,8 +3293,10 @@ dependencies = [
 name = "sanctum-token-lib"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "solana-program",
  "solana-readonly-account",
+ "solana-sdk",
  "spl-token-2022",
 ]
 

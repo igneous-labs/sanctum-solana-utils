@@ -15,11 +15,7 @@ pub fn zero_padded_return_data<const N: usize>(return_data: &[u8]) -> [u8; N] {
 }
 
 pub fn extract_ix_err(banks_client_err: BanksClientError) -> InstructionError {
-    let tx_err = match banks_client_err {
-        BanksClientError::TransactionError(e) => e,
-        BanksClientError::SimulationError { err, .. } => err,
-        _ => panic!("Unexpected BanksClientError {banks_client_err}"),
-    };
+    let tx_err = extract_tx_err(banks_client_err);
     match tx_err {
         TransactionError::InstructionError(_, e) => e,
         _ => panic!("Unexpected TransactionError {tx_err}"),
@@ -30,6 +26,14 @@ pub fn extract_ix_err_code(ix_err: &InstructionError) -> u32 {
     match ix_err {
         InstructionError::Custom(c) => *c,
         _ => panic!("Unexpected InstructionError {ix_err}"),
+    }
+}
+
+pub fn extract_tx_err(banks_client_err: BanksClientError) -> TransactionError {
+    match banks_client_err {
+        BanksClientError::TransactionError(e) => e,
+        BanksClientError::SimulationError { err, .. } => err,
+        _ => panic!("Unexpected BanksClientError {banks_client_err}"),
     }
 }
 
@@ -67,6 +71,17 @@ pub fn assert_built_in_prog_err<E: ToPrimitive + Display>(
 pub fn assert_program_error(banks_client_err: BanksClientError, expected_err: ProgramError) {
     let ix_err = extract_ix_err(banks_client_err);
     let actual_err: ProgramError = ix_err.try_into().unwrap();
+    assert_eq!(
+        actual_err, expected_err,
+        "Expected: {expected_err}. Actual: {actual_err}"
+    );
+}
+
+pub fn assert_transaction_error(
+    banks_client_err: BanksClientError,
+    expected_err: TransactionError,
+) {
+    let actual_err = extract_tx_err(banks_client_err);
     assert_eq!(
         actual_err, expected_err,
         "Expected: {expected_err}. Actual: {actual_err}"

@@ -43,7 +43,7 @@ pub fn is_account_state_valid(byte: u8) -> bool {
 ///
 /// If you're using this onchain, you probably want to call
 /// [`ReadonlyTokenAccount::token_account_is_initialized`]
-/// and verify the account's program owner afterwards.
+/// and also verify the account's program owner afterwards.
 pub trait ReadonlyTokenAccount {
     fn token_account_data_is_valid(&self) -> bool;
 
@@ -128,9 +128,9 @@ impl<D: ReadonlyAccountData> ReadonlyTokenAccount for D {
         let d = self.data();
         let b = d[SPL_TOKEN_ACCOUNT_STATE_OFFSET];
         match b {
-            0 => AccountState::Uninitialized,
-            1 => AccountState::Initialized,
-            2 => AccountState::Frozen,
+            SPL_TOKEN_ACCOUNT_STATE_UNINITIALIZED_DISCM => AccountState::Uninitialized,
+            SPL_TOKEN_ACCOUNT_STATE_INITIALIZED_DISCM => AccountState::Initialized,
+            SPL_TOKEN_ACCOUNT_STATE_FROZEN_DISCM => AccountState::Frozen,
             _ => panic!("invalid AccountState {b:?}"),
         }
     }
@@ -167,38 +167,57 @@ impl<D: ReadonlyAccountData> ReadonlyTokenAccount for D {
 
 #[cfg(test)]
 mod tests {
-    use proptest::{prop_assert, prop_assert_eq, proptest};
+    use proptest::prelude::*;
     use solana_program::program_pack::IsInitialized;
-    use solana_sdk::account::Account;
     use spl_token_2022::extension::StateWithExtensions;
+
+    use crate::readonly::test_utils::{to_account, valid_coption_discm};
 
     use super::*;
 
     proptest! {
         #[test]
-        fn zero_copy_matches_full_deser(bytes: [u8; spl_token_2022::state::Account::LEN]) {
-            let account = Account {
-                lamports: 0,
-                data: bytes.to_vec(),
-                owner: spl_token_2022::ID,
-                executable: false,
-                rent_epoch: u64::MAX
-            };
+        fn token_account_readonly_matches_full_deser_invalid(bytes: [u8; spl_token_2022::state::Account::LEN]) {
+            let account = to_account(&bytes);
             let unpack_res = StateWithExtensions::<spl_token_2022::state::Account>::unpack(&bytes);
             if !account.token_account_data_is_valid() {
                 prop_assert!(unpack_res.is_err());
-            } else {
-                let StateWithExtensions { base: expected, .. } = unpack_res.unwrap();
-                prop_assert_eq!(account.token_account_mint(), expected.mint);
-                prop_assert_eq!(account.token_account_owner(), expected.owner);
-                prop_assert_eq!(account.token_account_amount(), expected.amount);
-                prop_assert_eq!(account.token_account_delegate(), expected.delegate.into());
-                prop_assert_eq!(account.token_account_state(), expected.state);
-                prop_assert_eq!(account.token_account_is_native(), expected.is_native.into());
-                prop_assert_eq!(account.token_account_delegated_amount(), expected.delegated_amount);
-                prop_assert_eq!(account.token_account_close_authority(), expected.close_authority.into());
-                prop_assert_eq!(account.token_account_is_initialized(), expected.is_initialized());
             }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn token_account_readonly_matches_full_deser_valid(
+            mut bytes: [u8; spl_token_2022::state::Account::LEN],
+            delegate_discm in valid_coption_discm(),
+            is_native_discm in valid_coption_discm(),
+            close_authority_discm in valid_coption_discm(),
+            account_state in SPL_TOKEN_ACCOUNT_STATE_INITIALIZED_DISCM..=SPL_TOKEN_ACCOUNT_STATE_FROZEN_DISCM,
+        ) {
+            bytes.get_mut(SPL_TOKEN_ACCOUNT_DELEGATE_OFFSET..SPL_TOKEN_ACCOUNT_DELEGATE_OFFSET + 4)
+                .unwrap()
+                .copy_from_slice(&delegate_discm);
+            bytes.get_mut(SPL_TOKEN_ACCOUNT_IS_NATIVE_OFFSET..SPL_TOKEN_ACCOUNT_IS_NATIVE_OFFSET + 4)
+                .unwrap()
+                .copy_from_slice(&is_native_discm);
+            bytes.get_mut(SPL_TOKEN_ACCOUNT_CLOSE_AUTHORITY_OFFSET..SPL_TOKEN_ACCOUNT_CLOSE_AUTHORITY_OFFSET + 4)
+                .unwrap()
+                .copy_from_slice(&close_authority_discm);
+            bytes[SPL_TOKEN_ACCOUNT_STATE_OFFSET] = account_state;
+
+            let StateWithExtensions { base: expected, .. }
+                = StateWithExtensions::<spl_token_2022::state::Account>::unpack(&bytes).unwrap();
+            let account = to_account(&bytes);
+            prop_assert_eq!(account.token_account_mint(), expected.mint);
+            prop_assert_eq!(account.token_account_owner(), expected.owner);
+            prop_assert_eq!(account.token_account_amount(), expected.amount);
+            prop_assert_eq!(account.token_account_delegate(), expected.delegate.into());
+            prop_assert_eq!(account.token_account_state(), expected.state);
+            prop_assert_eq!(account.token_account_is_native(), expected.is_native.into());
+            prop_assert_eq!(account.token_account_delegated_amount(), expected.delegated_amount);
+            prop_assert_eq!(account.token_account_close_authority(), expected.close_authority.into());
+            prop_assert_eq!(account.token_account_is_initialized(), expected.is_initialized());
         }
     }
 }

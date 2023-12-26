@@ -1,5 +1,7 @@
+mod mint;
 mod token_account;
 
+pub use mint::*;
 pub use token_account::*;
 
 pub const COPTION_NONE_DISCM: [u8; 4] = [0; 4];
@@ -23,4 +25,26 @@ pub fn unpack_coption_slice(slice: &[u8]) -> Option<&[u8]> {
 
 pub fn is_coption_discm_valid(discm: &[u8; 4]) -> bool {
     matches!(*discm, COPTION_NONE_DISCM | COPTION_SOME_DISCM)
+}
+
+#[cfg(test)]
+mod test_utils {
+    use proptest::strategy::{Just, Strategy};
+    use solana_sdk::account::Account;
+
+    use crate::{COPTION_NONE_DISCM, COPTION_SOME_DISCM};
+
+    pub fn valid_coption_discm() -> impl Strategy<Value = [u8; 4]> {
+        Just(COPTION_NONE_DISCM).prop_union(Just(COPTION_SOME_DISCM))
+    }
+
+    pub fn to_account(bytes: &[u8]) -> Account {
+        Account {
+            lamports: 0,
+            data: bytes.to_vec(),
+            owner: spl_token_2022::ID,
+            executable: false,
+            rent_epoch: u64::MAX,
+        }
+    }
 }

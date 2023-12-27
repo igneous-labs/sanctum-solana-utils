@@ -1,0 +1,948 @@
+{
+  "version": "4.0.0",
+  "name": "spl_token",
+  "instructions": [
+    {
+      "name": "InitializeMint",
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      },
+      "args": [
+        {
+          "name": "decimals",
+          "type": "u8"
+        },
+        {
+          "name": "mintAuthority",
+          "type": "publicKey"
+        },
+        {
+          "name": "freezeAuthority",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The mint to initialize"
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Rent sysvar"
+        }
+      ]
+    },
+    {
+      "name": "InitializeAccount",
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      },
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to initialize"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint this account will be associated with"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The new account's owner/multisignaturer"
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Rent sysvar"
+        }
+      ]
+    },
+    {
+      "name": "InitializeMultisig",
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      },
+      "args": [
+        {
+          "name": "m",
+          "type": "u8"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "multisig",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The multisignature account to initialize"
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Rent sysvar. The signer accounts suffix slice follows. Length must equal to N where 1 <= N <= 11"
+        }
+      ]
+    },
+    {
+      "name": "Approve",
+      "discriminant": {
+        "type": "u8",
+        "value": 4
+      },
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to approve spending of"
+        },
+        {
+          "name": "delegate",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The delegate to approve spending to"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The source token account's authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "Revoke",
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      },
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The source token account"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The source token account's authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "SetAuthority",
+      "discriminant": {
+        "type": "u8",
+        "value": 6
+      },
+      "args": [
+        {
+          "name": "authorityType",
+          "type": {
+            "defined": "AuthorityType"
+          }
+        },
+        {
+          "name": "newAuthority",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "account",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The mint or account to change the authority of"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The current authority of the mint or account. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "MintTo",
+      "discriminant": {
+        "type": "u8",
+        "value": 7
+      },
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        },
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to mint tokens to"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The mint authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "Burn",
+      "discriminant": {
+        "type": "u8",
+        "value": 8
+      },
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to burn tokens from"
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "tokenAccount's authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "CloseAccount",
+      "discriminant": {
+        "type": "u8",
+        "value": 9
+      },
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to close"
+        },
+        {
+          "name": "dst",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The destination account to refund tokenAccount's SOL balance to"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The token account's close authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "FreezeAccount",
+      "discriminant": {
+        "type": "u8",
+        "value": 10
+      },
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to freeze"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The mint's freeze authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "ThawAccount",
+      "discriminant": {
+        "type": "u8",
+        "value": 11
+      },
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The frozen token account to thaw"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The mint's freeze authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "TransferChecked",
+      "discriminant": {
+        "type": "u8",
+        "value": 12
+      },
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CheckedOpArgs"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "src",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The source token account to transfer from"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The token mint"
+        },
+        {
+          "name": "dst",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The destination token account to transfer to"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "src's authority/delegate. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "ApproveChecked",
+      "discriminant": {
+        "type": "u8",
+        "value": 13
+      },
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CheckedOpArgs"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to approve spending of"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        },
+        {
+          "name": "delegate",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The delegate to approve spending to"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "tokenAccount's authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "MintToChecked",
+      "discriminant": {
+        "type": "u8",
+        "value": 14
+      },
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CheckedOpArgs"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        },
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to mint tokens to"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "The mint authority. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "BurnChecked",
+      "discriminant": {
+        "type": "u8",
+        "value": 15
+      },
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CheckedOpArgs"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to burn tokens from"
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "tokenAccount's authority/delegate. If multisig, this account is not a signer and the signing signatories must follow."
+        }
+      ]
+    },
+    {
+      "name": "InitializeAccount2",
+      "discriminant": {
+        "type": "u8",
+        "value": 16
+      },
+      "args": [
+        {
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to initialize"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Rent sysvar"
+        }
+      ]
+    },
+    {
+      "name": "SyncNative",
+      "discriminant": {
+        "type": "u8",
+        "value": 17
+      },
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The native token account to sync with its underlying lamports"
+        }
+      ]
+    },
+    {
+      "name": "InitializeAccount3",
+      "discriminant": {
+        "type": "u8",
+        "value": 18
+      },
+      "args": [
+        {
+          "name": "authority",
+          "type": "publicKey"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to initialize"
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "tokenAccount's mint"
+        }
+      ]
+    },
+    {
+      "name": "InitializeMultisig2",
+      "discriminant": {
+        "type": "u8",
+        "value": 19
+      },
+      "args": [
+        {
+          "name": "m",
+          "type": "u8"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "multisig",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The multisignature account to initialize. The signer accounts suffix slice follows. Length must equal to N where 1 <= N <= 11"
+        }
+      ]
+    },
+    {
+      "name": "InitializeMint2",
+      "discriminant": {
+        "type": "u8",
+        "value": 20
+      },
+      "args": [
+        {
+          "name": "decimals",
+          "type": "u8"
+        },
+        {
+          "name": "mintAuthority",
+          "type": "publicKey"
+        },
+        {
+          "name": "freezeAuthority",
+          "type": {
+            "option": "publicKey"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The mint to initialize"
+        }
+      ]
+    },
+    {
+      "name": "GetTokenAccountDataSize",
+      "discriminant": {
+        "type": "u8",
+        "value": 21
+      },
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint to calculate for"
+        }
+      ]
+    },
+    {
+      "name": "InitializeImmutableOwner",
+      "discriminant": {
+        "type": "u8",
+        "value": 22
+      },
+      "accounts": [
+        {
+          "name": "tokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "The token account to initialize"
+        }
+      ]
+    },
+    {
+      "name": "AmountToUiAmount",
+      "discriminant": {
+        "type": "u8",
+        "value": 23
+      },
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "The mint to calculate for"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Mint",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mintAuthority",
+            "type": {
+              "defined": "COptionPubkey"
+            }
+          },
+          {
+            "name": "supply",
+            "type": "u64"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "isInitialized",
+            "type": "bool"
+          },
+          {
+            "name": "freezeAuthority",
+            "type": {
+              "defined": "COptionPubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "delegate",
+            "type": {
+              "defined": "COptionPubkey"
+            }
+          },
+          {
+            "name": "state",
+            "type": {
+              "defined": "AccountState"
+            }
+          },
+          {
+            "name": "isNative",
+            "type": {
+              "defined": "COptionU64"
+            }
+          },
+          {
+            "name": "delegatedAmount",
+            "type": "u64"
+          },
+          {
+            "name": "closeAuthority",
+            "type": {
+              "defined": "COptionPubkey"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "COptionPubkey",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discm",
+            "type": {
+              "array": ["u8", 4]
+            }
+          },
+          {
+            "name": "value",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "COptionU64",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discm",
+            "type": {
+              "array": ["u8", 4]
+            }
+          },
+          {
+            "name": "value",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AccountState",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Uninitialized"
+          },
+          {
+            "name": "Initialized"
+          },
+          {
+            "name": "Frozen"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "MintTokens"
+          },
+          {
+            "name": "FreezeAccount"
+          },
+          {
+            "name": "AccountOwner"
+          },
+          {
+            "name": "CloseAccount"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CheckedOpArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 0,
+      "name": "NotRentExempt",
+      "msg": "Lamport balance below rent-exempt threshold"
+    },
+    {
+      "code": 1,
+      "name": "InsufficientFunds",
+      "msg": "Insufficient funds"
+    },
+    {
+      "code": 2,
+      "name": "InvalidMint",
+      "msg": "Invalid Mint"
+    },
+    {
+      "code": 3,
+      "name": "MintMismatch",
+      "msg": "Account not associated with this Mint"
+    },
+    {
+      "code": 4,
+      "name": "OwnerMismatch",
+      "msg": "Owner does not match"
+    },
+    {
+      "code": 5,
+      "name": "FixedSupply",
+      "msg": "Fixed supply"
+    },
+    {
+      "code": 6,
+      "name": "AlreadyInUse",
+      "msg": "Already in use"
+    },
+    {
+      "code": 7,
+      "name": "InvalidNumberOfProvidedSigners",
+      "msg": "Invalid number of provided signers"
+    },
+    {
+      "code": 8,
+      "name": "InvalidNumberOfRequiredSigners",
+      "msg": "Invalid number of required signers"
+    },
+    {
+      "code": 9,
+      "name": "UninitializedState",
+      "msg": "State is uninitialized"
+    },
+    {
+      "code": 10,
+      "name": "NativeNotSupported",
+      "msg": "Instruction does not support native tokens"
+    },
+    {
+      "code": 11,
+      "name": "NonNativeHasBalance",
+      "msg": "Non-native account can only be closed if its balance is zero"
+    },
+    {
+      "code": 12,
+      "name": "InvalidInstruction",
+      "msg": "Invalid instruction"
+    },
+    {
+      "code": 13,
+      "name": "InvalidState",
+      "msg": "State is invalid for requested operation"
+    },
+    {
+      "code": 14,
+      "name": "Overflow",
+      "msg": "Operation overflowed"
+    },
+    {
+      "code": 15,
+      "name": "AuthorityTypeNotSupported",
+      "msg": "Account does not support specified authority type"
+    },
+    {
+      "code": 16,
+      "name": "MintCannotFreeze",
+      "msg": "This token mint cannot freeze accounts"
+    },
+    {
+      "code": 17,
+      "name": "AccountFrozen",
+      "msg": "Account is frozen"
+    },
+    {
+      "code": 18,
+      "name": "MintDecimalsMismatch",
+      "msg": "The provided decimals value different from the Mint decimals"
+    },
+    {
+      "code": 19,
+      "name": "NonNativeNotSupported",
+      "msg": "Instruction does not support non-native tokens"
+    }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+  }
+}

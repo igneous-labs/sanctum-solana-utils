@@ -19,7 +19,10 @@ impl FindAtaAddressArgs {
     /// spl-associated-token-account doesnt export a find_program_address
     /// that also returns the found bump
     pub fn find_ata_address(&self) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&self.to_seeds(), &spl_associated_token_account::ID)
+        Pubkey::find_program_address(
+            &self.to_seeds(),
+            &spl_associated_token_account_interface::ID,
+        )
     }
 }
 
@@ -41,6 +44,9 @@ impl CreateAtaAddressArgs {
     }
 
     pub fn create_ata_address(&self) -> Result<Pubkey, PubkeyError> {
-        Pubkey::create_program_address(&self.to_signer_seeds(), &spl_associated_token_account::ID)
+        Pubkey::create_program_address(
+            &self.to_signer_seeds(),
+            &spl_associated_token_account_interface::ID,
+        )
     }
 }

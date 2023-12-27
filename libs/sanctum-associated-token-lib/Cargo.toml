@@ -8,4 +8,4 @@ repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
 [dependencies]
 solana-program = { workspace = true }
 solana-readonly-account = { workspace = true }
-spl-associated-token-account = { workspace = true }
+spl_associated_token_account_interface = { workspace = true }

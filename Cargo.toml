@@ -2,6 +2,7 @@
 resolver = "2"
 
 members = [
+    "generated/*",
     "libs/*",
     "sanctum-misc-utils",
     "sanctum-solana-cli-utils",
@@ -14,12 +15,13 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 async-trait = ">=0.1"
-borsh = { version = ">=0.9", default-features = false } # no_std support
-num-traits = ">=0.2"
+borsh = { version = ">=0.9", default-features = false } # no default-features for no_std support
+num-derive = ">=0.1"
+num-traits = ">=0.1"
 proptest = "^1"
 serde = { version = "^1", default-features = false, features = [
     "derive",
-] } # no_std support
+] } # no default-features for no_std support
 serde_json = "^1"
 solana-account-decoder = "^1"
 solana-clap-utils = "^1"
@@ -29,8 +31,9 @@ solana-program = "^1"
 solana-program-test = "^1"
 solana-readonly-account = "^1"
 solana-sdk = "^1"
-spl-associated-token-account = { version = ">=0.1.0", features = [
-    "no-entrypoint",
-] }
 spl-token = { version = ">=0.1.0", features = ["no-entrypoint"] }
 spl-token-2022 = { version = ">=0.1.0", features = ["no-entrypoint"] }
+thiserror = "^1"
+
+# workspace members
+spl_associated_token_account_interface = { path = "./generated/spl_associated_token_account_interface" }

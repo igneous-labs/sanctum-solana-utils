@@ -3298,6 +3298,7 @@ dependencies = [
  "solana-readonly-account",
  "solana-sdk",
  "spl-token-2022",
+ "spl_token_interface",
 ]
 
 [[package]]
@@ -4864,6 +4865,18 @@ dependencies = [
 [[package]]
 name = "spl_associated_token_account_interface"
 version = "2.0.0"
+dependencies = [
+ "borsh 0.9.3",
+ "num-derive 0.3.3",
+ "num-traits",
+ "serde",
+ "solana-program",
+ "thiserror",
+]
+
+[[package]]
+name = "spl_token_interface"
+version = "4.0.0"
 dependencies = [
  "borsh 0.9.3",
  "num-derive 0.3.3",

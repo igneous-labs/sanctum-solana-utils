@@ -1,0 +1,13 @@
+super::multisig_impl::multisig_impl!(
+    approve_checked_multisig_ix,
+    approve_checked_multisig_invoke,
+    approve_checked_multisig_invoke_signed,
+    approve_checked_multisig_ix_with_program_id,
+    approve_checked_multisig_invoke_with_program_id,
+    approve_checked_multisig_invoke_signed_with_program_id,
+    approve_checked_ix_with_program_id,
+    ApproveCheckedAccounts,
+    ApproveCheckedKeys,
+    ApproveCheckedIxArgs,
+    APPROVE_CHECKED_IX_ACCOUNTS_LEN,
+);

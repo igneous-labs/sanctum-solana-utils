@@ -42,6 +42,21 @@ impl SplAssociatedTokenAccountProgramIx {
         Ok(data)
     }
 }
+fn invoke_instruction<'info, A: Into<[AccountInfo<'info>; N]>, const N: usize>(
+    ix: &Instruction,
+    accounts: A,
+) -> ProgramResult {
+    let account_info: [AccountInfo<'info>; N] = accounts.into();
+    invoke(ix, &account_info)
+}
+fn invoke_instruction_signed<'info, A: Into<[AccountInfo<'info>; N]>, const N: usize>(
+    ix: &Instruction,
+    accounts: A,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let account_info: [AccountInfo<'info>; N] = accounts.into();
+    invoke_signed(ix, &account_info, seeds)
+}
 pub const CREATE_IX_ACCOUNTS_LEN: usize = 6;
 #[derive(Copy, Clone, Debug)]
 pub struct CreateAccounts<'me, 'info> {
@@ -188,28 +203,42 @@ impl CreateIxData {
         Ok(data)
     }
 }
-pub fn create_ix(keys: CreateKeys) -> std::io::Result<Instruction> {
+pub fn create_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CreateKeys,
+) -> std::io::Result<Instruction> {
     let metas: [AccountMeta; CREATE_IX_ACCOUNTS_LEN] = keys.into();
     Ok(Instruction {
-        program_id: crate::ID,
+        program_id,
         accounts: Vec::from(metas),
         data: CreateIxData.try_to_vec()?,
     })
 }
-pub fn create_invoke<'info>(accounts: CreateAccounts<'_, 'info>) -> ProgramResult {
-    let keys: CreateKeys = accounts.into();
-    let ix = create_ix(keys)?;
-    let account_info: [AccountInfo<'info>; CREATE_IX_ACCOUNTS_LEN] = accounts.into();
-    invoke(&ix, &account_info)
+pub fn create_ix(keys: CreateKeys) -> std::io::Result<Instruction> {
+    create_ix_with_program_id(crate::ID, keys)
 }
-pub fn create_invoke_signed<'info>(
-    accounts: CreateAccounts<'_, 'info>,
+pub fn create_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: CreateKeys = accounts.into();
+    let ix = create_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn create_invoke(accounts: CreateAccounts<'_, '_>) -> ProgramResult {
+    create_invoke_with_program_id(crate::ID, accounts)
+}
+pub fn create_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateAccounts<'_, '_>,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let keys: CreateKeys = accounts.into();
-    let ix = create_ix(keys)?;
-    let account_info: [AccountInfo<'info>; CREATE_IX_ACCOUNTS_LEN] = accounts.into();
-    invoke_signed(&ix, &account_info, seeds)
+    let ix = create_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn create_invoke_signed(accounts: CreateAccounts<'_, '_>, seeds: &[&[&[u8]]]) -> ProgramResult {
+    create_invoke_signed_with_program_id(crate::ID, accounts, seeds)
 }
 pub fn create_verify_account_keys(
     accounts: CreateAccounts<'_, '_>,
@@ -407,30 +436,45 @@ impl CreateIdempotentIxData {
         Ok(data)
     }
 }
-pub fn create_idempotent_ix(keys: CreateIdempotentKeys) -> std::io::Result<Instruction> {
+pub fn create_idempotent_ix_with_program_id(
+    program_id: Pubkey,
+    keys: CreateIdempotentKeys,
+) -> std::io::Result<Instruction> {
     let metas: [AccountMeta; CREATE_IDEMPOTENT_IX_ACCOUNTS_LEN] = keys.into();
     Ok(Instruction {
-        program_id: crate::ID,
+        program_id,
         accounts: Vec::from(metas),
         data: CreateIdempotentIxData.try_to_vec()?,
     })
 }
-pub fn create_idempotent_invoke<'info>(
-    accounts: CreateIdempotentAccounts<'_, 'info>,
+pub fn create_idempotent_ix(keys: CreateIdempotentKeys) -> std::io::Result<Instruction> {
+    create_idempotent_ix_with_program_id(crate::ID, keys)
+}
+pub fn create_idempotent_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateIdempotentAccounts<'_, '_>,
 ) -> ProgramResult {
     let keys: CreateIdempotentKeys = accounts.into();
-    let ix = create_idempotent_ix(keys)?;
-    let account_info: [AccountInfo<'info>; CREATE_IDEMPOTENT_IX_ACCOUNTS_LEN] = accounts.into();
-    invoke(&ix, &account_info)
+    let ix = create_idempotent_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
 }
-pub fn create_idempotent_invoke_signed<'info>(
-    accounts: CreateIdempotentAccounts<'_, 'info>,
+pub fn create_idempotent_invoke(accounts: CreateIdempotentAccounts<'_, '_>) -> ProgramResult {
+    create_idempotent_invoke_with_program_id(crate::ID, accounts)
+}
+pub fn create_idempotent_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: CreateIdempotentAccounts<'_, '_>,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let keys: CreateIdempotentKeys = accounts.into();
-    let ix = create_idempotent_ix(keys)?;
-    let account_info: [AccountInfo<'info>; CREATE_IDEMPOTENT_IX_ACCOUNTS_LEN] = accounts.into();
-    invoke_signed(&ix, &account_info, seeds)
+    let ix = create_idempotent_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn create_idempotent_invoke_signed(
+    accounts: CreateIdempotentAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    create_idempotent_invoke_signed_with_program_id(crate::ID, accounts, seeds)
 }
 pub fn create_idempotent_verify_account_keys(
     accounts: CreateIdempotentAccounts<'_, '_>,
@@ -641,28 +685,45 @@ impl RecoverNestedIxData {
         Ok(data)
     }
 }
-pub fn recover_nested_ix(keys: RecoverNestedKeys) -> std::io::Result<Instruction> {
+pub fn recover_nested_ix_with_program_id(
+    program_id: Pubkey,
+    keys: RecoverNestedKeys,
+) -> std::io::Result<Instruction> {
     let metas: [AccountMeta; RECOVER_NESTED_IX_ACCOUNTS_LEN] = keys.into();
     Ok(Instruction {
-        program_id: crate::ID,
+        program_id,
         accounts: Vec::from(metas),
         data: RecoverNestedIxData.try_to_vec()?,
     })
 }
-pub fn recover_nested_invoke<'info>(accounts: RecoverNestedAccounts<'_, 'info>) -> ProgramResult {
-    let keys: RecoverNestedKeys = accounts.into();
-    let ix = recover_nested_ix(keys)?;
-    let account_info: [AccountInfo<'info>; RECOVER_NESTED_IX_ACCOUNTS_LEN] = accounts.into();
-    invoke(&ix, &account_info)
+pub fn recover_nested_ix(keys: RecoverNestedKeys) -> std::io::Result<Instruction> {
+    recover_nested_ix_with_program_id(crate::ID, keys)
 }
-pub fn recover_nested_invoke_signed<'info>(
-    accounts: RecoverNestedAccounts<'_, 'info>,
+pub fn recover_nested_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: RecoverNestedAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: RecoverNestedKeys = accounts.into();
+    let ix = recover_nested_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn recover_nested_invoke(accounts: RecoverNestedAccounts<'_, '_>) -> ProgramResult {
+    recover_nested_invoke_with_program_id(crate::ID, accounts)
+}
+pub fn recover_nested_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: RecoverNestedAccounts<'_, '_>,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let keys: RecoverNestedKeys = accounts.into();
-    let ix = recover_nested_ix(keys)?;
-    let account_info: [AccountInfo<'info>; RECOVER_NESTED_IX_ACCOUNTS_LEN] = accounts.into();
-    invoke_signed(&ix, &account_info, seeds)
+    let ix = recover_nested_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn recover_nested_invoke_signed(
+    accounts: RecoverNestedAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    recover_nested_invoke_signed_with_program_id(crate::ID, accounts, seeds)
 }
 pub fn recover_nested_verify_account_keys(
     accounts: RecoverNestedAccounts<'_, '_>,

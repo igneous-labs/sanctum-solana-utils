@@ -37,3 +37,4 @@ thiserror = "^1"
 
 # workspace members
 spl_associated_token_account_interface = { path = "./generated/spl_associated_token_account_interface" }
+spl_token_interface = { path = "./generated/spl_token_interface" }

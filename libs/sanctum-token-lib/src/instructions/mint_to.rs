@@ -1,4 +1,7 @@
 super::multisig_impl::multisig_impl!(
+    mint_to_multisig_ix,
+    mint_to_multisig_invoke,
+    mint_to_multisig_invoke_signed,
     mint_to_multisig_ix_with_program_id,
     mint_to_multisig_invoke_with_program_id,
     mint_to_multisig_invoke_signed_with_program_id,

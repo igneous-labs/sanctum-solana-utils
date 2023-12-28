@@ -1,4 +1,7 @@
 super::multisig_impl::multisig_impl_no_ix_args!(
+    thaw_account_multisig_ix,
+    thaw_account_multisig_invoke,
+    thaw_account_multisig_invoke_signed,
     thaw_account_multisig_ix_with_program_id,
     thaw_account_multisig_invoke_with_program_id,
     thaw_account_multisig_invoke_signed_with_program_id,

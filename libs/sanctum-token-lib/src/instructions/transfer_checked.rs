@@ -1,0 +1,13 @@
+super::multisig_impl::multisig_impl!(
+    transfer_checked_multisig_ix,
+    transfer_checked_multisig_invoke,
+    transfer_checked_multisig_invoke_signed,
+    transfer_checked_multisig_ix_with_program_id,
+    transfer_checked_multisig_invoke_with_program_id,
+    transfer_checked_multisig_invoke_signed_with_program_id,
+    transfer_checked_ix_with_program_id,
+    TransferCheckedAccounts,
+    TransferCheckedKeys,
+    TransferCheckedIxArgs,
+    TRANSFER_CHECKED_IX_ACCOUNTS_LEN,
+);

@@ -1,4 +1,7 @@
 super::multisig_impl::multisig_impl_no_ix_args!(
+    freeze_account_multisig_ix,
+    freeze_account_multisig_invoke,
+    freeze_account_multisig_invoke_signed,
     freeze_account_multisig_ix_with_program_id,
     freeze_account_multisig_invoke_with_program_id,
     freeze_account_multisig_invoke_signed_with_program_id,

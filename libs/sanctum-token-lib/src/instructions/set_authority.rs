@@ -1,4 +1,7 @@
 super::multisig_impl::multisig_impl!(
+    set_authority_multisig_ix,
+    set_authority_multisig_invoke,
+    set_authority_multisig_invoke_signed,
     set_authority_multisig_ix_with_program_id,
     set_authority_multisig_invoke_with_program_id,
     set_authority_multisig_invoke_signed_with_program_id,

@@ -3,6 +3,9 @@ macro_rules! multisig_impl {
         $ix_fn: ident,
         $invoke_fn: ident,
         $invoke_signed_fn: ident,
+        $ix_fn_with_program_id: ident,
+        $invoke_fn_with_program_id: ident,
+        $invoke_signed_fn_with_program_id: ident,
 
         $ix_with_program_id: ident,
         $accounts: ident,
@@ -20,6 +23,37 @@ macro_rules! multisig_impl {
         use spl_token_interface::{$accounts, $accounts_len, $ix_args, $ix_with_program_id, $keys};
 
         pub fn $ix_fn(
+            keys: $keys,
+            args: $ix_args,
+            signatories: impl Iterator<Item = Pubkey>,
+        ) -> std::io::Result<Instruction> {
+            $ix_fn_with_program_id(spl_token_interface::ID, keys, args, signatories)
+        }
+
+        pub fn $invoke_fn<'a, 'info>(
+            accounts: $accounts<'a, 'info>,
+            args: $ix_args,
+            signatories: &'a [AccountInfo<'info>],
+        ) -> ProgramResult {
+            $invoke_fn_with_program_id(spl_token_interface::ID, accounts, args, signatories)
+        }
+
+        pub fn $invoke_signed_fn<'a, 'info>(
+            accounts: $accounts<'a, 'info>,
+            args: $ix_args,
+            signatories: &'a [AccountInfo<'info>],
+            seeds: &[&[&[u8]]],
+        ) -> ProgramResult {
+            $invoke_signed_fn_with_program_id(
+                spl_token_interface::ID,
+                accounts,
+                args,
+                signatories,
+                seeds,
+            )
+        }
+
+        pub fn $ix_fn_with_program_id(
             program_id: Pubkey,
             keys: $keys,
             args: $ix_args,
@@ -35,13 +69,13 @@ macro_rules! multisig_impl {
             Ok(ix)
         }
 
-        pub fn $invoke_fn<'a, 'info>(
+        pub fn $invoke_fn_with_program_id<'a, 'info>(
             program_id: Pubkey,
             accounts: $accounts<'a, 'info>,
             args: $ix_args,
             signatories: &'a [AccountInfo<'info>],
         ) -> ProgramResult {
-            let ix = $ix_fn(
+            let ix = $ix_fn_with_program_id(
                 program_id,
                 accounts.into(),
                 args,
@@ -52,14 +86,14 @@ macro_rules! multisig_impl {
             invoke(&ix, &accounts)
         }
 
-        pub fn $invoke_signed_fn<'a, 'info>(
+        pub fn $invoke_signed_fn_with_program_id<'a, 'info>(
             program_id: Pubkey,
             accounts: $accounts<'a, 'info>,
             args: $ix_args,
             signatories: &'a [AccountInfo<'info>],
             seeds: &[&[&[u8]]],
         ) -> ProgramResult {
-            let ix = $ix_fn(
+            let ix = $ix_fn_with_program_id(
                 program_id,
                 accounts.into(),
                 args,
@@ -77,6 +111,9 @@ macro_rules! multisig_impl_no_ix_args {
         $ix_fn: ident,
         $invoke_fn: ident,
         $invoke_signed_fn: ident,
+        $ix_fn_with_program_id: ident,
+        $invoke_fn_with_program_id: ident,
+        $invoke_signed_fn_with_program_id: ident,
 
         $ix_with_program_id: ident,
         $accounts: ident,
@@ -93,6 +130,28 @@ macro_rules! multisig_impl_no_ix_args {
         use spl_token_interface::{$accounts, $accounts_len, $ix_with_program_id, $keys};
 
         pub fn $ix_fn(
+            keys: $keys,
+            signatories: impl Iterator<Item = Pubkey>,
+        ) -> std::io::Result<Instruction> {
+            $ix_fn_with_program_id(spl_token_interface::ID, keys, signatories)
+        }
+
+        pub fn $invoke_fn<'a, 'info>(
+            accounts: $accounts<'a, 'info>,
+            signatories: &'a [AccountInfo<'info>],
+        ) -> ProgramResult {
+            $invoke_fn_with_program_id(spl_token_interface::ID, accounts, signatories)
+        }
+
+        pub fn $invoke_signed_fn<'a, 'info>(
+            accounts: $accounts<'a, 'info>,
+            signatories: &'a [AccountInfo<'info>],
+            seeds: &[&[&[u8]]],
+        ) -> ProgramResult {
+            $invoke_signed_fn_with_program_id(spl_token_interface::ID, accounts, signatories, seeds)
+        }
+
+        pub fn $ix_fn_with_program_id(
             program_id: Pubkey,
             keys: $keys,
             signatories: impl Iterator<Item = Pubkey>,
@@ -107,12 +166,12 @@ macro_rules! multisig_impl_no_ix_args {
             Ok(ix)
         }
 
-        pub fn $invoke_fn<'a, 'info>(
+        pub fn $invoke_fn_with_program_id<'a, 'info>(
             program_id: Pubkey,
             accounts: $accounts<'a, 'info>,
             signatories: &'a [AccountInfo<'info>],
         ) -> ProgramResult {
-            let ix = $ix_fn(
+            let ix = $ix_fn_with_program_id(
                 program_id,
                 accounts.into(),
                 signatories.iter().map(|a| *a.key),
@@ -122,13 +181,13 @@ macro_rules! multisig_impl_no_ix_args {
             invoke(&ix, &accounts)
         }
 
-        pub fn $invoke_signed_fn<'a, 'info>(
+        pub fn $invoke_signed_fn_with_program_id<'a, 'info>(
             program_id: Pubkey,
             accounts: $accounts<'a, 'info>,
             signatories: &'a [AccountInfo<'info>],
             seeds: &[&[&[u8]]],
         ) -> ProgramResult {
-            let ix = $ix_fn(
+            let ix = $ix_fn_with_program_id(
                 program_id,
                 accounts.into(),
                 signatories.iter().map(|a| *a.key),

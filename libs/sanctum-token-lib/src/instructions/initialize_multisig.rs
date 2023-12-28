@@ -1,3 +1,6 @@
+//! Don't use super::multisig_impl::multisig_impl! here because
+//! this is the only multisig ix that doesnt require the signatories to be signers
+
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,

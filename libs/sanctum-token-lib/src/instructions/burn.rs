@@ -1,0 +1,10 @@
+super::multisig_impl::multisig_impl!(
+    burn_multisig_ix_with_program_id,
+    burn_multisig_invoke_with_program_id,
+    burn_multisig_invoke_signed_with_program_id,
+    burn_ix_with_program_id,
+    BurnAccounts,
+    BurnKeys,
+    BurnIxArgs,
+    BURN_IX_ACCOUNTS_LEN,
+);

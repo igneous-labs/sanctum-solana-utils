@@ -1,0 +1,9 @@
+super::multisig_impl::multisig_impl_no_ix_args!(
+    close_account_multisig_ix_with_program_id,
+    close_account_multisig_invoke_with_program_id,
+    close_account_multisig_invoke_signed_with_program_id,
+    close_account_ix_with_program_id,
+    CloseAccountAccounts,
+    CloseAccountKeys,
+    CLOSE_ACCOUNT_IX_ACCOUNTS_LEN,
+);

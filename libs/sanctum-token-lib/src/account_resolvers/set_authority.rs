@@ -5,12 +5,12 @@ use spl_token_interface::{AuthorityType, SetAuthorityKeys, SplTokenError};
 use crate::{ReadonlyMintAccount, ReadonlyTokenAccount};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct SetAuthorityFreeArgs<D> {
-    pub account: D,
+pub struct SetAuthorityFreeArgs<A> {
+    pub account: A,
     pub authority_type: AuthorityType,
 }
 
-impl<D: ReadonlyAccountData + ReadonlyAccountPubkey> SetAuthorityFreeArgs<D> {
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> SetAuthorityFreeArgs<A> {
     pub fn resolve(&self) -> Result<SetAuthorityKeys, ProgramError> {
         match self.authority_type {
             AuthorityType::FreezeAccount | AuthorityType::MintTokens => self.resolve_mint(),
@@ -66,12 +66,12 @@ impl<D: ReadonlyAccountData + ReadonlyAccountPubkey> SetAuthorityFreeArgs<D> {
     }
 }
 
-impl<D: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<SetAuthorityFreeArgs<D>>
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<SetAuthorityFreeArgs<A>>
     for SetAuthorityKeys
 {
     type Error = ProgramError;
 
-    fn try_from(value: SetAuthorityFreeArgs<D>) -> Result<Self, Self::Error> {
+    fn try_from(value: SetAuthorityFreeArgs<A>) -> Result<Self, Self::Error> {
         value.resolve()
     }
 }

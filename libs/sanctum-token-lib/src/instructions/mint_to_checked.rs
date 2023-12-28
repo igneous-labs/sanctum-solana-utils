@@ -1,0 +1,10 @@
+super::multisig_impl::multisig_impl!(
+    mint_to_checked_multisig_ix_with_program_id,
+    mint_to_checked_multisig_invoke_with_program_id,
+    mint_to_checked_multisig_invoke_signed_with_program_id,
+    mint_to_checked_ix_with_program_id,
+    MintToCheckedAccounts,
+    MintToCheckedKeys,
+    MintToCheckedIxArgs,
+    MINT_TO_CHECKED_IX_ACCOUNTS_LEN,
+);

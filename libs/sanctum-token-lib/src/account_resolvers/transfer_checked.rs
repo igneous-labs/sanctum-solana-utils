@@ -5,12 +5,12 @@ use spl_token_interface::TransferCheckedKeys;
 use crate::ReadonlyTokenAccount;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct TransferCheckedFreeAccounts<F> {
-    pub from: F,
+pub struct TransferCheckedFreeAccounts<A> {
+    pub from: A,
     pub to: Pubkey,
 }
 
-impl<F: ReadonlyAccountPubkey + ReadonlyAccountData> TransferCheckedFreeAccounts<F> {
+impl<A: ReadonlyAccountPubkey + ReadonlyAccountData> TransferCheckedFreeAccounts<A> {
     pub fn resolve(&self) -> Result<TransferCheckedKeys, ProgramError> {
         let Self { from, to } = self;
 
@@ -30,12 +30,12 @@ impl<F: ReadonlyAccountPubkey + ReadonlyAccountData> TransferCheckedFreeAccounts
     }
 }
 
-impl<F: ReadonlyAccountPubkey + ReadonlyAccountData> TryFrom<TransferCheckedFreeAccounts<F>>
+impl<A: ReadonlyAccountPubkey + ReadonlyAccountData> TryFrom<TransferCheckedFreeAccounts<A>>
     for TransferCheckedKeys
 {
     type Error = ProgramError;
 
-    fn try_from(value: TransferCheckedFreeAccounts<F>) -> Result<Self, Self::Error> {
+    fn try_from(value: TransferCheckedFreeAccounts<A>) -> Result<Self, Self::Error> {
         value.resolve()
     }
 }

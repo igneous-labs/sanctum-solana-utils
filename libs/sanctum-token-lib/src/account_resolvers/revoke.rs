@@ -5,11 +5,11 @@ use spl_token_interface::RevokeKeys;
 use crate::ReadonlyTokenAccount;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct RevokeFreeAccounts<D> {
-    pub token_account: D,
+pub struct RevokeFreeAccounts<A> {
+    pub token_account: A,
 }
 
-impl<D: ReadonlyAccountData + ReadonlyAccountPubkey> RevokeFreeAccounts<D> {
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> RevokeFreeAccounts<A> {
     pub fn resolve(&self) -> Result<RevokeKeys, ProgramError> {
         let Self { token_account } = self;
 
@@ -28,10 +28,10 @@ impl<D: ReadonlyAccountData + ReadonlyAccountPubkey> RevokeFreeAccounts<D> {
     }
 }
 
-impl<D: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<RevokeFreeAccounts<D>> for RevokeKeys {
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<RevokeFreeAccounts<A>> for RevokeKeys {
     type Error = ProgramError;
 
-    fn try_from(value: RevokeFreeAccounts<D>) -> Result<Self, Self::Error> {
+    fn try_from(value: RevokeFreeAccounts<A>) -> Result<Self, Self::Error> {
         value.resolve()
     }
 }

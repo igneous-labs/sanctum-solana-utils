@@ -1,10 +1,26 @@
 mod approve;
+mod approve_checked;
+mod burn;
+mod burn_checked;
+mod close_account;
+mod freeze_account;
 mod initialize_multisig;
+mod mint_to;
+mod mint_to_checked;
 mod multisig_impl;
 mod revoke;
 mod set_authority;
+mod thaw_account;
 
 pub use approve::*;
+pub use approve_checked::*;
+pub use burn::*;
+pub use burn_checked::*;
+pub use close_account::*;
+pub use freeze_account::*;
 pub use initialize_multisig::*;
+pub use mint_to::*;
+pub use mint_to_checked::*;
 pub use revoke::*;
 pub use set_authority::*;
+pub use thaw_account::*;

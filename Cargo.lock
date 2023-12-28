@@ -3298,6 +3298,7 @@ dependencies = [
  "solana-readonly-account",
  "solana-sdk",
  "spl-token-2022",
+ "spl_token_interface",
 ]
 
 [[package]]

@@ -268,7 +268,7 @@
           "desc": "The token account to close"
         },
         {
-          "name": "dst",
+          "name": "to",
           "isMut": true,
           "isSigner": false,
           "desc": "The destination account to refund tokenAccount's SOL balance to"
@@ -351,7 +351,7 @@
       ],
       "accounts": [
         {
-          "name": "src",
+          "name": "from",
           "isMut": true,
           "isSigner": false,
           "desc": "The source token account to transfer from"
@@ -363,7 +363,7 @@
           "desc": "The token mint"
         },
         {
-          "name": "dst",
+          "name": "to",
           "isMut": true,
           "isSigner": false,
           "desc": "The destination token account to transfer to"
@@ -372,7 +372,7 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true,
-          "desc": "src's authority/delegate. If multisig, this account is not a signer and the signing signatories must follow."
+          "desc": "from's authority/delegate. If multisig, this account is not a signer and the signing signatories must follow."
         }
       ]
     },

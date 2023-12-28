@@ -1,9 +1,7 @@
-use solana_program::{
-    program_pack::Pack,
-    pubkey::{Pubkey, PUBKEY_BYTES},
-};
+use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 use solana_readonly_account::ReadonlyAccountData;
-use spl_token_2022::state::Mint;
+
+use crate::SPL_MINT_ACCOUNT_PACKED_LEN;
 
 use super::{is_coption_discm_valid, unpack_coption_slice};
 
@@ -53,7 +51,7 @@ pub trait ReadonlyMintAccount {
 impl<D: ReadonlyAccountData> ReadonlyMintAccount for D {
     fn mint_data_is_valid(&self) -> bool {
         let d = self.data();
-        d.len() >= Mint::LEN
+        d.len() >= SPL_MINT_ACCOUNT_PACKED_LEN
             && is_coption_discm_valid(
                 &d[SPL_MINT_MINT_AUTHORITY_OFFSET..SPL_MINT_MINT_AUTHORITY_OFFSET + 4]
                     .try_into()
@@ -111,7 +109,7 @@ impl<D: ReadonlyAccountData> ReadonlyMintAccount for D {
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
-    use spl_token_2022::extension::StateWithExtensions;
+    use spl_token_2022::{extension::StateWithExtensions, state::Mint};
 
     use crate::readonly::test_utils::{to_account, valid_coption_discm};
 
@@ -119,7 +117,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn mint_readonly_matches_full_deser_invalid(bytes: [u8; Mint::LEN]) {
+        fn mint_readonly_matches_full_deser_invalid(bytes: [u8; SPL_MINT_ACCOUNT_PACKED_LEN]) {
             let account = to_account(&bytes);
             let unpack_res = StateWithExtensions::<Mint>::unpack(&bytes);
             if !account.mint_data_is_valid() {
@@ -131,7 +129,7 @@ mod tests {
     proptest! {
         #[test]
         fn mint_readonly_matches_full_deser_valid(
-            mut bytes: [u8; Mint::LEN],
+            mut bytes: [u8; SPL_MINT_ACCOUNT_PACKED_LEN],
             mint_authority_discm in valid_coption_discm(),
             freeze_authority_discm in valid_coption_discm(),
         ) {

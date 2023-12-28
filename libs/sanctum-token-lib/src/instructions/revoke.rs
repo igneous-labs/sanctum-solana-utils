@@ -1,0 +1,9 @@
+super::multisig_impl::multisig_impl_no_ix_args!(
+    revoke_multisig_ix_with_program_id,
+    revoke_multisig_invoke_with_program_id,
+    revoke_multisig_invoke_signed_with_program_id,
+    revoke_ix_with_program_id,
+    RevokeAccounts,
+    RevokeKeys,
+    REVOKE_IX_ACCOUNTS_LEN,
+);

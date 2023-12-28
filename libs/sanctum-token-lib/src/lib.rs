@@ -1,8 +1,10 @@
 mod account_resolvers;
+mod instructions;
 mod mint_with_token_program;
 mod readonly;
 
 pub use account_resolvers::*;
+pub use instructions::*;
 pub use mint_with_token_program::*;
 pub use readonly::*;
 

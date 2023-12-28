@@ -46,6 +46,7 @@ pub trait ReadonlyTokenAccount {
 
     fn token_account_mint(&self) -> Pubkey;
 
+    /// AKA "owner"
     fn token_account_authority(&self) -> Pubkey;
 
     fn token_account_amount(&self) -> u64;

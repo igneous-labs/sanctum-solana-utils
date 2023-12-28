@@ -4,10 +4,7 @@ use spl_associated_token_account_interface::RecoverNestedKeys;
 
 use crate::{CreateAtaAddressArgs, FindAtaAddressArgs};
 
-pub struct RecoverNestedFreeArgs<
-    M: ReadonlyAccountPubkey + ReadonlyAccountOwner,
-    N: ReadonlyAccountPubkey + ReadonlyAccountOwner,
-> {
+pub struct RecoverNestedFreeArgs<M, N> {
     pub wallet: Pubkey,
     pub owner_token_account_mint: M,
     pub nested_mint: N,

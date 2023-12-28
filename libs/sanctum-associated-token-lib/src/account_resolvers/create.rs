@@ -5,7 +5,7 @@ use spl_associated_token_account_interface::CreateKeys;
 use crate::FindAtaAddressArgs;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct CreateFreeArgs<M: ReadonlyAccountPubkey + ReadonlyAccountOwner> {
+pub struct CreateFreeArgs<M> {
     pub funding_account: Pubkey,
     pub wallet: Pubkey,
     pub mint: M,

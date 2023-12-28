@@ -1,7 +1,5 @@
-mod instructions;
 mod utils;
 
-pub use instructions::*;
 pub use utils::*;
 
 // This const is available in StakeState::size_of() and StakeStateV2::size_of(),

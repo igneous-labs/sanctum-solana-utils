@@ -6,3 +6,4 @@ license.workspace = true
 
 [dependencies]
 solana-program = { workspace = true }
+# TODO: stake_program_interface

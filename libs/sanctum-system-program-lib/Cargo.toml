@@ -7,3 +7,4 @@ repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
 
 [dependencies]
 solana-program = { workspace = true }
+system_program_interface = { workspace = true }

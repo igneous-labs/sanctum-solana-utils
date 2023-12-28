@@ -2,8 +2,9 @@
 //! These functions typically do not require the system_program AccountInfo to be in scope.
 
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, system_program};
+use system_program_interface::TransferAccounts;
 
-use crate::{onchain_rent_exempt_lamports_for, TransferAccounts};
+use crate::onchain_rent_exempt_lamports_for;
 
 /// Transfer by directly decrementing one account's lamports and
 /// incrementing another's.

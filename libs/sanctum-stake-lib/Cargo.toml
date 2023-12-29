@@ -6,4 +6,12 @@ license.workspace = true
 
 [dependencies]
 solana-program = { workspace = true }
-# TODO: stake_program_interface
+solana-readonly-account = { workspace = true }
+stake_program_interface = { workspace = true }
+
+[dev-dependencies]
+borsh = { workspace = true }
+proptest = { workspace = true }
+sanctum-solana-test-utils = { workspace = true, features = ["proptest", "stake"] }
+solana-readonly-account = { workspace = true, features = ["solana-sdk"] }
+solana-sdk = { workspace = true }

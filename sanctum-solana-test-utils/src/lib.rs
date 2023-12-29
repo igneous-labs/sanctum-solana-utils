@@ -17,6 +17,9 @@ pub use tx::*;
 // re-export KeyedAccount
 pub use solana_readonly_account::sdk::KeyedAccount;
 
+#[cfg(feature = "proptest")]
+pub mod proptest_utils;
+
 #[cfg(feature = "stake")]
 pub mod stake;
 

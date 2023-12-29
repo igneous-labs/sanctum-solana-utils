@@ -1,0 +1,10 @@
+super::by_custodian::impl_by_custodian!(
+    set_lockup_checked_new_custodian_ix,
+    set_lockup_checked_new_custodian_invoke,
+    set_lockup_checked_new_custodian_invoke_signed,
+    set_lockup_checked_ix,
+    SetLockupCheckedAccounts,
+    SetLockupCheckedKeys,
+    SetLockupCheckedIxArgs,
+    SET_LOCKUP_CHECKED_IX_ACCOUNTS_LEN,
+);

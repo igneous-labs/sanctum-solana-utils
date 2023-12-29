@@ -7,13 +7,15 @@ repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
 
 [features]
 default = []
-token = ["spl-token"] # TODO: token-22
+proptest = ["dep:proptest"]
 stake = []
+token = ["spl-token"] # TODO: token-22
 
 [dependencies]
 async-trait = { workspace = true }
 borsh = { workspace = true }
 num-traits = { workspace = true }
+proptest = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 solana-account-decoder = { workspace = true }

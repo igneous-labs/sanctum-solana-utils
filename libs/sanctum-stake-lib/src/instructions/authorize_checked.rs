@@ -1,0 +1,10 @@
+super::by_custodian::impl_by_custodian!(
+    authorize_checked_by_custodian_ix,
+    authorize_checked_by_custodian_invoke,
+    authorize_checked_by_custodian_invoke_signed,
+    authorize_checked_ix,
+    AuthorizeCheckedAccounts,
+    AuthorizeCheckedKeys,
+    AuthorizeCheckedIxArgs,
+    AUTHORIZE_CHECKED_IX_ACCOUNTS_LEN,
+);

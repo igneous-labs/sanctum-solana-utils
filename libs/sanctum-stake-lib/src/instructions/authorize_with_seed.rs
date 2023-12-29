@@ -1,0 +1,10 @@
+super::by_custodian::impl_by_custodian!(
+    authorize_with_seed_by_custodian_ix,
+    authorize_with_seed_by_custodian_invoke,
+    authorize_with_seed_by_custodian_invoke_signed,
+    authorize_with_seed_ix,
+    AuthorizeWithSeedAccounts,
+    AuthorizeWithSeedKeys,
+    AuthorizeWithSeedIxArgs,
+    AUTHORIZE_WITH_SEED_IX_ACCOUNTS_LEN,
+);

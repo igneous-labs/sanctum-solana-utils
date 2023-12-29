@@ -1,9 +1,11 @@
 mod account_resolvers;
+mod instructions;
 mod readonly;
 mod typeconv;
 mod utils;
 
 pub use account_resolvers::*;
+pub use instructions::*;
 pub use readonly::*;
 pub use typeconv::*;
 pub use utils::*;

@@ -1,0 +1,10 @@
+super::by_custodian::impl_by_custodian!(
+    authorize_by_custodian_ix,
+    authorize_by_custodian_invoke,
+    authorize_by_custodian_invoke_signed,
+    authorize_ix,
+    AuthorizeAccounts,
+    AuthorizeKeys,
+    AuthorizeIxArgs,
+    AUTHORIZE_IX_ACCOUNTS_LEN,
+);

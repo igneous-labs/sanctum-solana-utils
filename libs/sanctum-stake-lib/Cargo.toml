@@ -6,4 +6,5 @@ license.workspace = true
 
 [dependencies]
 solana-program = { workspace = true }
-# TODO: stake_program_interface
+solana-readonly-account = { workspace = true }
+stake_program_interface = { workspace = true }

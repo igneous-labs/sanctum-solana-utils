@@ -3280,6 +3280,8 @@ name = "sanctum-stake-lib"
 version = "0.1.0"
 dependencies = [
  "solana-program",
+ "solana-readonly-account",
+ "stake_program_interface",
 ]
 
 [[package]]

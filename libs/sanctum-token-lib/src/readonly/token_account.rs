@@ -171,7 +171,7 @@ mod tests {
     use solana_program::program_pack::{IsInitialized, Pack};
     use spl_token_2022::extension::StateWithExtensions;
 
-    use crate::readonly::test_utils::to_account;
+    use crate::readonly::test_utils::AccountData;
 
     use super::*;
 
@@ -186,7 +186,7 @@ mod tests {
     proptest! {
         #[test]
         fn token_account_readonly_matches_full_deser_invalid(bytes: [u8; SPL_TOKEN_ACCOUNT_PACKED_LEN]) {
-            let account = to_account(&bytes);
+            let account = AccountData(&bytes);
             let unpack_res = StateWithExtensions::<spl_token_2022::state::Account>::unpack(&bytes);
             if !account.token_account_data_is_valid() {
                 prop_assert!(unpack_res.is_err());
@@ -201,7 +201,7 @@ mod tests {
         ) {
             let mut data = vec![0u8; SPL_TOKEN_ACCOUNT_PACKED_LEN];
             expected.pack_into_slice(&mut data);
-            let account = to_account(&data);
+            let account = AccountData(&data);
             prop_assert_eq!(account.token_account_mint(), expected.mint);
             prop_assert_eq!(account.token_account_authority(), expected.owner);
             prop_assert_eq!(account.token_account_amount(), expected.amount);

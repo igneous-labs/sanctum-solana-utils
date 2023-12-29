@@ -15,6 +15,7 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 async-trait = ">=0.1"
+bincode = "^1"
 borsh = { version = ">=0.9", default-features = false } # no default-features for no_std support
 num-derive = ">=0.1"
 num-traits = ">=0.1"

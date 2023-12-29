@@ -1,5 +1,12 @@
 use proptest::prelude::*;
-use solana_program::{clock::Clock, program_option::COption, pubkey::Pubkey};
+use solana_program::{
+    clock::Clock,
+    fee_calculator::FeeCalculator,
+    hash::Hash,
+    nonce::{self, state::DurableNonce},
+    program_option::COption,
+    pubkey::Pubkey,
+};
 
 prop_compose! {
     pub fn pubkey()
@@ -9,10 +16,31 @@ prop_compose! {
 }
 
 prop_compose! {
+    pub fn hash()
+        (b: [u8; 32]) -> Hash {
+            Hash::from(b)
+        }
+}
+
+prop_compose! {
     pub fn clock()
         (slot: u64, epoch_start_timestamp: i64, epoch: u64, leader_schedule_epoch: u64, unix_timestamp: i64) -> Clock {
             Clock { slot, epoch_start_timestamp, epoch, leader_schedule_epoch, unix_timestamp }
         }
+}
+
+prop_compose! {
+    pub fn nonce_data()
+        (authority in pubkey(), lamports_per_signature: u64, hash in hash()) -> nonce::state::Data {
+            nonce::state::Data { authority, durable_nonce: DurableNonce::from_blockhash(&hash), fee_calculator: FeeCalculator { lamports_per_signature } }
+        }
+}
+
+pub fn nonce() -> impl Strategy<Value = nonce::State> {
+    nonce_data()
+        .prop_map(nonce::State::Initialized)
+        .boxed()
+        .prop_union(Just(nonce::State::Uninitialized).boxed())
 }
 
 prop_compose! {

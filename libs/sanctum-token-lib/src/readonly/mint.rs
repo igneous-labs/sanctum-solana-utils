@@ -113,14 +113,14 @@ mod tests {
     use solana_program::program_pack::Pack;
     use spl_token_2022::{extension::StateWithExtensions, state::Mint};
 
-    use crate::readonly::test_utils::to_account;
+    use crate::readonly::test_utils::AccountData;
 
     use super::*;
 
     proptest! {
         #[test]
         fn mint_readonly_matches_full_deser_invalid(bytes: [u8; SPL_MINT_ACCOUNT_PACKED_LEN]) {
-            let account = to_account(&bytes);
+            let account = AccountData(&bytes);
             let unpack_res = StateWithExtensions::<Mint>::unpack(&bytes);
             if !account.mint_data_is_valid() {
                 prop_assert!(unpack_res.is_err());
@@ -133,7 +133,7 @@ mod tests {
         fn mint_readonly_matches_full_deser_valid(expected in token22_mint_no_extensions()) {
             let mut data = vec![0u8; SPL_MINT_ACCOUNT_PACKED_LEN];
             expected.pack_into_slice(&mut data);
-            let account = to_account(&data);
+            let account = AccountData(&data);
             prop_assert_eq!(account.mint_mint_authority(), expected.mint_authority.into());
             prop_assert_eq!(account.mint_supply(), expected.supply);
             prop_assert_eq!(account.mint_decimals(), expected.decimals);

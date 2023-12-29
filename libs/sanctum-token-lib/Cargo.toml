@@ -13,6 +13,4 @@ spl_token_interface = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 sanctum-solana-test-utils = { workspace = true, features = ["token-2022", "proptest"] }
-solana-readonly-account = { workspace = true, features = ["solana-sdk"] }
-solana-sdk = { workspace = true }
 spl-token-2022 = { workspace = true }

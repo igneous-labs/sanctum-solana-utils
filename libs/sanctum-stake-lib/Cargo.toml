@@ -13,5 +13,3 @@ stake_program_interface = { workspace = true }
 borsh = { workspace = true }
 proptest = { workspace = true }
 sanctum-solana-test-utils = { workspace = true, features = ["proptest", "stake"] }
-solana-readonly-account = { workspace = true, features = ["solana-sdk"] }
-solana-sdk = { workspace = true }

@@ -3286,7 +3286,6 @@ dependencies = [
  "sanctum-solana-test-utils",
  "solana-program",
  "solana-readonly-account",
- "solana-sdk",
  "stake_program_interface",
 ]
 
@@ -3294,7 +3293,11 @@ dependencies = [
 name = "sanctum-system-program-lib"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "proptest",
+ "sanctum-solana-test-utils",
  "solana-program",
+ "solana-readonly-account",
  "system_program_interface",
 ]
 
@@ -3306,7 +3309,6 @@ dependencies = [
  "sanctum-solana-test-utils",
  "solana-program",
  "solana-readonly-account",
- "solana-sdk",
  "spl-token-2022",
  "spl_token_interface",
 ]

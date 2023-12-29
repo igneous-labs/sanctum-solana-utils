@@ -29,15 +29,21 @@ pub fn is_coption_discm_valid(discm: &[u8; 4]) -> bool {
 
 #[cfg(test)]
 mod test_utils {
-    use solana_sdk::account::Account;
+    use solana_readonly_account::ReadonlyAccountData;
 
-    pub fn to_account(bytes: &[u8]) -> Account {
-        Account {
-            lamports: 0,
-            data: bytes.to_vec(),
-            owner: spl_token_2022::ID,
-            executable: false,
-            rent_epoch: u64::MAX,
+    pub struct AccountData<'a>(pub &'a [u8]);
+
+    impl<'a> ReadonlyAccountData for AccountData<'a> {
+        type SliceDeref<'s> = &'s [u8]
+        where
+            Self: 's;
+
+        type DataDeref<'d> = &'d &'d [u8]
+        where
+            Self: 'd;
+
+        fn data(&self) -> Self::DataDeref<'_> {
+            &self.0
         }
     }
 }

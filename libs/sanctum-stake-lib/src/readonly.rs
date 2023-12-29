@@ -1,4 +1,5 @@
 use solana_program::{
+    clock::Clock,
     program_error::ProgramError,
     pubkey::{Pubkey, PUBKEY_BYTES},
     stake::state::{Authorized, Delegation, Lockup, Meta, Stake},
@@ -7,17 +8,17 @@ use solana_readonly_account::ReadonlyAccountData;
 
 use crate::STAKE_ACCOUNT_LEN;
 
-pub const STAKE_STATE_UNINITIALIZED_DISCM: u8 = 0;
-pub const STAKE_STATE_INITIALIZED_DISCM: u8 = 1;
-pub const STAKE_STATE_STAKE_DISCM: u8 = 2;
-pub const STAKE_STATE_REWARDS_POOL_DISCM: u8 = 3;
+pub const STAKE_STATE_UNINITIALIZED_DISCM: [u8; 4] = 0u32.to_le_bytes();
+pub const STAKE_STATE_INITIALIZED_DISCM: [u8; 4] = 1u32.to_le_bytes();
+pub const STAKE_STATE_STAKE_DISCM: [u8; 4] = 2u32.to_le_bytes();
+pub const STAKE_STATE_REWARDS_POOL_DISCM: [u8; 4] = 3u32.to_le_bytes();
 
 pub const STAKE_DISCM_OFFSET: usize = 0;
 // meta
-pub const STAKE_META_OFFSET: usize = STAKE_DISCM_OFFSET + 1;
+pub const STAKE_META_OFFSET: usize = STAKE_DISCM_OFFSET + 4; // StakeState serializes the discriminant as a u32
 pub const STAKE_META_RENT_EXEMPT_RESERVE_OFFSET: usize = STAKE_META_OFFSET;
 // meta.authorized
-pub const STAKE_META_AUTHORIZED_OFFSET: usize = STAKE_META_OFFSET + 8;
+pub const STAKE_META_AUTHORIZED_OFFSET: usize = STAKE_META_RENT_EXEMPT_RESERVE_OFFSET + 8;
 pub const STAKE_META_AUTHORIZED_STAKER_OFFSET: usize = STAKE_META_AUTHORIZED_OFFSET;
 pub const STAKE_META_AUTHORIZED_WITHDRAWER_OFFSET: usize =
     STAKE_META_AUTHORIZED_STAKER_OFFSET + PUBKEY_BYTES;
@@ -52,10 +53,10 @@ pub enum StakeStateMarker {
     RewardsPool,
 }
 
-impl TryFrom<u8> for StakeStateMarker {
+impl TryFrom<[u8; 4]> for StakeStateMarker {
     type Error = ProgramError;
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
         match value {
             STAKE_STATE_UNINITIALIZED_DISCM => Ok(Self::Uninitialized),
             STAKE_STATE_INITIALIZED_DISCM => Ok(Self::Initialized),
@@ -221,16 +222,49 @@ pub trait ReadonlyStakeAccount {
     fn stake_stake_flags(&self) -> Result<u8, ProgramError> {
         stake_checked_method(self, Self::stake_stake_flags_unchecked)
     }
+
+    /// The original solana-program API takes an optional custodian pubkey arg and returns true
+    /// if thats equal to lockup.custodian, which doesn't really make any sense
+    fn stake_lockup_is_in_force_unchecked(&self, clock: &Clock) -> bool {
+        self.stake_meta_lockup_unix_timestamp_unchecked() > clock.unix_timestamp
+            || self.stake_meta_lockup_epoch_unchecked() > clock.epoch
+    }
+
+    fn stake_lockup_is_in_force(&self, clock: &Clock) -> Result<bool, ProgramError> {
+        match self.stake_state_marker() {
+            StakeStateMarker::Initialized | StakeStateMarker::Stake => {
+                Ok(self.stake_lockup_is_in_force_unchecked(clock))
+            }
+            StakeStateMarker::Uninitialized | StakeStateMarker::RewardsPool => {
+                Err(ProgramError::InvalidAccountData)
+            }
+        }
+    }
+
+    fn stake_is_bootstrap_unchecked(&self) -> bool {
+        self.stake_stake_delegation_activation_epoch_unchecked() == u64::MAX
+    }
+
+    fn stake_is_bootstrap(&self) -> Result<bool, ProgramError> {
+        stake_checked_method(self, Self::stake_is_bootstrap_unchecked)
+    }
 }
 
 impl<R: ReadonlyAccountData> ReadonlyStakeAccount for R {
     fn stake_data_is_valid(&self) -> bool {
         let d = self.data();
-        d.len() == STAKE_ACCOUNT_LEN && StakeStateMarker::try_from(d[STAKE_DISCM_OFFSET]).is_ok()
+        let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
+            .try_into()
+            .unwrap();
+        d.len() == STAKE_ACCOUNT_LEN && StakeStateMarker::try_from(*b).is_ok()
     }
 
     fn stake_state_marker(&self) -> StakeStateMarker {
-        StakeStateMarker::try_from(self.data()[STAKE_DISCM_OFFSET]).unwrap()
+        let d = self.data();
+        let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
+            .try_into()
+            .unwrap();
+        StakeStateMarker::try_from(*b).unwrap()
     }
 
     fn stake_meta_unchecked(&self) -> Meta {
@@ -384,5 +418,185 @@ impl<R: ReadonlyAccountData> ReadonlyStakeAccount for R {
 
     fn stake_stake_flags_unchecked(&self) -> u8 {
         self.data()[STAKE_STAKE_FLAGS_OFFSET]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use borsh::BorshDeserialize;
+    use proptest::prelude::*;
+    use sanctum_solana_test_utils::{
+        proptest_utils::clock,
+        stake::{proptest_utils::stake_state, StakeStateAndLamports},
+        IntoAccount,
+    };
+    use solana_program::stake::{self, state::StakeState};
+    use solana_sdk::account::Account;
+
+    use super::*;
+
+    fn to_account(bytes: &[u8]) -> Account {
+        Account {
+            lamports: 0,
+            data: bytes.to_vec(),
+            owner: stake::program::ID,
+            executable: false,
+            rent_epoch: u64::MAX,
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn stake_readonly_matches_full_deser_invalid(data: [u8; STAKE_ACCOUNT_LEN]) {
+            let account = to_account(&data);
+            let unpack_res = StakeState::deserialize(&mut data.as_ref());
+            if !account.stake_data_is_valid() {
+                prop_assert!(unpack_res.is_err());
+            }
+        }
+    }
+
+    fn assert_meta_eq(actual: &Account, expected: &Meta, clock: &Clock) {
+        assert_eq!(actual.stake_meta_unchecked(), actual.stake_meta().unwrap());
+        assert_eq!(actual.stake_meta_unchecked(), *expected);
+        assert_eq!(
+            actual.stake_meta_rent_exempt_reserve_unchecked(),
+            actual.stake_meta_rent_exempt_reserve().unwrap(),
+        );
+        assert_eq!(
+            actual.stake_meta_rent_exempt_reserve_unchecked(),
+            expected.rent_exempt_reserve
+        );
+        // authorized
+        assert_eq!(
+            actual.stake_meta_authorized_unchecked(),
+            actual.stake_meta_authorized().unwrap()
+        );
+        assert_eq!(
+            actual.stake_meta_authorized_unchecked(),
+            expected.authorized
+        );
+        assert_eq!(
+            actual.stake_meta_authorized_staker_unchecked(),
+            actual.stake_meta_authorized_staker().unwrap(),
+        );
+        assert_eq!(
+            actual.stake_meta_authorized_staker_unchecked(),
+            expected.authorized.staker
+        );
+        assert_eq!(
+            actual.stake_meta_authorized_withdrawer_unchecked(),
+            actual.stake_meta_authorized_withdrawer().unwrap(),
+        );
+        assert_eq!(
+            actual.stake_meta_authorized_withdrawer_unchecked(),
+            expected.authorized.withdrawer
+        );
+        assert_eq!(
+            actual.stake_meta_authorized_staker_unchecked(),
+            actual.stake_meta_authorized_staker().unwrap(),
+        );
+        assert_eq!(
+            actual.stake_meta_authorized_staker_unchecked(),
+            expected.authorized.staker
+        );
+        // lockup
+        assert_eq!(
+            actual.stake_meta_lockup_unchecked(),
+            actual.stake_meta_lockup().unwrap()
+        );
+        assert_eq!(actual.stake_meta_lockup_unchecked(), expected.lockup);
+        assert_eq!(
+            actual.stake_meta_lockup_unix_timestamp_unchecked(),
+            actual.stake_meta_lockup_unix_timestamp().unwrap(),
+        );
+        assert_eq!(
+            actual.stake_meta_lockup_unix_timestamp_unchecked(),
+            expected.lockup.unix_timestamp
+        );
+        assert_eq!(
+            actual.stake_meta_lockup_epoch_unchecked(),
+            actual.stake_meta_lockup_epoch().unwrap(),
+        );
+        assert_eq!(
+            actual.stake_meta_lockup_epoch_unchecked(),
+            expected.lockup.epoch
+        );
+        assert_eq!(
+            actual.stake_meta_lockup_custodian_unchecked(),
+            actual.stake_meta_lockup_custodian().unwrap(),
+        );
+        assert_eq!(
+            actual.stake_meta_lockup_custodian_unchecked(),
+            expected.lockup.custodian
+        );
+
+        assert_eq!(
+            actual.stake_lockup_is_in_force_unchecked(clock),
+            actual.stake_lockup_is_in_force(clock).unwrap()
+        );
+        assert_eq!(
+            actual.stake_lockup_is_in_force_unchecked(clock),
+            expected.lockup.is_in_force(clock, None),
+        );
+    }
+
+    proptest! {
+        #[allow(deprecated)]
+        #[test]
+        fn stake_readonly_matches_full_deser_valid(stake_state in stake_state(), total_lamports: u64, clock in clock()) {
+            let account = StakeStateAndLamports {
+                stake_state,
+                total_lamports
+            }.into_account();
+            assert!(account.stake_data_is_valid());
+            match stake_state {
+                StakeState::Uninitialized => assert_eq!(account.stake_state_marker(), StakeStateMarker::Uninitialized),
+                StakeState::Initialized(meta) => assert_meta_eq(&account, &meta, &clock),
+                StakeState::Stake(meta, stake) => {
+                    assert_meta_eq(&account, &meta, &clock);
+                    assert_eq!(account.stake_stake_unchecked(), account.stake_stake().unwrap());
+                    assert_eq!(account.stake_stake_unchecked(), stake);
+                    // delegation
+                    assert_eq!(account.stake_stake_delegation_unchecked(), account.stake_stake_delegation().unwrap());
+                    assert_eq!(account.stake_stake_delegation_unchecked(), stake.delegation);
+                    assert_eq!(
+                        account.stake_stake_delegation_voter_pubkey_unchecked(),
+                        account.stake_stake_delegation_voter_pubkey().unwrap()
+                    );
+                    assert_eq!(account.stake_stake_delegation_voter_pubkey_unchecked(), stake.delegation.voter_pubkey);
+                    assert_eq!(
+                        account.stake_stake_delegation_stake_unchecked(),
+                        account.stake_stake_delegation_stake().unwrap(),
+                    );
+                    assert_eq!(account.stake_stake_delegation_stake_unchecked(), stake.delegation.stake);
+                    assert_eq!(
+                        account.stake_stake_delegation_activation_epoch_unchecked(),
+                        account.stake_stake_delegation_activation_epoch().unwrap(),
+                    );
+                    assert_eq!(account.stake_stake_delegation_activation_epoch_unchecked(), stake.delegation.activation_epoch);
+                    assert_eq!(
+                        account.stake_stake_delegation_deactivation_epoch_unchecked(),
+                        account.stake_stake_delegation_deactivation_epoch().unwrap(),
+                    );
+                    assert_eq!(account.stake_stake_delegation_deactivation_epoch_unchecked(), stake.delegation.deactivation_epoch);
+                    assert_eq!(
+                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(),
+                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated().unwrap(),
+                    );
+                    assert_eq!(
+                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(),
+                        stake.delegation.warmup_cooldown_rate
+                    );
+
+                    assert_eq!(account.stake_stake_credits_observed_unchecked(), account.stake_stake_credits_observed().unwrap());
+                    assert_eq!(account.stake_stake_credits_observed_unchecked(), stake.credits_observed);
+
+                    assert_eq!(account.stake_is_bootstrap_unchecked(), account.stake_is_bootstrap().unwrap());
+                    assert_eq!(account.stake_is_bootstrap_unchecked(), stake.delegation.is_bootstrap());
+                },
+                StakeState::RewardsPool => assert_eq!(account.stake_state_marker(), StakeStateMarker::RewardsPool),
+            }
+        }
     }
 }

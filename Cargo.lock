@@ -3265,6 +3265,7 @@ dependencies = [
  "async-trait",
  "borsh 0.10.3",
  "num-traits",
+ "proptest",
  "serde",
  "serde_json",
  "solana-account-decoder",
@@ -3279,8 +3280,12 @@ dependencies = [
 name = "sanctum-stake-lib"
 version = "0.1.0"
 dependencies = [
+ "borsh 0.10.3",
+ "proptest",
+ "sanctum-solana-test-utils",
  "solana-program",
  "solana-readonly-account",
+ "solana-sdk",
  "stake_program_interface",
 ]
 

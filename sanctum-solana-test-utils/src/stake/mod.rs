@@ -11,6 +11,9 @@ use solana_sdk::account::Account;
 
 use crate::{est_rent_exempt_lamports, ExtendedProgramTest, IntoAccount};
 
+#[cfg(feature = "proptest")]
+pub mod proptest_utils;
+
 #[derive(Clone, Copy, Debug)]
 pub struct StakeStateAndLamports {
     pub stake_state: StakeState,

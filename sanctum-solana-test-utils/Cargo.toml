@@ -9,7 +9,8 @@ repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
 default = []
 proptest = ["dep:proptest"]
 stake = []
-token = ["spl-token"] # TODO: token-22
+token = ["spl-token"]
+token-2022 = ["spl-token-2022"]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -24,3 +25,4 @@ solana-program-test = { workspace = true }
 solana-readonly-account = { workspace = true, features = ["solana-sdk"] }
 solana-sdk = { workspace = true }
 spl-token = { workspace = true, optional = true }
+spl-token-2022 = { workspace = true, optional = true }

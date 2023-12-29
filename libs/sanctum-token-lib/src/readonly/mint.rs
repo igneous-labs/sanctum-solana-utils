@@ -109,9 +109,11 @@ impl<D: ReadonlyAccountData> ReadonlyMintAccount for D {
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
+    use sanctum_solana_test_utils::token::proptest_utils::token_2022::token22_mint_no_extensions;
+    use solana_program::program_pack::Pack;
     use spl_token_2022::{extension::StateWithExtensions, state::Mint};
 
-    use crate::readonly::test_utils::{to_account, valid_coption_discm};
+    use crate::readonly::test_utils::to_account;
 
     use super::*;
 
@@ -128,22 +130,10 @@ mod tests {
 
     proptest! {
         #[test]
-        fn mint_readonly_matches_full_deser_valid(
-            mut bytes: [u8; SPL_MINT_ACCOUNT_PACKED_LEN],
-            mint_authority_discm in valid_coption_discm(),
-            freeze_authority_discm in valid_coption_discm(),
-        ) {
-            bytes.get_mut(SPL_MINT_MINT_AUTHORITY_OFFSET..SPL_MINT_MINT_AUTHORITY_OFFSET + 4)
-                .unwrap()
-                .copy_from_slice(&mint_authority_discm);
-            bytes.get_mut(SPL_MINT_FREEZE_AUTHORITY_OFFSET..SPL_MINT_FREEZE_AUTHORITY_OFFSET + 4)
-                .unwrap()
-                .copy_from_slice(&freeze_authority_discm);
-            bytes[SPL_MINT_IS_INITIALIZED_OFFSET] = SPL_MINT_IS_INITIALIZED_TRUE;
-
-            let StateWithExtensions { base: expected, .. }
-                = StateWithExtensions::<Mint>::unpack(&bytes).unwrap();
-            let account = to_account(&bytes);
+        fn mint_readonly_matches_full_deser_valid(expected in token22_mint_no_extensions()) {
+            let mut data = vec![0u8; SPL_MINT_ACCOUNT_PACKED_LEN];
+            expected.pack_into_slice(&mut data);
+            let account = to_account(&data);
             prop_assert_eq!(account.mint_mint_authority(), expected.mint_authority.into());
             prop_assert_eq!(account.mint_supply(), expected.supply);
             prop_assert_eq!(account.mint_decimals(), expected.decimals);

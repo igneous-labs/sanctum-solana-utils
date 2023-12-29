@@ -23,5 +23,5 @@ pub mod proptest_utils;
 #[cfg(feature = "stake")]
 pub mod stake;
 
-#[cfg(feature = "token")]
+#[cfg(any(feature = "token", feature = "token-2022"))]
 pub mod token;

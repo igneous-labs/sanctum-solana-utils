@@ -3274,6 +3274,7 @@ dependencies = [
  "solana-readonly-account",
  "solana-sdk",
  "spl-token",
+ "spl-token-2022",
 ]
 
 [[package]]
@@ -3302,6 +3303,7 @@ name = "sanctum-token-lib"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "sanctum-solana-test-utils",
  "solana-program",
  "solana-readonly-account",
  "solana-sdk",

@@ -167,10 +167,11 @@ impl<D: ReadonlyAccountData> ReadonlyTokenAccount for D {
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
-    use solana_program::program_pack::IsInitialized;
+    use sanctum_solana_test_utils::token::proptest_utils::token_2022::token22_account_no_extensions;
+    use solana_program::program_pack::{IsInitialized, Pack};
     use spl_token_2022::extension::StateWithExtensions;
 
-    use crate::readonly::test_utils::{to_account, valid_coption_discm};
+    use crate::readonly::test_utils::to_account;
 
     use super::*;
 
@@ -196,26 +197,11 @@ mod tests {
     proptest! {
         #[test]
         fn token_account_readonly_matches_full_deser_valid(
-            mut bytes: [u8; SPL_TOKEN_ACCOUNT_PACKED_LEN],
-            delegate_discm in valid_coption_discm(),
-            is_native_discm in valid_coption_discm(),
-            close_authority_discm in valid_coption_discm(),
-            account_state in SPL_TOKEN_ACCOUNT_STATE_INITIALIZED_DISCM..=SPL_TOKEN_ACCOUNT_STATE_FROZEN_DISCM,
+            expected in token22_account_no_extensions()
         ) {
-            bytes.get_mut(SPL_TOKEN_ACCOUNT_DELEGATE_OFFSET..SPL_TOKEN_ACCOUNT_DELEGATE_OFFSET + 4)
-                .unwrap()
-                .copy_from_slice(&delegate_discm);
-            bytes.get_mut(SPL_TOKEN_ACCOUNT_IS_NATIVE_OFFSET..SPL_TOKEN_ACCOUNT_IS_NATIVE_OFFSET + 4)
-                .unwrap()
-                .copy_from_slice(&is_native_discm);
-            bytes.get_mut(SPL_TOKEN_ACCOUNT_CLOSE_AUTHORITY_OFFSET..SPL_TOKEN_ACCOUNT_CLOSE_AUTHORITY_OFFSET + 4)
-                .unwrap()
-                .copy_from_slice(&close_authority_discm);
-            bytes[SPL_TOKEN_ACCOUNT_STATE_OFFSET] = account_state;
-
-            let StateWithExtensions { base: expected, .. }
-                = StateWithExtensions::<spl_token_2022::state::Account>::unpack(&bytes).unwrap();
-            let account = to_account(&bytes);
+            let mut data = vec![0u8; SPL_TOKEN_ACCOUNT_PACKED_LEN];
+            expected.pack_into_slice(&mut data);
+            let account = to_account(&data);
             prop_assert_eq!(account.token_account_mint(), expected.mint);
             prop_assert_eq!(account.token_account_authority(), expected.owner);
             prop_assert_eq!(account.token_account_amount(), expected.amount);

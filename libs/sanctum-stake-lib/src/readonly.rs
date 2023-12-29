@@ -217,8 +217,10 @@ pub trait ReadonlyStakeAccount {
         stake_checked_method(self, Self::stake_stake_credits_observed_unchecked)
     }
 
+    // TODO: add tests for 1.17
     fn stake_stake_flags_unchecked(&self) -> u8;
 
+    // TODO: add tests for 1.17
     fn stake_stake_flags(&self) -> Result<u8, ProgramError> {
         stake_checked_method(self, Self::stake_stake_flags_unchecked)
     }

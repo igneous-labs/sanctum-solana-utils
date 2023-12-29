@@ -458,89 +458,94 @@ mod tests {
         }
     }
 
-    fn assert_meta_eq(actual: &Account, expected: &Meta, clock: &Clock) {
-        assert_eq!(actual.stake_meta_unchecked(), actual.stake_meta().unwrap());
-        assert_eq!(actual.stake_meta_unchecked(), *expected);
-        assert_eq!(
+    fn assert_meta_eq(
+        actual: &Account,
+        expected: &Meta,
+        clock: &Clock,
+    ) -> Result<(), TestCaseError> {
+        prop_assert_eq!(actual.stake_meta_unchecked(), actual.stake_meta().unwrap());
+        prop_assert_eq!(actual.stake_meta_unchecked(), *expected);
+        prop_assert_eq!(
             actual.stake_meta_rent_exempt_reserve_unchecked(),
-            actual.stake_meta_rent_exempt_reserve().unwrap(),
+            actual.stake_meta_rent_exempt_reserve().unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_rent_exempt_reserve_unchecked(),
             expected.rent_exempt_reserve
         );
         // authorized
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_authorized_unchecked(),
             actual.stake_meta_authorized().unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_authorized_unchecked(),
             expected.authorized
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_authorized_staker_unchecked(),
-            actual.stake_meta_authorized_staker().unwrap(),
+            actual.stake_meta_authorized_staker().unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_authorized_staker_unchecked(),
             expected.authorized.staker
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_authorized_withdrawer_unchecked(),
-            actual.stake_meta_authorized_withdrawer().unwrap(),
+            actual.stake_meta_authorized_withdrawer().unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_authorized_withdrawer_unchecked(),
             expected.authorized.withdrawer
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_authorized_staker_unchecked(),
-            actual.stake_meta_authorized_staker().unwrap(),
+            actual.stake_meta_authorized_staker().unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_authorized_staker_unchecked(),
             expected.authorized.staker
         );
         // lockup
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_lockup_unchecked(),
             actual.stake_meta_lockup().unwrap()
         );
-        assert_eq!(actual.stake_meta_lockup_unchecked(), expected.lockup);
-        assert_eq!(
+        prop_assert_eq!(actual.stake_meta_lockup_unchecked(), expected.lockup);
+        prop_assert_eq!(
             actual.stake_meta_lockup_unix_timestamp_unchecked(),
-            actual.stake_meta_lockup_unix_timestamp().unwrap(),
+            actual.stake_meta_lockup_unix_timestamp().unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_lockup_unix_timestamp_unchecked(),
             expected.lockup.unix_timestamp
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_lockup_epoch_unchecked(),
-            actual.stake_meta_lockup_epoch().unwrap(),
+            actual.stake_meta_lockup_epoch().unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_lockup_epoch_unchecked(),
             expected.lockup.epoch
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_lockup_custodian_unchecked(),
-            actual.stake_meta_lockup_custodian().unwrap(),
+            actual.stake_meta_lockup_custodian().unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_meta_lockup_custodian_unchecked(),
             expected.lockup.custodian
         );
 
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_lockup_is_in_force_unchecked(clock),
             actual.stake_lockup_is_in_force(clock).unwrap()
         );
-        assert_eq!(
+        prop_assert_eq!(
             actual.stake_lockup_is_in_force_unchecked(clock),
-            expected.lockup.is_in_force(clock, None),
+            expected.lockup.is_in_force(clock, None)
         );
+        Ok(())
     }
 
     proptest! {
@@ -553,51 +558,51 @@ mod tests {
             }.into_account();
             assert!(account.stake_data_is_valid());
             match stake_state {
-                StakeState::Uninitialized => assert_eq!(account.stake_state_marker(), StakeStateMarker::Uninitialized),
-                StakeState::Initialized(meta) => assert_meta_eq(&account, &meta, &clock),
+                StakeState::Uninitialized => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::Uninitialized),
+                StakeState::Initialized(meta) => assert_meta_eq(&account, &meta, &clock).unwrap(),
                 StakeState::Stake(meta, stake) => {
-                    assert_meta_eq(&account, &meta, &clock);
-                    assert_eq!(account.stake_stake_unchecked(), account.stake_stake().unwrap());
-                    assert_eq!(account.stake_stake_unchecked(), stake);
+                    assert_meta_eq(&account, &meta, &clock).unwrap();
+                    prop_assert_eq!(account.stake_stake_unchecked(), account.stake_stake().unwrap());
+                    prop_assert_eq!(account.stake_stake_unchecked(), stake);
                     // delegation
-                    assert_eq!(account.stake_stake_delegation_unchecked(), account.stake_stake_delegation().unwrap());
-                    assert_eq!(account.stake_stake_delegation_unchecked(), stake.delegation);
-                    assert_eq!(
+                    prop_assert_eq!(account.stake_stake_delegation_unchecked(), account.stake_stake_delegation().unwrap());
+                    prop_assert_eq!(account.stake_stake_delegation_unchecked(), stake.delegation);
+                    prop_assert_eq!(
                         account.stake_stake_delegation_voter_pubkey_unchecked(),
                         account.stake_stake_delegation_voter_pubkey().unwrap()
                     );
-                    assert_eq!(account.stake_stake_delegation_voter_pubkey_unchecked(), stake.delegation.voter_pubkey);
-                    assert_eq!(
+                    prop_assert_eq!(account.stake_stake_delegation_voter_pubkey_unchecked(), stake.delegation.voter_pubkey);
+                    prop_assert_eq!(
                         account.stake_stake_delegation_stake_unchecked(),
-                        account.stake_stake_delegation_stake().unwrap(),
+                        account.stake_stake_delegation_stake().unwrap()
                     );
-                    assert_eq!(account.stake_stake_delegation_stake_unchecked(), stake.delegation.stake);
-                    assert_eq!(
+                    prop_assert_eq!(account.stake_stake_delegation_stake_unchecked(), stake.delegation.stake);
+                    prop_assert_eq!(
                         account.stake_stake_delegation_activation_epoch_unchecked(),
-                        account.stake_stake_delegation_activation_epoch().unwrap(),
+                        account.stake_stake_delegation_activation_epoch().unwrap()
                     );
-                    assert_eq!(account.stake_stake_delegation_activation_epoch_unchecked(), stake.delegation.activation_epoch);
-                    assert_eq!(
+                    prop_assert_eq!(account.stake_stake_delegation_activation_epoch_unchecked(), stake.delegation.activation_epoch);
+                    prop_assert_eq!(
                         account.stake_stake_delegation_deactivation_epoch_unchecked(),
-                        account.stake_stake_delegation_deactivation_epoch().unwrap(),
+                        account.stake_stake_delegation_deactivation_epoch().unwrap()
                     );
-                    assert_eq!(account.stake_stake_delegation_deactivation_epoch_unchecked(), stake.delegation.deactivation_epoch);
-                    assert_eq!(
+                    prop_assert_eq!(account.stake_stake_delegation_deactivation_epoch_unchecked(), stake.delegation.deactivation_epoch);
+                    prop_assert_eq!(
                         account.stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(),
-                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated().unwrap(),
+                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated().unwrap()
                     );
-                    assert_eq!(
+                    prop_assert_eq!(
                         account.stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(),
                         stake.delegation.warmup_cooldown_rate
                     );
 
-                    assert_eq!(account.stake_stake_credits_observed_unchecked(), account.stake_stake_credits_observed().unwrap());
-                    assert_eq!(account.stake_stake_credits_observed_unchecked(), stake.credits_observed);
+                    prop_assert_eq!(account.stake_stake_credits_observed_unchecked(), account.stake_stake_credits_observed().unwrap());
+                    prop_assert_eq!(account.stake_stake_credits_observed_unchecked(), stake.credits_observed);
 
-                    assert_eq!(account.stake_is_bootstrap_unchecked(), account.stake_is_bootstrap().unwrap());
-                    assert_eq!(account.stake_is_bootstrap_unchecked(), stake.delegation.is_bootstrap());
+                    prop_assert_eq!(account.stake_is_bootstrap_unchecked(), account.stake_is_bootstrap().unwrap());
+                    prop_assert_eq!(account.stake_is_bootstrap_unchecked(), stake.delegation.is_bootstrap());
                 },
-                StakeState::RewardsPool => assert_eq!(account.stake_state_marker(), StakeStateMarker::RewardsPool),
+                StakeState::RewardsPool => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::RewardsPool),
             }
         }
     }

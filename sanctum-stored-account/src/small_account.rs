@@ -1,4 +1,4 @@
-use std::{hash::Hash, ops::Deref};
+use std::{error::Error, fmt::Display, hash::Hash, ops::Deref};
 
 use solana_program::pubkey::Pubkey;
 use solana_readonly_account::{
@@ -15,17 +15,62 @@ pub const SMALL_ACCOUNT_DATA_MAX_LEN_USIZE: usize = SMALL_ACCOUNT_DATA_MAX_LEN a
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SmallAccount {
-    pub data: [u8; SMALL_ACCOUNT_DATA_MAX_LEN_USIZE], // data first so that it's always 8-byte aligned since this struct will be 8-byte aligned
-    pub len: u8,
+    data: [u8; SMALL_ACCOUNT_DATA_MAX_LEN_USIZE], // data first so that it's always 8-byte aligned since this struct will be 8-byte aligned
+    len: u8,
     pub lamports: u64,
     pub rent_epoch: u64,
     pub owner: Pubkey,
     pub executable: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct SmallAccountTryNewParams<'a> {
+    pub data: &'a [u8],
+    pub lamports: u64,
+    pub rent_epoch: u64,
+    pub owner: Pubkey,
+    pub executable: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DataTooLong;
+
+impl Display for DataTooLong {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Account data too long")
+    }
+}
+
+impl Error for DataTooLong {}
+
 impl SmallAccount {
+    pub fn try_new(
+        SmallAccountTryNewParams {
+            data,
+            lamports,
+            rent_epoch,
+            owner,
+            executable,
+        }: SmallAccountTryNewParams,
+    ) -> Result<Self, DataTooLong> {
+        let len = data.len();
+        if len > SMALL_ACCOUNT_DATA_MAX_LEN_USIZE {
+            return Err(DataTooLong);
+        }
+        let mut res = Self {
+            data: Default::default(),
+            len: Default::default(),
+            lamports,
+            rent_epoch,
+            owner,
+            executable,
+        };
+        res.data.copy_from_slice(data);
+        res.len = len.try_into().unwrap();
+        Ok(res)
+    }
+
     pub fn data_slice(&self) -> &[u8] {
-        assert!(self.len <= SMALL_ACCOUNT_DATA_MAX_LEN);
         &self.data[..self.len.into()]
     }
 }

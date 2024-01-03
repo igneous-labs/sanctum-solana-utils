@@ -1,3 +1,10 @@
+use solana_program::pubkey::Pubkey;
+use solana_readonly_account::{
+    ReadonlyAccountData, ReadonlyAccountIsExecutable, ReadonlyAccountLamports,
+    ReadonlyAccountOwner, ReadonlyAccountRentEpoch,
+};
+use std::{ops::Deref, sync::Arc};
+
 #[cfg(feature = "solana-sdk")]
 #[cfg_attr(docsrs, doc(cfg(feature = "solana-sdk")))]
 pub mod solana_sdk_conv;
@@ -5,15 +12,8 @@ pub mod solana_sdk_conv;
 mod arc_account;
 mod small_account;
 
-use std::{ops::Deref, sync::Arc};
-
 pub use arc_account::*;
 pub use small_account::*;
-use solana_program::pubkey::Pubkey;
-use solana_readonly_account::{
-    ReadonlyAccountData, ReadonlyAccountIsExecutable, ReadonlyAccountLamports,
-    ReadonlyAccountOwner, ReadonlyAccountRentEpoch,
-};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum StoredAccount {

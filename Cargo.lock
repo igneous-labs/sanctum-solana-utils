@@ -3290,6 +3290,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sanctum-stored-account"
+version = "0.1.0"
+dependencies = [
+ "solana-program",
+ "solana-readonly-account",
+ "solana-sdk",
+ "static_assertions",
+]
+
+[[package]]
 name = "sanctum-system-program-lib"
 version = "0.1.0"
 dependencies = [

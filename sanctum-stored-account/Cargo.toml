@@ -1,0 +1,16 @@
+[package]
+name = "sanctum-stored-account"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[features]
+default = ["solana-sdk"]
+
+[dependencies]
+solana-program = { workspace = true }
+solana-readonly-account = { workspace = true }
+solana-sdk = { workspace = true, optional = true }
+
+[dev-dependencies]
+static_assertions = { workspace = true }

@@ -7,6 +7,7 @@ members = [
     "sanctum-misc-utils",
     "sanctum-solana-cli-utils",
     "sanctum-solana-test-utils",
+    "sanctum-stored-account",
     "sanctum-token-ratio",
 ]
 
@@ -34,6 +35,7 @@ solana-readonly-account = "^1"
 solana-sdk = "^1"
 spl-token = { version = ">=0.1.0", features = ["no-entrypoint"] }
 spl-token-2022 = { version = ">=0.1.0", features = ["no-entrypoint"] }
+static_assertions = "^1"
 thiserror = "^1"
 
 # workspace members

@@ -3293,6 +3293,8 @@ dependencies = [
 name = "sanctum-stored-account"
 version = "0.1.0"
 dependencies = [
+ "proptest",
+ "sanctum-solana-test-utils",
  "solana-program",
  "solana-readonly-account",
  "solana-sdk",

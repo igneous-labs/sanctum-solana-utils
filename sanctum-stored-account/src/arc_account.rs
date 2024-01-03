@@ -54,3 +54,36 @@ impl ReadonlyAccountRentEpoch for ArcAccount {
         self.rent_epoch
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+    use sanctum_solana_test_utils::proptest_utils::pubkey;
+
+    use super::*;
+
+    proptest! {
+        #[test]
+        fn eq_check(
+            owner in pubkey(),
+            data in proptest::collection::vec(any::<u8>(), 0..=1024),
+            executable: bool,
+            lamports: u64,
+            rent_epoch: u64,
+        ) {
+            let acc = ArcAccount {
+                data: data.clone().into(),
+                lamports,
+                rent_epoch,
+                owner,
+                executable
+            };
+
+            prop_assert_eq!((**acc.data()).as_ref(), data.as_slice());
+            prop_assert_eq!(acc.executable(), executable);
+            prop_assert_eq!(*acc.owner(), owner);
+            prop_assert_eq!(acc.lamports(), lamports);
+            prop_assert_eq!(acc.rent_epoch(), rent_epoch);
+        }
+    }
+}

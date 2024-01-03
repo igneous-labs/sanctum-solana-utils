@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 license.workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = ["solana-sdk"]
 
@@ -13,4 +17,7 @@ solana-readonly-account = { workspace = true }
 solana-sdk = { workspace = true, optional = true }
 
 [dev-dependencies]
+proptest = { workspace = true }
+sanctum-solana-test-utils = { workspace = true, features = ["proptest"] }
+solana-sdk = { workspace = true }
 static_assertions = { workspace = true }

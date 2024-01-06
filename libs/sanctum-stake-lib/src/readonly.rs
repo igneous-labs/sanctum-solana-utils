@@ -2,7 +2,10 @@ use solana_program::{
     clock::Clock,
     program_error::ProgramError,
     pubkey::{Pubkey, PUBKEY_BYTES},
-    stake::state::{Authorized, Delegation, Lockup, Meta, Stake},
+    stake::{
+        self,
+        state::{Authorized, Delegation, Lockup, Meta},
+    },
 };
 use solana_readonly_account::ReadonlyAccountData;
 
@@ -45,6 +48,335 @@ pub const STAKE_STAKE_CREDITS_OBSERVED_OFFSET: usize =
 // stakeflags
 pub const STAKE_STAKE_FLAGS_OFFSET: usize = STAKE_STAKE_CREDITS_OBSERVED_OFFSET + 8;
 
+/// A possible stake account
+///
+/// ## Example
+///
+/// ```rust
+/// use sanctum_stake_lib::ReadonlyStakeAccount;
+/// use solana_program::{
+///     account_info::AccountInfo,
+///     entrypoint::ProgramResult
+/// };
+///
+/// pub fn process(account: &AccountInfo) -> ProgramResult {
+///     let account = ReadonlyStakeAccount(account);
+///     let account = account.try_into_valid()?;
+///     let account = account.try_into_stake()?;
+///     solana_program::msg!("{}", account.stake_stake_credits_observed());
+///     Ok(())
+/// }
+/// ```
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ReadonlyStakeAccount<T>(pub T);
+
+impl<T: ReadonlyAccountData> ReadonlyStakeAccount<T> {
+    pub fn stake_data_is_valid(&self) -> bool {
+        let d = self.0.data();
+        if d.len() != STAKE_ACCOUNT_LEN {
+            return false;
+        }
+        let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
+            .try_into()
+            .unwrap();
+        StakeStateMarker::try_from(*b).is_ok()
+    }
+
+    pub fn try_into_valid(self) -> Result<ValidStakeAccount<T>, ProgramError> {
+        if !self.stake_data_is_valid() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        Ok(ValidStakeAccount(self.0))
+    }
+}
+
+/// A stake account that has been checked to contain valid data.
+///
+/// The only safe way to create this struct is via [`TryFrom<ReadonlyStakeAccount>`]
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ValidStakeAccount<T>(T);
+
+impl<T> ValidStakeAccount<T> {
+    pub fn as_readonly(&self) -> ReadonlyStakeAccount<&T> {
+        ReadonlyStakeAccount(&self.0)
+    }
+
+    pub fn into_readonly(self) -> ReadonlyStakeAccount<T> {
+        ReadonlyStakeAccount(self.0)
+    }
+}
+
+impl<T: ReadonlyAccountData> ValidStakeAccount<T> {
+    pub fn stake_state_marker(&self) -> StakeStateMarker {
+        let d = self.0.data();
+        let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
+            .try_into()
+            .unwrap();
+        StakeStateMarker::try_from(*b).unwrap()
+    }
+
+    pub fn try_into_stake_or_initialized(
+        self,
+    ) -> Result<StakeOrInitializedStakeAccount<T>, ProgramError> {
+        match self.stake_state_marker() {
+            StakeStateMarker::Initialized | StakeStateMarker::Stake => {
+                Ok(StakeOrInitializedStakeAccount(self.0))
+            }
+            StakeStateMarker::Uninitialized | StakeStateMarker::RewardsPool => {
+                Err(ProgramError::InvalidAccountData)
+            }
+        }
+    }
+
+    pub fn try_into_stake(self) -> Result<StakeStakeAccount<T>, ProgramError> {
+        if let StakeStateMarker::Stake = self.stake_state_marker() {
+            return Ok(StakeStakeAccount(self.0));
+        }
+        Err(ProgramError::InvalidAccountData)
+    }
+}
+
+impl<T: ReadonlyAccountData> TryFrom<ReadonlyStakeAccount<T>> for ValidStakeAccount<T> {
+    type Error = ProgramError;
+
+    fn try_from(value: ReadonlyStakeAccount<T>) -> Result<Self, Self::Error> {
+        value.try_into_valid()
+    }
+}
+
+impl<'a, T> From<&'a ValidStakeAccount<T>> for ReadonlyStakeAccount<&'a T> {
+    fn from(value: &'a ValidStakeAccount<T>) -> Self {
+        value.as_readonly()
+    }
+}
+
+impl<T> From<ValidStakeAccount<T>> for ReadonlyStakeAccount<T> {
+    fn from(value: ValidStakeAccount<T>) -> Self {
+        value.into_readonly()
+    }
+}
+
+/// A stake account that has been checked to be in the `Initialized` or `Stake` state.
+///
+/// The only safe way to create this struct is via [`TryFrom<Valid<T>>`]
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StakeOrInitializedStakeAccount<T>(T);
+
+impl<T> StakeOrInitializedStakeAccount<T> {
+    pub fn as_valid(&self) -> ValidStakeAccount<&T> {
+        ValidStakeAccount(&self.0)
+    }
+
+    pub fn into_valid(self) -> ValidStakeAccount<T> {
+        ValidStakeAccount(self.0)
+    }
+}
+
+impl<T: ReadonlyAccountData> StakeOrInitializedStakeAccount<T> {
+    pub fn stake_meta(&self) -> Meta {
+        Meta {
+            rent_exempt_reserve: self.stake_meta_rent_exempt_reserve(),
+            authorized: self.stake_meta_authorized(),
+            lockup: self.stake_meta_lockup(),
+        }
+    }
+
+    pub fn stake_meta_rent_exempt_reserve(&self) -> u64 {
+        deser_u64_le_unchecked(&self.0, STAKE_META_RENT_EXEMPT_RESERVE_OFFSET)
+    }
+
+    pub fn stake_meta_authorized(&self) -> Authorized {
+        Authorized {
+            staker: self.stake_meta_authorized_staker(),
+            withdrawer: self.stake_meta_authorized_withdrawer(),
+        }
+    }
+
+    pub fn stake_meta_authorized_staker(&self) -> Pubkey {
+        deser_pubkey_unchecked(&self.0, STAKE_META_AUTHORIZED_STAKER_OFFSET)
+    }
+
+    pub fn stake_meta_authorized_withdrawer(&self) -> Pubkey {
+        deser_pubkey_unchecked(&self.0, STAKE_META_AUTHORIZED_WITHDRAWER_OFFSET)
+    }
+
+    pub fn stake_meta_lockup(&self) -> Lockup {
+        Lockup {
+            unix_timestamp: self.stake_meta_lockup_unix_timestamp(),
+            epoch: self.stake_meta_lockup_epoch(),
+            custodian: self.stake_meta_lockup_custodian(),
+        }
+    }
+
+    pub fn stake_meta_lockup_unix_timestamp(&self) -> i64 {
+        deser_i64_le_unchecked(&self.0, STAKE_META_LOCKUP_UNIX_TIMESTAMP_OFFSET)
+    }
+
+    pub fn stake_meta_lockup_epoch(&self) -> u64 {
+        deser_u64_le_unchecked(&self.0, STAKE_META_LOCKUP_EPOCH_OFFSET)
+    }
+
+    pub fn stake_meta_lockup_custodian(&self) -> Pubkey {
+        deser_pubkey_unchecked(&self.0, STAKE_META_LOCKUP_CUSTODIAN_OFFSET)
+    }
+
+    /// The original solana-program API takes an optional custodian pubkey arg and returns true
+    /// if thats equal to lockup.custodian, which doesn't really make any sense
+    pub fn stake_lockup_is_in_force(&self, clock: &Clock) -> bool {
+        self.stake_meta_lockup_unix_timestamp() > clock.unix_timestamp
+            || self.stake_meta_lockup_epoch() > clock.epoch
+    }
+
+    pub fn try_into_stake(self) -> Result<StakeStakeAccount<T>, ProgramError> {
+        self.into_valid().try_into()
+    }
+}
+
+impl<T: ReadonlyAccountData> TryFrom<ValidStakeAccount<T>> for StakeOrInitializedStakeAccount<T> {
+    type Error = ProgramError;
+
+    fn try_from(value: ValidStakeAccount<T>) -> Result<Self, Self::Error> {
+        value.try_into_stake_or_initialized()
+    }
+}
+
+impl<'a, T> From<&'a StakeOrInitializedStakeAccount<T>> for ValidStakeAccount<&'a T> {
+    fn from(value: &'a StakeOrInitializedStakeAccount<T>) -> Self {
+        value.as_valid()
+    }
+}
+
+impl<T> From<StakeOrInitializedStakeAccount<T>> for ValidStakeAccount<T> {
+    fn from(value: StakeOrInitializedStakeAccount<T>) -> Self {
+        value.into_valid()
+    }
+}
+
+/// A stake account that has been checked to be in the `Stake` state.
+///
+/// The only safe way to create this struct is via [`TryFrom<Valid<T>>`]
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StakeStakeAccount<T>(T);
+
+impl<T> StakeStakeAccount<T> {
+    pub fn as_stake_or_initialized(&self) -> StakeOrInitializedStakeAccount<&T> {
+        StakeOrInitializedStakeAccount(&self.0)
+    }
+
+    pub fn into_stake_or_initialized(self) -> StakeOrInitializedStakeAccount<T> {
+        StakeOrInitializedStakeAccount(self.0)
+    }
+
+    pub fn as_valid(&self) -> ValidStakeAccount<&T> {
+        ValidStakeAccount(&self.0)
+    }
+
+    pub fn into_valid(self) -> ValidStakeAccount<T> {
+        ValidStakeAccount(self.0)
+    }
+}
+
+impl<T: ReadonlyAccountData> StakeStakeAccount<T> {
+    pub fn stake_stake(&self) -> stake::state::Stake {
+        stake::state::Stake {
+            delegation: self.stake_stake_delegation(),
+            credits_observed: self.stake_stake_credits_observed(),
+        }
+    }
+
+    #[allow(deprecated)]
+    pub fn stake_stake_delegation(&self) -> Delegation {
+        Delegation {
+            voter_pubkey: self.stake_stake_delegation_voter_pubkey(),
+            stake: self.stake_stake_delegation_stake(),
+            activation_epoch: self.stake_stake_delegation_activation_epoch(),
+            deactivation_epoch: self.stake_stake_delegation_deactivation_epoch(),
+            warmup_cooldown_rate: self.stake_stake_delegation_warmup_cooldown_rate_deprecated(),
+        }
+    }
+
+    pub fn stake_stake_delegation_voter_pubkey(&self) -> Pubkey {
+        deser_pubkey_unchecked(&self.0, STAKE_STAKE_DELEGATION_VOTER_PUBKEY_OFFSET)
+    }
+
+    pub fn stake_stake_delegation_stake(&self) -> u64 {
+        deser_u64_le_unchecked(&self.0, STAKE_STAKE_DELEGATION_STAKE_OFFSET)
+    }
+
+    pub fn stake_stake_delegation_activation_epoch(&self) -> u64 {
+        deser_u64_le_unchecked(&self.0, STAKE_STAKE_DELEGATION_ACTIVATION_EPOCH_OFFSET)
+    }
+
+    pub fn stake_stake_delegation_deactivation_epoch(&self) -> u64 {
+        deser_u64_le_unchecked(&self.0, STAKE_STAKE_DELEGATION_DEACTIVATION_EPOCH_OFFSET)
+    }
+
+    pub fn stake_stake_delegation_warmup_cooldown_rate_deprecated(&self) -> f64 {
+        deser_f64_le_unchecked(
+            &self.0,
+            STAKE_STAKE_DELEGATION_WARMUP_COOLDOWN_RATE_DEPRECATED_OFFSET,
+        )
+    }
+
+    pub fn stake_stake_credits_observed(&self) -> u64 {
+        deser_u64_le_unchecked(&self.0, STAKE_STAKE_CREDITS_OBSERVED_OFFSET)
+    }
+
+    // TODO: add tests for 1.17
+    pub fn stake_stake_flags(&self) -> u8 {
+        let d = self.0.data();
+        d[STAKE_STAKE_FLAGS_OFFSET]
+    }
+
+    pub fn stake_is_bootstrap(&self) -> bool {
+        self.stake_stake_delegation_activation_epoch() == u64::MAX
+    }
+}
+
+impl<T: ReadonlyAccountData> TryFrom<ValidStakeAccount<T>> for StakeStakeAccount<T> {
+    type Error = ProgramError;
+
+    fn try_from(value: ValidStakeAccount<T>) -> Result<Self, Self::Error> {
+        value.try_into_stake()
+    }
+}
+
+impl<'a, T> From<&'a StakeStakeAccount<T>> for ValidStakeAccount<&'a T> {
+    fn from(value: &'a StakeStakeAccount<T>) -> Self {
+        value.as_valid()
+    }
+}
+
+impl<T> From<StakeStakeAccount<T>> for ValidStakeAccount<T> {
+    fn from(value: StakeStakeAccount<T>) -> Self {
+        value.into_valid()
+    }
+}
+
+impl<T: ReadonlyAccountData> TryFrom<StakeOrInitializedStakeAccount<T>> for StakeStakeAccount<T> {
+    type Error = ProgramError;
+
+    fn try_from(value: StakeOrInitializedStakeAccount<T>) -> Result<Self, Self::Error> {
+        value.try_into_stake()
+    }
+}
+
+impl<'a, T> From<&'a StakeStakeAccount<T>> for StakeOrInitializedStakeAccount<&'a T> {
+    fn from(value: &'a StakeStakeAccount<T>) -> Self {
+        value.as_stake_or_initialized()
+    }
+}
+
+impl<T> From<StakeStakeAccount<T>> for StakeOrInitializedStakeAccount<T> {
+    fn from(value: StakeStakeAccount<T>) -> Self {
+        value.into_stake_or_initialized()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum StakeStateMarker {
     Uninitialized,
@@ -67,353 +399,28 @@ impl TryFrom<[u8; 4]> for StakeStateMarker {
     }
 }
 
-fn initialized_or_stake_checked_method<R: ReadonlyStakeAccount + ?Sized, T>(
-    r: &R,
-    f: fn(&R) -> T,
-) -> Result<T, ProgramError> {
-    match r.stake_state_marker() {
-        StakeStateMarker::Initialized | StakeStateMarker::Stake => Ok(f(r)),
-        StakeStateMarker::Uninitialized | StakeStateMarker::RewardsPool => {
-            Err(ProgramError::InvalidAccountData)
-        }
-    }
+fn deser_pubkey_unchecked<D: ReadonlyAccountData>(d: D, offset: usize) -> Pubkey {
+    let d = d.data();
+    let b: &[u8; 32] = d[offset..offset + PUBKEY_BYTES].try_into().unwrap();
+    Pubkey::from(*b)
 }
 
-fn stake_checked_method<R: ReadonlyStakeAccount + ?Sized, T>(
-    r: &R,
-    unchecked_method: fn(&R) -> T,
-) -> Result<T, ProgramError> {
-    match r.stake_state_marker() {
-        StakeStateMarker::Stake => Ok(unchecked_method(r)),
-        StakeStateMarker::Uninitialized
-        | StakeStateMarker::Initialized
-        | StakeStateMarker::RewardsPool => Err(ProgramError::InvalidAccountData),
-    }
+fn deser_u64_le_unchecked<D: ReadonlyAccountData>(d: D, offset: usize) -> u64 {
+    let d = d.data();
+    let b: &[u8; 8] = d[offset..offset + 8].try_into().unwrap();
+    u64::from_le_bytes(*b)
 }
 
-/// Getter methods that only deserialize the required account
-/// data subslice instead of the entire account data vec.
-///
-/// All getter methods are unchecked and will panic if data is malfored,
-/// be sure to call
-/// [`ReadonlyStakeAccount::stake_data_is_valid`]
-/// before calling the other methods
-///
-/// The `*_unchecked()` methods do not check that the stake is of the correct StakeState enum
-/// before reading the bytes
-pub trait ReadonlyStakeAccount {
-    fn stake_data_is_valid(&self) -> bool;
-
-    fn stake_state_marker(&self) -> StakeStateMarker;
-
-    fn stake_meta_unchecked(&self) -> Meta {
-        Meta {
-            rent_exempt_reserve: self.stake_meta_rent_exempt_reserve_unchecked(),
-            authorized: self.stake_meta_authorized_unchecked(),
-            lockup: self.stake_meta_lockup_unchecked(),
-        }
-    }
-
-    fn stake_meta(&self) -> Result<Meta, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_unchecked)
-    }
-
-    fn stake_meta_rent_exempt_reserve_unchecked(&self) -> u64;
-
-    fn stake_meta_rent_exempt_reserve(&self) -> Result<u64, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_rent_exempt_reserve_unchecked)
-    }
-
-    fn stake_meta_authorized_unchecked(&self) -> Authorized {
-        Authorized {
-            staker: self.stake_meta_authorized_staker_unchecked(),
-            withdrawer: self.stake_meta_authorized_withdrawer_unchecked(),
-        }
-    }
-
-    fn stake_meta_authorized(&self) -> Result<Authorized, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_authorized_unchecked)
-    }
-
-    fn stake_meta_authorized_staker_unchecked(&self) -> Pubkey;
-
-    fn stake_meta_authorized_staker(&self) -> Result<Pubkey, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_authorized_staker_unchecked)
-    }
-
-    fn stake_meta_authorized_withdrawer_unchecked(&self) -> Pubkey;
-
-    fn stake_meta_authorized_withdrawer(&self) -> Result<Pubkey, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_authorized_withdrawer_unchecked)
-    }
-
-    fn stake_meta_lockup_unchecked(&self) -> Lockup {
-        Lockup {
-            unix_timestamp: self.stake_meta_lockup_unix_timestamp_unchecked(),
-            epoch: self.stake_meta_lockup_epoch_unchecked(),
-            custodian: self.stake_meta_lockup_custodian_unchecked(),
-        }
-    }
-
-    fn stake_meta_lockup(&self) -> Result<Lockup, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_lockup_unchecked)
-    }
-
-    fn stake_meta_lockup_unix_timestamp_unchecked(&self) -> i64;
-
-    fn stake_meta_lockup_unix_timestamp(&self) -> Result<i64, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_lockup_unix_timestamp_unchecked)
-    }
-
-    fn stake_meta_lockup_epoch_unchecked(&self) -> u64;
-
-    fn stake_meta_lockup_epoch(&self) -> Result<u64, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_lockup_epoch_unchecked)
-    }
-
-    fn stake_meta_lockup_custodian_unchecked(&self) -> Pubkey;
-
-    fn stake_meta_lockup_custodian(&self) -> Result<Pubkey, ProgramError> {
-        initialized_or_stake_checked_method(self, Self::stake_meta_lockup_custodian_unchecked)
-    }
-
-    fn stake_stake_unchecked(&self) -> Stake {
-        Stake {
-            delegation: self.stake_stake_delegation_unchecked(),
-            credits_observed: self.stake_stake_credits_observed_unchecked(),
-        }
-    }
-
-    fn stake_stake(&self) -> Result<Stake, ProgramError> {
-        stake_checked_method(self, Self::stake_stake_unchecked)
-    }
-
-    #[allow(deprecated)]
-    fn stake_stake_delegation_unchecked(&self) -> Delegation {
-        Delegation {
-            voter_pubkey: self.stake_stake_delegation_voter_pubkey_unchecked(),
-            stake: self.stake_stake_delegation_stake_unchecked(),
-            activation_epoch: self.stake_stake_delegation_activation_epoch_unchecked(),
-            deactivation_epoch: self.stake_stake_delegation_deactivation_epoch_unchecked(),
-            warmup_cooldown_rate: self
-                .stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(),
-        }
-    }
-
-    fn stake_stake_delegation(&self) -> Result<Delegation, ProgramError> {
-        stake_checked_method(self, Self::stake_stake_delegation_unchecked)
-    }
-
-    fn stake_stake_delegation_voter_pubkey_unchecked(&self) -> Pubkey;
-
-    fn stake_stake_delegation_voter_pubkey(&self) -> Result<Pubkey, ProgramError> {
-        stake_checked_method(self, Self::stake_stake_delegation_voter_pubkey_unchecked)
-    }
-
-    fn stake_stake_delegation_stake_unchecked(&self) -> u64;
-
-    fn stake_stake_delegation_stake(&self) -> Result<u64, ProgramError> {
-        stake_checked_method(self, Self::stake_stake_delegation_stake_unchecked)
-    }
-
-    fn stake_stake_delegation_activation_epoch_unchecked(&self) -> u64;
-
-    fn stake_stake_delegation_activation_epoch(&self) -> Result<u64, ProgramError> {
-        stake_checked_method(
-            self,
-            Self::stake_stake_delegation_activation_epoch_unchecked,
-        )
-    }
-
-    fn stake_stake_delegation_deactivation_epoch_unchecked(&self) -> u64;
-
-    fn stake_stake_delegation_deactivation_epoch(&self) -> Result<u64, ProgramError> {
-        stake_checked_method(
-            self,
-            Self::stake_stake_delegation_deactivation_epoch_unchecked,
-        )
-    }
-
-    fn stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(&self) -> f64;
-
-    fn stake_stake_delegation_warmup_cooldown_rate_deprecated(&self) -> Result<f64, ProgramError> {
-        stake_checked_method(
-            self,
-            Self::stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked,
-        )
-    }
-
-    fn stake_stake_credits_observed_unchecked(&self) -> u64;
-
-    fn stake_stake_credits_observed(&self) -> Result<u64, ProgramError> {
-        stake_checked_method(self, Self::stake_stake_credits_observed_unchecked)
-    }
-
-    // TODO: add tests for 1.17
-    fn stake_stake_flags_unchecked(&self) -> u8;
-
-    // TODO: add tests for 1.17
-    fn stake_stake_flags(&self) -> Result<u8, ProgramError> {
-        stake_checked_method(self, Self::stake_stake_flags_unchecked)
-    }
-
-    /// The original solana-program API takes an optional custodian pubkey arg and returns true
-    /// if thats equal to lockup.custodian, which doesn't really make any sense
-    fn stake_lockup_is_in_force_unchecked(&self, clock: &Clock) -> bool {
-        self.stake_meta_lockup_unix_timestamp_unchecked() > clock.unix_timestamp
-            || self.stake_meta_lockup_epoch_unchecked() > clock.epoch
-    }
-
-    fn stake_lockup_is_in_force(&self, clock: &Clock) -> Result<bool, ProgramError> {
-        match self.stake_state_marker() {
-            StakeStateMarker::Initialized | StakeStateMarker::Stake => {
-                Ok(self.stake_lockup_is_in_force_unchecked(clock))
-            }
-            StakeStateMarker::Uninitialized | StakeStateMarker::RewardsPool => {
-                Err(ProgramError::InvalidAccountData)
-            }
-        }
-    }
-
-    fn stake_is_bootstrap_unchecked(&self) -> bool {
-        self.stake_stake_delegation_activation_epoch_unchecked() == u64::MAX
-    }
-
-    fn stake_is_bootstrap(&self) -> Result<bool, ProgramError> {
-        stake_checked_method(self, Self::stake_is_bootstrap_unchecked)
-    }
+fn deser_i64_le_unchecked<D: ReadonlyAccountData>(d: D, offset: usize) -> i64 {
+    let d = d.data();
+    let b: &[u8; 8] = d[offset..offset + 8].try_into().unwrap();
+    i64::from_le_bytes(*b)
 }
 
-impl<R: ReadonlyAccountData> ReadonlyStakeAccount for R {
-    fn stake_data_is_valid(&self) -> bool {
-        let d = self.data();
-        if d.len() != STAKE_ACCOUNT_LEN {
-            return false;
-        }
-        let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
-            .try_into()
-            .unwrap();
-        StakeStateMarker::try_from(*b).is_ok()
-    }
-
-    fn stake_state_marker(&self) -> StakeStateMarker {
-        let d = self.data();
-        let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
-            .try_into()
-            .unwrap();
-        StakeStateMarker::try_from(*b).unwrap()
-    }
-
-    fn stake_meta_rent_exempt_reserve_unchecked(&self) -> u64 {
-        let d = self.data();
-        let b: &[u8; 8] = d
-            [STAKE_META_RENT_EXEMPT_RESERVE_OFFSET..STAKE_META_RENT_EXEMPT_RESERVE_OFFSET + 8]
-            .try_into()
-            .unwrap();
-        u64::from_le_bytes(*b)
-    }
-
-    fn stake_meta_authorized_staker_unchecked(&self) -> Pubkey {
-        let d = self.data();
-        let b: &[u8; 32] = d[STAKE_META_AUTHORIZED_STAKER_OFFSET
-            ..STAKE_META_AUTHORIZED_STAKER_OFFSET + PUBKEY_BYTES]
-            .try_into()
-            .unwrap();
-        Pubkey::from(*b)
-    }
-
-    fn stake_meta_authorized_withdrawer_unchecked(&self) -> Pubkey {
-        let d = self.data();
-        let b: &[u8; 32] = d[STAKE_META_AUTHORIZED_WITHDRAWER_OFFSET
-            ..STAKE_META_AUTHORIZED_WITHDRAWER_OFFSET + PUBKEY_BYTES]
-            .try_into()
-            .unwrap();
-        Pubkey::from(*b)
-    }
-
-    fn stake_meta_lockup_unix_timestamp_unchecked(&self) -> i64 {
-        let d = self.data();
-        let b: &[u8; 8] = d
-            [STAKE_META_LOCKUP_UNIX_TIMESTAMP_OFFSET..STAKE_META_LOCKUP_UNIX_TIMESTAMP_OFFSET + 8]
-            .try_into()
-            .unwrap();
-        i64::from_le_bytes(*b)
-    }
-
-    fn stake_meta_lockup_epoch_unchecked(&self) -> u64 {
-        let d = self.data();
-        let b: &[u8; 8] = d[STAKE_META_LOCKUP_EPOCH_OFFSET..STAKE_META_LOCKUP_EPOCH_OFFSET + 8]
-            .try_into()
-            .unwrap();
-        u64::from_le_bytes(*b)
-    }
-
-    fn stake_meta_lockup_custodian_unchecked(&self) -> Pubkey {
-        let d = self.data();
-        let b: &[u8; 32] = d
-            [STAKE_META_LOCKUP_CUSTODIAN_OFFSET..STAKE_META_LOCKUP_CUSTODIAN_OFFSET + PUBKEY_BYTES]
-            .try_into()
-            .unwrap();
-        Pubkey::from(*b)
-    }
-
-    fn stake_stake_delegation_voter_pubkey_unchecked(&self) -> Pubkey {
-        let d = self.data();
-        let b: &[u8; 32] = d[STAKE_STAKE_DELEGATION_VOTER_PUBKEY_OFFSET
-            ..STAKE_STAKE_DELEGATION_VOTER_PUBKEY_OFFSET + PUBKEY_BYTES]
-            .try_into()
-            .unwrap();
-        Pubkey::from(*b)
-    }
-
-    fn stake_stake_delegation_stake_unchecked(&self) -> u64 {
-        let d = self.data();
-        let b: &[u8; 8] = d
-            [STAKE_STAKE_DELEGATION_STAKE_OFFSET..STAKE_STAKE_DELEGATION_STAKE_OFFSET + 8]
-            .try_into()
-            .unwrap();
-        u64::from_le_bytes(*b)
-    }
-
-    fn stake_stake_delegation_activation_epoch_unchecked(&self) -> u64 {
-        let d = self.data();
-        let b: &[u8; 8] = d[STAKE_STAKE_DELEGATION_ACTIVATION_EPOCH_OFFSET
-            ..STAKE_STAKE_DELEGATION_ACTIVATION_EPOCH_OFFSET + 8]
-            .try_into()
-            .unwrap();
-        u64::from_le_bytes(*b)
-    }
-
-    fn stake_stake_delegation_deactivation_epoch_unchecked(&self) -> u64 {
-        let d = self.data();
-        let b: &[u8; 8] = d[STAKE_STAKE_DELEGATION_DEACTIVATION_EPOCH_OFFSET
-            ..STAKE_STAKE_DELEGATION_DEACTIVATION_EPOCH_OFFSET + 8]
-            .try_into()
-            .unwrap();
-        u64::from_le_bytes(*b)
-    }
-
-    fn stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(&self) -> f64 {
-        let d = self.data();
-        let b: &[u8; 8] = d[STAKE_STAKE_DELEGATION_WARMUP_COOLDOWN_RATE_DEPRECATED_OFFSET
-            ..STAKE_STAKE_DELEGATION_WARMUP_COOLDOWN_RATE_DEPRECATED_OFFSET + 8]
-            .try_into()
-            .unwrap();
-        f64::from_le_bytes(*b)
-    }
-
-    fn stake_stake_credits_observed_unchecked(&self) -> u64 {
-        let d = self.data();
-        let b: &[u8; 8] = d
-            [STAKE_STAKE_CREDITS_OBSERVED_OFFSET..STAKE_STAKE_CREDITS_OBSERVED_OFFSET + 8]
-            .try_into()
-            .unwrap();
-        u64::from_le_bytes(*b)
-    }
-
-    fn stake_stake_flags_unchecked(&self) -> u8 {
-        self.data()[STAKE_STAKE_FLAGS_OFFSET]
-    }
+fn deser_f64_le_unchecked<D: ReadonlyAccountData>(d: D, offset: usize) -> f64 {
+    let d = d.data();
+    let b: &[u8; 8] = d[offset..offset + 8].try_into().unwrap();
+    f64::from_le_bytes(*b)
 }
 
 #[cfg(test)]
@@ -444,7 +451,7 @@ mod tests {
     proptest! {
         #[test]
         fn stake_readonly_matches_full_deser_invalid(data: [u8; STAKE_ACCOUNT_LEN]) {
-            let account = AccountData(&data);
+            let account = ReadonlyStakeAccount(AccountData(&data));
             let unpack_res = StakeState::deserialize(&mut data.as_ref());
             if !account.stake_data_is_valid() {
                 prop_assert!(unpack_res.is_err());
@@ -453,90 +460,42 @@ mod tests {
     }
 
     fn assert_meta_eq(
-        actual: &AccountData,
+        actual: &StakeOrInitializedStakeAccount<AccountData>,
         expected: &Meta,
         clock: &Clock,
     ) -> Result<(), TestCaseError> {
-        prop_assert_eq!(actual.stake_meta_unchecked(), actual.stake_meta().unwrap());
-        prop_assert_eq!(actual.stake_meta_unchecked(), *expected);
+        prop_assert_eq!(actual.stake_meta(), *expected);
         prop_assert_eq!(
-            actual.stake_meta_rent_exempt_reserve_unchecked(),
-            actual.stake_meta_rent_exempt_reserve().unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_meta_rent_exempt_reserve_unchecked(),
+            actual.stake_meta_rent_exempt_reserve(),
             expected.rent_exempt_reserve
         );
         // authorized
+        prop_assert_eq!(actual.stake_meta_authorized(), expected.authorized);
         prop_assert_eq!(
-            actual.stake_meta_authorized_unchecked(),
-            actual.stake_meta_authorized().unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_meta_authorized_unchecked(),
-            expected.authorized
-        );
-        prop_assert_eq!(
-            actual.stake_meta_authorized_staker_unchecked(),
-            actual.stake_meta_authorized_staker().unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_meta_authorized_staker_unchecked(),
+            actual.stake_meta_authorized_staker(),
             expected.authorized.staker
         );
         prop_assert_eq!(
-            actual.stake_meta_authorized_withdrawer_unchecked(),
-            actual.stake_meta_authorized_withdrawer().unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_meta_authorized_withdrawer_unchecked(),
+            actual.stake_meta_authorized_withdrawer(),
             expected.authorized.withdrawer
         );
         prop_assert_eq!(
-            actual.stake_meta_authorized_staker_unchecked(),
-            actual.stake_meta_authorized_staker().unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_meta_authorized_staker_unchecked(),
+            actual.stake_meta_authorized_staker(),
             expected.authorized.staker
         );
         // lockup
+        prop_assert_eq!(actual.stake_meta_lockup(), expected.lockup);
         prop_assert_eq!(
-            actual.stake_meta_lockup_unchecked(),
-            actual.stake_meta_lockup().unwrap()
-        );
-        prop_assert_eq!(actual.stake_meta_lockup_unchecked(), expected.lockup);
-        prop_assert_eq!(
-            actual.stake_meta_lockup_unix_timestamp_unchecked(),
-            actual.stake_meta_lockup_unix_timestamp().unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_meta_lockup_unix_timestamp_unchecked(),
+            actual.stake_meta_lockup_unix_timestamp(),
             expected.lockup.unix_timestamp
         );
+        prop_assert_eq!(actual.stake_meta_lockup_epoch(), expected.lockup.epoch);
         prop_assert_eq!(
-            actual.stake_meta_lockup_epoch_unchecked(),
-            actual.stake_meta_lockup_epoch().unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_meta_lockup_epoch_unchecked(),
-            expected.lockup.epoch
-        );
-        prop_assert_eq!(
-            actual.stake_meta_lockup_custodian_unchecked(),
-            actual.stake_meta_lockup_custodian().unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_meta_lockup_custodian_unchecked(),
+            actual.stake_meta_lockup_custodian(),
             expected.lockup.custodian
         );
-
         prop_assert_eq!(
-            actual.stake_lockup_is_in_force_unchecked(clock),
-            actual.stake_lockup_is_in_force(clock).unwrap()
-        );
-        prop_assert_eq!(
-            actual.stake_lockup_is_in_force_unchecked(clock),
+            actual.stake_lockup_is_in_force(clock),
             expected.lockup.is_in_force(clock, None)
         );
         Ok(())
@@ -550,52 +509,31 @@ mod tests {
             stake_state
                 .serialize(&mut data.as_mut_slice())
                 .unwrap();
-            let account = AccountData(&data);
+            let account = ReadonlyStakeAccount(AccountData(&data));
             prop_assert!(account.stake_data_is_valid());
+            let account = account.try_into_valid().unwrap();
             match stake_state {
                 StakeState::Uninitialized => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::Uninitialized),
-                StakeState::Initialized(meta) => assert_meta_eq(&account, &meta, &clock).unwrap(),
+                StakeState::Initialized(meta) => assert_meta_eq(&account.try_into_stake_or_initialized().unwrap(), &meta, &clock).unwrap(),
                 StakeState::Stake(meta, stake) => {
+                    let account = account.try_into_stake_or_initialized().unwrap();
                     assert_meta_eq(&account, &meta, &clock).unwrap();
-                    prop_assert_eq!(account.stake_stake_unchecked(), account.stake_stake().unwrap());
-                    prop_assert_eq!(account.stake_stake_unchecked(), stake);
+                    let account = account.try_into_stake().unwrap();
+                    prop_assert_eq!(account.stake_stake(), stake);
                     // delegation
-                    prop_assert_eq!(account.stake_stake_delegation_unchecked(), account.stake_stake_delegation().unwrap());
-                    prop_assert_eq!(account.stake_stake_delegation_unchecked(), stake.delegation);
+                    prop_assert_eq!(account.stake_stake_delegation(), stake.delegation);
+                    prop_assert_eq!(account.stake_stake_delegation_voter_pubkey(), stake.delegation.voter_pubkey);
+                    prop_assert_eq!(account.stake_stake_delegation_stake(), stake.delegation.stake);
+                    prop_assert_eq!(account.stake_stake_delegation_activation_epoch(), stake.delegation.activation_epoch);
+                    prop_assert_eq!(account.stake_stake_delegation_deactivation_epoch(), stake.delegation.deactivation_epoch);
                     prop_assert_eq!(
-                        account.stake_stake_delegation_voter_pubkey_unchecked(),
-                        account.stake_stake_delegation_voter_pubkey().unwrap()
-                    );
-                    prop_assert_eq!(account.stake_stake_delegation_voter_pubkey_unchecked(), stake.delegation.voter_pubkey);
-                    prop_assert_eq!(
-                        account.stake_stake_delegation_stake_unchecked(),
-                        account.stake_stake_delegation_stake().unwrap()
-                    );
-                    prop_assert_eq!(account.stake_stake_delegation_stake_unchecked(), stake.delegation.stake);
-                    prop_assert_eq!(
-                        account.stake_stake_delegation_activation_epoch_unchecked(),
-                        account.stake_stake_delegation_activation_epoch().unwrap()
-                    );
-                    prop_assert_eq!(account.stake_stake_delegation_activation_epoch_unchecked(), stake.delegation.activation_epoch);
-                    prop_assert_eq!(
-                        account.stake_stake_delegation_deactivation_epoch_unchecked(),
-                        account.stake_stake_delegation_deactivation_epoch().unwrap()
-                    );
-                    prop_assert_eq!(account.stake_stake_delegation_deactivation_epoch_unchecked(), stake.delegation.deactivation_epoch);
-                    prop_assert_eq!(
-                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(),
-                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated().unwrap()
-                    );
-                    prop_assert_eq!(
-                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated_unchecked(),
+                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated(),
                         stake.delegation.warmup_cooldown_rate
                     );
 
-                    prop_assert_eq!(account.stake_stake_credits_observed_unchecked(), account.stake_stake_credits_observed().unwrap());
-                    prop_assert_eq!(account.stake_stake_credits_observed_unchecked(), stake.credits_observed);
+                    prop_assert_eq!(account.stake_stake_credits_observed(), stake.credits_observed);
 
-                    prop_assert_eq!(account.stake_is_bootstrap_unchecked(), account.stake_is_bootstrap().unwrap());
-                    prop_assert_eq!(account.stake_is_bootstrap_unchecked(), stake.delegation.is_bootstrap());
+                    prop_assert_eq!(account.stake_is_bootstrap(), stake.delegation.is_bootstrap());
                 },
                 StakeState::RewardsPool => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::RewardsPool),
             }

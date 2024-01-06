@@ -2,7 +2,7 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey, stake, sysvar}
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use stake_program_interface::DelegateStakeKeys;
 
-use crate::{ReadonlyStakeAccount, StakeStateMarker};
+use crate::ReadonlyStakeAccount;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DelegateStakeFreeAccounts<S> {
@@ -17,18 +17,13 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DelegateStakeFreeAccounts<S
 
     pub fn resolve_to_free_keys(&self) -> Result<DelegateStakeFreeKeys, ProgramError> {
         let Self { stake, vote } = self;
-        if !stake.stake_data_is_valid()
-            || !matches!(
-                stake.stake_state_marker(),
-                StakeStateMarker::Initialized | StakeStateMarker::Stake
-            )
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let s = ReadonlyStakeAccount(stake);
+        let s = s.try_into_valid()?;
+        let s = s.try_into_stake_or_initialized()?;
         Ok(DelegateStakeFreeKeys {
             stake: *stake.pubkey(),
             vote: *vote,
-            stake_authority: stake.stake_meta_authorized_staker_unchecked(),
+            stake_authority: s.stake_meta_authorized_staker(),
         })
     }
 }

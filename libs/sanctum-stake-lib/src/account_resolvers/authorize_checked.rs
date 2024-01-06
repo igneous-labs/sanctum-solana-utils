@@ -4,7 +4,7 @@ use solana_program::{
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use stake_program_interface::AuthorizeCheckedKeys;
 
-use crate::{ReadonlyStakeAccount, StakeStateMarker};
+use crate::{ReadonlyStakeAccount, StakeOrInitializedStakeAccount};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AuthorizeCheckedFreeAccounts<S> {
@@ -32,7 +32,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeCheckedFreeAccount
 
     pub fn resolve_to_free_keys_staker(&self) -> Result<AuthorizeCheckedFreeKeys, ProgramError> {
         self.resolve_to_free_keys_with_authority_getter(
-            ReadonlyStakeAccount::stake_meta_authorized_staker_unchecked,
+            StakeOrInitializedStakeAccount::stake_meta_authorized_staker,
         )
     }
 
@@ -44,7 +44,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeCheckedFreeAccount
         &self,
     ) -> Result<AuthorizeCheckedFreeKeys, ProgramError> {
         self.resolve_to_free_keys_with_authority_getter(
-            ReadonlyStakeAccount::stake_meta_authorized_withdrawer_unchecked,
+            StakeOrInitializedStakeAccount::stake_meta_authorized_withdrawer,
         )
     }
 
@@ -52,25 +52,20 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeCheckedFreeAccount
         self.resolve_to_free_keys_withdrawer().map(Into::into)
     }
 
-    fn resolve_to_free_keys_with_authority_getter(
-        &self,
-        getter: fn(&S) -> Pubkey,
+    fn resolve_to_free_keys_with_authority_getter<'a>(
+        &'a self,
+        getter: fn(&StakeOrInitializedStakeAccount<&'a S>) -> Pubkey,
     ) -> Result<AuthorizeCheckedFreeKeys, ProgramError> {
         let Self {
             stake,
             new_authority,
         } = self;
-        if !stake.stake_data_is_valid()
-            || !matches!(
-                stake.stake_state_marker(),
-                StakeStateMarker::Initialized | StakeStateMarker::Stake
-            )
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let s = ReadonlyStakeAccount(stake);
+        let s = s.try_into_valid()?;
+        let s = s.try_into_stake_or_initialized()?;
         Ok(AuthorizeCheckedFreeKeys {
             stake: *stake.pubkey(),
-            authority: getter(stake),
+            authority: getter(&s),
             new_authority: *new_authority,
         })
     }

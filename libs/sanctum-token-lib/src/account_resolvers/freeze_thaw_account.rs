@@ -28,12 +28,10 @@ impl<
     }
 
     fn check_token_account(&self) -> Result<(), ProgramError> {
-        if !self.token_account.token_account_data_is_valid()
-            || !self.token_account.token_account_is_initialized()
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        if self.token_account.token_account_mint() != *self.mint.pubkey() {
+        let t = ReadonlyTokenAccount(&self.token_account)
+            .try_into_valid()?
+            .try_into_initialized()?;
+        if t.token_account_mint() != *self.mint.pubkey() {
             return Err(SplTokenError::MintMismatch.into());
         }
         Ok(())
@@ -90,12 +88,10 @@ impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> FreezeThawAccountsUnchecked
     }
 
     fn mint_freeze_authority(&self) -> Result<Pubkey, ProgramError> {
-        if !self.mint.mint_data_is_valid() || !self.mint.mint_is_initialized() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        Ok(self
-            .mint
-            .mint_freeze_authority()
+        let m = ReadonlyMintAccount(&self.mint)
+            .try_into_valid()?
+            .try_into_initialized()?;
+        Ok(m.mint_freeze_authority()
             .ok_or(SplTokenError::MintCannotFreeze)?)
     }
 }

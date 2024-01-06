@@ -2,7 +2,7 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey, sysvar};
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use stake_program_interface::WithdrawKeys;
 
-use crate::{ReadonlyStakeAccount, StakeStateMarker};
+use crate::ReadonlyStakeAccount;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct WithdrawFreeAccounts<S> {
@@ -17,15 +17,10 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> WithdrawFreeAccounts<S> {
 
     pub fn resolve_to_free_keys(&self) -> Result<WithdrawFreeKeys, ProgramError> {
         let Self { from, to } = self;
-        if !from.stake_data_is_valid()
-            || !matches!(
-                from.stake_state_marker(),
-                StakeStateMarker::Initialized | StakeStateMarker::Stake
-            )
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        let withdraw_authority = from.stake_meta_authorized_withdrawer_unchecked();
+        let s = ReadonlyStakeAccount(from);
+        let s = s.try_into_valid()?;
+        let s = s.try_into_stake_or_initialized()?;
+        let withdraw_authority = s.stake_meta_authorized_withdrawer();
         Ok(WithdrawFreeKeys {
             from: *from.pubkey(),
             to: *to,

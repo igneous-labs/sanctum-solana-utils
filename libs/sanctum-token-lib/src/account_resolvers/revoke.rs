@@ -12,15 +12,10 @@ pub struct RevokeFreeAccounts<A> {
 impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> RevokeFreeAccounts<A> {
     pub fn resolve(&self) -> Result<RevokeKeys, ProgramError> {
         let Self { token_account } = self;
-
-        if !token_account.token_account_data_is_valid()
-            || !token_account.token_account_is_initialized()
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let authority = token_account.token_account_authority();
-
+        let t = ReadonlyTokenAccount(&self.token_account)
+            .try_into_valid()?
+            .try_into_initialized()?;
+        let authority = t.token_account_authority();
         Ok(RevokeKeys {
             token_account: *token_account.pubkey(),
             authority,

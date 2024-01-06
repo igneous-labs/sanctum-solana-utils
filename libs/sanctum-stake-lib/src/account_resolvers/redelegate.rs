@@ -2,7 +2,7 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey, stake};
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use stake_program_interface::RedelegateKeys;
 
-use crate::{ReadonlyStakeAccount, StakeStateMarker};
+use crate::ReadonlyStakeAccount;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct RedelegateFreeAccounts<S> {
@@ -18,19 +18,14 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> RedelegateFreeAccounts<S> {
             uninitialized_stake,
             vote,
         } = self;
-        if !stake.stake_data_is_valid()
-            || !matches!(
-                stake.stake_state_marker(),
-                StakeStateMarker::Initialized | StakeStateMarker::Stake
-            )
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let s = ReadonlyStakeAccount(stake);
+        let s = s.try_into_valid()?;
+        let s = s.try_into_stake_or_initialized()?;
         Ok(RedelegateFreeKeys {
             stake: *stake.pubkey(),
             uninitialized_stake: *uninitialized_stake,
             vote: *vote,
-            stake_authority: stake.stake_meta_authorized_staker_unchecked(),
+            stake_authority: s.stake_meta_authorized_staker(),
         })
     }
 }

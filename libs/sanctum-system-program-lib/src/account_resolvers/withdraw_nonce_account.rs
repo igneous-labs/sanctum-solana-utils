@@ -2,7 +2,7 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey, sysvar};
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use system_program_interface::WithdrawNonceAccountKeys;
 
-use crate::{NonceStateMarker, ReadonlyNonceAccount};
+use crate::ReadonlyNonceAccount;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct WithdrawNonceAccountFreeAccounts<N> {
@@ -17,15 +17,13 @@ impl<N: ReadonlyAccountData + ReadonlyAccountPubkey> WithdrawNonceAccountFreeAcc
 
     pub fn resolve_to_free_keys(&self) -> Result<WithdrawNonceAccountFreeKeys, ProgramError> {
         let Self { nonce, to } = self;
-        if !nonce.nonce_data_is_valid()
-            || !matches!(nonce.nonce_state_marker(), NonceStateMarker::Initialized)
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let n = ReadonlyNonceAccount(nonce);
+        let n = n.try_into_valid()?;
+        let n = n.try_into_initialized()?;
         Ok(WithdrawNonceAccountFreeKeys {
             to: *to,
             nonce: *nonce.pubkey(),
-            authority: nonce.nonce_data_authority_unchecked(),
+            authority: n.nonce_data_authority(),
         })
     }
 }

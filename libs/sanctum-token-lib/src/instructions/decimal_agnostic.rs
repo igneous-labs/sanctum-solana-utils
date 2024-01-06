@@ -11,9 +11,9 @@ use solana_readonly_account::ReadonlyAccountData;
 use spl_token_interface::CheckedOpArgs;
 
 fn mint_decimals_checked<M: ReadonlyAccountData>(mint: M) -> Result<u8, ProgramError> {
-    if !mint.mint_data_is_valid() || !mint.mint_is_initialized() {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    let mint = ReadonlyMintAccount(mint)
+        .try_into_valid()?
+        .try_into_initialized()?;
     Ok(mint.mint_decimals())
 }
 

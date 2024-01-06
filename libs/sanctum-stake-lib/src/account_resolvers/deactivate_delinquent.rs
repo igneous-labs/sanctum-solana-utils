@@ -2,7 +2,7 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use stake_program_interface::DeactivateDelinquentKeys;
 
-use crate::{ReadonlyStakeAccount, StakeStateMarker};
+use crate::ReadonlyStakeAccount;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DeactivateDelinquentFreeAccounts<S> {
@@ -16,15 +16,13 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DeactivateDelinquentFreeAcc
             stake,
             reference_vote,
         } = self;
-        if !stake.stake_data_is_valid()
-            || !matches!(stake.stake_state_marker(), StakeStateMarker::Stake)
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let s = ReadonlyStakeAccount(stake);
+        let s = s.try_into_valid()?;
+        let s = s.try_into_stake()?;
         Ok(DeactivateDelinquentKeys {
             stake: *stake.pubkey(),
             reference_vote: *reference_vote,
-            vote: stake.stake_stake_delegation_voter_pubkey_unchecked(),
+            vote: s.stake_stake_delegation_voter_pubkey(),
         })
     }
 }

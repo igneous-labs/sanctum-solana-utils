@@ -2,7 +2,7 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use stake_program_interface::SplitKeys;
 
-use crate::{ReadonlyStakeAccount, StakeStateMarker};
+use crate::ReadonlyStakeAccount;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SplitFreeAccounts<S> {
@@ -13,18 +13,13 @@ pub struct SplitFreeAccounts<S> {
 impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> SplitFreeAccounts<S> {
     pub fn resolve(&self) -> Result<SplitKeys, ProgramError> {
         let Self { from, to } = self;
-        if !from.stake_data_is_valid()
-            || !matches!(
-                from.stake_state_marker(),
-                StakeStateMarker::Initialized | StakeStateMarker::Stake
-            )
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let s = ReadonlyStakeAccount(from);
+        let s = s.try_into_valid()?;
+        let s = s.try_into_stake_or_initialized()?;
         Ok(SplitKeys {
             from: *from.pubkey(),
             to: *to,
-            stake_authority: from.stake_meta_authorized_staker_unchecked(),
+            stake_authority: s.stake_meta_authorized_staker(),
         })
     }
 }

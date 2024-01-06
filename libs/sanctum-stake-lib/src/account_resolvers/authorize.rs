@@ -4,7 +4,7 @@ use solana_program::{
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use stake_program_interface::AuthorizeKeys;
 
-use crate::ReadonlyStakeAccount;
+use crate::{ReadonlyStakeAccount, StakeOrInitializedStakeAccount};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AuthorizeFreeAccounts<S> {
@@ -26,15 +26,15 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeFreeAccounts<S> {
         }
     }
 
-    fn resolve_to_free_keys_with_authority_getter(
-        &self,
-        authority_getter: fn(&S) -> Result<Pubkey, ProgramError>,
+    fn resolve_to_free_keys_with_authority_getter<'a>(
+        &'a self,
+        authority_getter: fn(&StakeOrInitializedStakeAccount<&'a S>) -> Pubkey,
     ) -> Result<AuthorizeFreeKeys, ProgramError> {
         let Self { stake } = self;
-        if !stake.stake_data_is_valid() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        let authority = authority_getter(stake)?;
+        let s = ReadonlyStakeAccount(stake);
+        let s = s.try_into_valid()?;
+        let s = s.try_into_stake_or_initialized()?;
+        let authority = authority_getter(&s);
         Ok(AuthorizeFreeKeys {
             stake: *stake.pubkey(),
             authority,
@@ -47,7 +47,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeFreeAccounts<S> {
 
     pub fn resolve_to_free_keys_staker(&self) -> Result<AuthorizeFreeKeys, ProgramError> {
         self.resolve_to_free_keys_with_authority_getter(
-            ReadonlyStakeAccount::stake_meta_authorized_staker,
+            StakeOrInitializedStakeAccount::stake_meta_authorized_staker,
         )
     }
 
@@ -57,7 +57,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeFreeAccounts<S> {
 
     pub fn resolve_to_free_keys_withdrawer(&self) -> Result<AuthorizeFreeKeys, ProgramError> {
         self.resolve_to_free_keys_with_authority_getter(
-            ReadonlyStakeAccount::stake_meta_authorized_withdrawer,
+            StakeOrInitializedStakeAccount::stake_meta_authorized_withdrawer,
         )
     }
 }

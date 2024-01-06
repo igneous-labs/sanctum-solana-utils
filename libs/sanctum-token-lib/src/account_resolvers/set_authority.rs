@@ -25,16 +25,16 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> SetAuthorityFreeArgs<A> {
             account,
             authority_type,
         } = self;
-        if !account.mint_data_is_valid() || !account.mint_is_initialized() {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let m = ReadonlyMintAccount(&self.account)
+            .try_into_valid()?
+            .try_into_initialized()?;
         let authority = match authority_type {
-            AuthorityType::FreezeAccount => account
+            AuthorityType::FreezeAccount => m
                 .mint_freeze_authority()
                 .ok_or(SplTokenError::MintCannotFreeze)?,
-            AuthorityType::MintTokens => account
-                .mint_mint_authority()
-                .ok_or(SplTokenError::FixedSupply)?,
+            AuthorityType::MintTokens => {
+                m.mint_mint_authority().ok_or(SplTokenError::FixedSupply)?
+            }
             _ => unreachable!(),
         };
         Ok(SetAuthorityKeys {
@@ -48,15 +48,13 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> SetAuthorityFreeArgs<A> {
             account,
             authority_type,
         } = self;
-        if !account.token_account_data_is_valid() || !account.token_account_is_initialized() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        let token_auth = account.token_account_authority();
+        let t = ReadonlyTokenAccount(&self.account)
+            .try_into_valid()?
+            .try_into_initialized()?;
+        let token_auth = t.token_account_authority();
         let authority = match authority_type {
             AuthorityType::AccountOwner => token_auth,
-            AuthorityType::CloseAccount => account
-                .token_account_close_authority()
-                .unwrap_or(token_auth),
+            AuthorityType::CloseAccount => t.token_account_close_authority().unwrap_or(token_auth),
             _ => unreachable!(),
         };
         Ok(SetAuthorityKeys {

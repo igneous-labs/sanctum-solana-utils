@@ -1,8 +1,8 @@
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::program_error::ProgramError;
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use spl_token_interface::{BurnCheckedKeys, BurnKeys};
 
-use crate::ReadonlyTokenAccount;
+use crate::{InitializedTokenAccount, ReadonlyTokenAccount};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BurnFreeAccounts<A> {
@@ -11,30 +11,27 @@ pub struct BurnFreeAccounts<A> {
 
 impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> BurnFreeAccounts<A> {
     pub fn resolve(&self) -> Result<BurnKeys, ProgramError> {
-        let mint = self.token_account_mint()?;
+        let t = self.initialized_token_account()?;
         Ok(BurnKeys {
             token_account: *self.token_account.pubkey(),
-            authority: self.token_account.token_account_authority(),
-            mint,
+            authority: t.token_account_authority(),
+            mint: t.token_account_mint(),
         })
     }
 
     pub fn resolve_checked(&self) -> Result<BurnCheckedKeys, ProgramError> {
-        let mint = self.token_account_mint()?;
+        let t = self.initialized_token_account()?;
         Ok(BurnCheckedKeys {
             token_account: *self.token_account.pubkey(),
-            authority: self.token_account.token_account_authority(),
-            mint,
+            authority: t.token_account_authority(),
+            mint: t.token_account_mint(),
         })
     }
 
-    fn token_account_mint(&self) -> Result<Pubkey, ProgramError> {
-        if !self.token_account.token_account_data_is_valid()
-            || !self.token_account.token_account_is_initialized()
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        Ok(self.token_account.token_account_mint())
+    fn initialized_token_account(&self) -> Result<InitializedTokenAccount<&A>, ProgramError> {
+        ReadonlyTokenAccount(&self.token_account)
+            .try_into_valid()?
+            .try_into_initialized()
     }
 }
 

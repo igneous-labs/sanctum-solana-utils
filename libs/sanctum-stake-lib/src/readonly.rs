@@ -75,6 +75,10 @@ impl<T> ReadonlyStakeAccount<T> {
     pub fn as_inner(&self) -> &T {
         &self.0
     }
+
+    pub fn into_inner(self) -> T {
+        self.0
+    }
 }
 
 impl<T: ReadonlyAccountData> ReadonlyStakeAccount<T> {

@@ -2,7 +2,7 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
 use spl_token_interface::{ApproveCheckedKeys, ApproveKeys};
 
-use crate::ReadonlyTokenAccount;
+use crate::{InitializedTokenAccount, ReadonlyTokenAccount};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ApproveFreeAccounts<A> {
@@ -12,7 +12,7 @@ pub struct ApproveFreeAccounts<A> {
 
 impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> ApproveFreeAccounts<A> {
     pub fn resolve(&self) -> Result<ApproveKeys, ProgramError> {
-        let authority = self.token_account_authority()?;
+        let authority = self.initialized_token_account()?.token_account_authority();
         Ok(ApproveKeys {
             token_account: *self.token_account.pubkey(),
             delegate: self.delegate,
@@ -21,8 +21,9 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> ApproveFreeAccounts<A> {
     }
 
     pub fn resolve_checked(&self) -> Result<ApproveCheckedKeys, ProgramError> {
-        let authority = self.token_account_authority()?;
-        let mint = self.token_account.token_account_mint();
+        let t = self.initialized_token_account()?;
+        let authority = t.token_account_authority();
+        let mint = t.token_account_mint();
         Ok(ApproveCheckedKeys {
             token_account: *self.token_account.pubkey(),
             delegate: self.delegate,
@@ -31,14 +32,10 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> ApproveFreeAccounts<A> {
         })
     }
 
-    fn token_account_authority(&self) -> Result<Pubkey, ProgramError> {
-        if !self.token_account.token_account_data_is_valid()
-            || !self.token_account.token_account_is_initialized()
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        Ok(self.token_account.token_account_authority())
+    fn initialized_token_account(&self) -> Result<InitializedTokenAccount<&A>, ProgramError> {
+        ReadonlyTokenAccount(&self.token_account)
+            .try_into_valid()?
+            .try_into_initialized()
     }
 }
 

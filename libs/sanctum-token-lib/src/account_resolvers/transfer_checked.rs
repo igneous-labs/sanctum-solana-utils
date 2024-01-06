@@ -14,12 +14,12 @@ impl<A: ReadonlyAccountPubkey + ReadonlyAccountData> TransferCheckedFreeAccounts
     pub fn resolve(&self) -> Result<TransferCheckedKeys, ProgramError> {
         let Self { from, to } = self;
 
-        if !from.token_account_data_is_valid() || !from.token_account_is_initialized() {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let f = ReadonlyTokenAccount(&self.from)
+            .try_into_valid()?
+            .try_into_initialized()?;
 
-        let mint = from.token_account_mint();
-        let authority = from.token_account_authority();
+        let mint = f.token_account_mint();
+        let authority = f.token_account_authority();
 
         Ok(TransferCheckedKeys {
             from: *from.pubkey(),

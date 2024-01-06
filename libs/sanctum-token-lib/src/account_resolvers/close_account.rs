@@ -14,15 +14,13 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> CloseAccountFreeAccounts<A>
     pub fn resolve(&self) -> Result<CloseAccountKeys, ProgramError> {
         let Self { token_account, to } = self;
 
-        if !token_account.token_account_data_is_valid()
-            || !token_account.token_account_is_initialized()
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let t = ReadonlyTokenAccount(token_account)
+            .try_into_valid()?
+            .try_into_initialized()?;
 
         Ok(CloseAccountKeys {
             token_account: *token_account.pubkey(),
-            authority: token_account.token_account_authority(),
+            authority: t.token_account_authority(),
             to: *to,
         })
     }

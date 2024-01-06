@@ -71,6 +71,12 @@ pub const STAKE_STAKE_FLAGS_OFFSET: usize = STAKE_STAKE_CREDITS_OBSERVED_OFFSET 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReadonlyStakeAccount<T>(pub T);
 
+impl<T> ReadonlyStakeAccount<T> {
+    pub fn as_inner(&self) -> &T {
+        &self.0
+    }
+}
+
 impl<T: ReadonlyAccountData> ReadonlyStakeAccount<T> {
     pub fn stake_data_is_valid(&self) -> bool {
         let d = self.0.data();
@@ -87,30 +93,38 @@ impl<T: ReadonlyAccountData> ReadonlyStakeAccount<T> {
         if !self.stake_data_is_valid() {
             return Err(ProgramError::InvalidAccountData);
         }
-        Ok(ValidStakeAccount(self.0))
+        Ok(ValidStakeAccount(self))
     }
 }
+
+impl<T> AsRef<T> for ReadonlyStakeAccount<T> {
+    fn as_ref(&self) -> &T {
+        self.as_inner()
+    }
+}
+
+// can't impl From<ReadonlyStakeAccount<T>> for T due to orphan rules
 
 /// A stake account that has been checked to contain valid data.
 ///
 /// The only safe way to create this struct is via [`TryFrom<ReadonlyStakeAccount>`]
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ValidStakeAccount<T>(T);
+pub struct ValidStakeAccount<T>(ReadonlyStakeAccount<T>);
 
 impl<T> ValidStakeAccount<T> {
-    pub fn as_readonly(&self) -> ReadonlyStakeAccount<&T> {
-        ReadonlyStakeAccount(&self.0)
+    pub fn as_readonly(&self) -> &ReadonlyStakeAccount<T> {
+        &self.0
     }
 
     pub fn into_readonly(self) -> ReadonlyStakeAccount<T> {
-        ReadonlyStakeAccount(self.0)
+        self.0
     }
 }
 
 impl<T: ReadonlyAccountData> ValidStakeAccount<T> {
     pub fn stake_state_marker(&self) -> StakeStateMarker {
-        let d = self.0.data();
+        let d = self.0.as_inner().data();
         let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
             .try_into()
             .unwrap();
@@ -122,7 +136,7 @@ impl<T: ReadonlyAccountData> ValidStakeAccount<T> {
     ) -> Result<StakeOrInitializedStakeAccount<T>, ProgramError> {
         match self.stake_state_marker() {
             StakeStateMarker::Initialized | StakeStateMarker::Stake => {
-                Ok(StakeOrInitializedStakeAccount(self.0))
+                Ok(StakeOrInitializedStakeAccount(self))
             }
             StakeStateMarker::Uninitialized | StakeStateMarker::RewardsPool => {
                 Err(ProgramError::InvalidAccountData)
@@ -132,7 +146,9 @@ impl<T: ReadonlyAccountData> ValidStakeAccount<T> {
 
     pub fn try_into_stake(self) -> Result<StakeStakeAccount<T>, ProgramError> {
         if let StakeStateMarker::Stake = self.stake_state_marker() {
-            return Ok(StakeStakeAccount(self.0));
+            return Ok(StakeStakeAccount(
+                self.try_into_stake_or_initialized().unwrap(),
+            ));
         }
         Err(ProgramError::InvalidAccountData)
     }
@@ -146,9 +162,9 @@ impl<T: ReadonlyAccountData> TryFrom<ReadonlyStakeAccount<T>> for ValidStakeAcco
     }
 }
 
-impl<'a, T> From<&'a ValidStakeAccount<T>> for ReadonlyStakeAccount<&'a T> {
-    fn from(value: &'a ValidStakeAccount<T>) -> Self {
-        value.as_readonly()
+impl<T> AsRef<ReadonlyStakeAccount<T>> for ValidStakeAccount<T> {
+    fn as_ref(&self) -> &ReadonlyStakeAccount<T> {
+        self.as_readonly()
     }
 }
 
@@ -163,15 +179,15 @@ impl<T> From<ValidStakeAccount<T>> for ReadonlyStakeAccount<T> {
 /// The only safe way to create this struct is via [`TryFrom<Valid<T>>`]
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StakeOrInitializedStakeAccount<T>(T);
+pub struct StakeOrInitializedStakeAccount<T>(ValidStakeAccount<T>);
 
 impl<T> StakeOrInitializedStakeAccount<T> {
-    pub fn as_valid(&self) -> ValidStakeAccount<&T> {
-        ValidStakeAccount(&self.0)
+    pub fn as_valid(&self) -> &ValidStakeAccount<T> {
+        &self.0
     }
 
     pub fn into_valid(self) -> ValidStakeAccount<T> {
-        ValidStakeAccount(self.0)
+        self.0
     }
 }
 
@@ -185,7 +201,10 @@ impl<T: ReadonlyAccountData> StakeOrInitializedStakeAccount<T> {
     }
 
     pub fn stake_meta_rent_exempt_reserve(&self) -> u64 {
-        deser_u64_le_unchecked(&self.0, STAKE_META_RENT_EXEMPT_RESERVE_OFFSET)
+        deser_u64_le_unchecked(
+            self.0.as_readonly().as_inner(),
+            STAKE_META_RENT_EXEMPT_RESERVE_OFFSET,
+        )
     }
 
     pub fn stake_meta_authorized(&self) -> Authorized {
@@ -196,11 +215,17 @@ impl<T: ReadonlyAccountData> StakeOrInitializedStakeAccount<T> {
     }
 
     pub fn stake_meta_authorized_staker(&self) -> Pubkey {
-        deser_pubkey_unchecked(&self.0, STAKE_META_AUTHORIZED_STAKER_OFFSET)
+        deser_pubkey_unchecked(
+            self.0.as_readonly().as_inner(),
+            STAKE_META_AUTHORIZED_STAKER_OFFSET,
+        )
     }
 
     pub fn stake_meta_authorized_withdrawer(&self) -> Pubkey {
-        deser_pubkey_unchecked(&self.0, STAKE_META_AUTHORIZED_WITHDRAWER_OFFSET)
+        deser_pubkey_unchecked(
+            self.0.as_readonly().as_inner(),
+            STAKE_META_AUTHORIZED_WITHDRAWER_OFFSET,
+        )
     }
 
     pub fn stake_meta_lockup(&self) -> Lockup {
@@ -212,15 +237,24 @@ impl<T: ReadonlyAccountData> StakeOrInitializedStakeAccount<T> {
     }
 
     pub fn stake_meta_lockup_unix_timestamp(&self) -> i64 {
-        deser_i64_le_unchecked(&self.0, STAKE_META_LOCKUP_UNIX_TIMESTAMP_OFFSET)
+        deser_i64_le_unchecked(
+            self.0.as_readonly().as_inner(),
+            STAKE_META_LOCKUP_UNIX_TIMESTAMP_OFFSET,
+        )
     }
 
     pub fn stake_meta_lockup_epoch(&self) -> u64 {
-        deser_u64_le_unchecked(&self.0, STAKE_META_LOCKUP_EPOCH_OFFSET)
+        deser_u64_le_unchecked(
+            self.0.as_readonly().as_inner(),
+            STAKE_META_LOCKUP_EPOCH_OFFSET,
+        )
     }
 
     pub fn stake_meta_lockup_custodian(&self) -> Pubkey {
-        deser_pubkey_unchecked(&self.0, STAKE_META_LOCKUP_CUSTODIAN_OFFSET)
+        deser_pubkey_unchecked(
+            self.0.as_readonly().as_inner(),
+            STAKE_META_LOCKUP_CUSTODIAN_OFFSET,
+        )
     }
 
     /// The original solana-program API takes an optional custodian pubkey arg and returns true
@@ -243,9 +277,9 @@ impl<T: ReadonlyAccountData> TryFrom<ValidStakeAccount<T>> for StakeOrInitialize
     }
 }
 
-impl<'a, T> From<&'a StakeOrInitializedStakeAccount<T>> for ValidStakeAccount<&'a T> {
-    fn from(value: &'a StakeOrInitializedStakeAccount<T>) -> Self {
-        value.as_valid()
+impl<T> AsRef<ValidStakeAccount<T>> for StakeOrInitializedStakeAccount<T> {
+    fn as_ref(&self) -> &ValidStakeAccount<T> {
+        self.as_valid()
     }
 }
 
@@ -260,23 +294,15 @@ impl<T> From<StakeOrInitializedStakeAccount<T>> for ValidStakeAccount<T> {
 /// The only safe way to create this struct is via [`TryFrom<Valid<T>>`]
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StakeStakeAccount<T>(T);
+pub struct StakeStakeAccount<T>(StakeOrInitializedStakeAccount<T>);
 
 impl<T> StakeStakeAccount<T> {
-    pub fn as_stake_or_initialized(&self) -> StakeOrInitializedStakeAccount<&T> {
-        StakeOrInitializedStakeAccount(&self.0)
+    pub fn as_stake_or_initialized(&self) -> &StakeOrInitializedStakeAccount<T> {
+        &self.0
     }
 
     pub fn into_stake_or_initialized(self) -> StakeOrInitializedStakeAccount<T> {
-        StakeOrInitializedStakeAccount(self.0)
-    }
-
-    pub fn as_valid(&self) -> ValidStakeAccount<&T> {
-        ValidStakeAccount(&self.0)
-    }
-
-    pub fn into_valid(self) -> ValidStakeAccount<T> {
-        ValidStakeAccount(self.0)
+        self.0
     }
 }
 
@@ -300,35 +326,50 @@ impl<T: ReadonlyAccountData> StakeStakeAccount<T> {
     }
 
     pub fn stake_stake_delegation_voter_pubkey(&self) -> Pubkey {
-        deser_pubkey_unchecked(&self.0, STAKE_STAKE_DELEGATION_VOTER_PUBKEY_OFFSET)
+        deser_pubkey_unchecked(
+            self.0.as_valid().as_readonly().as_inner(),
+            STAKE_STAKE_DELEGATION_VOTER_PUBKEY_OFFSET,
+        )
     }
 
     pub fn stake_stake_delegation_stake(&self) -> u64 {
-        deser_u64_le_unchecked(&self.0, STAKE_STAKE_DELEGATION_STAKE_OFFSET)
+        deser_u64_le_unchecked(
+            self.0.as_valid().as_readonly().as_inner(),
+            STAKE_STAKE_DELEGATION_STAKE_OFFSET,
+        )
     }
 
     pub fn stake_stake_delegation_activation_epoch(&self) -> u64 {
-        deser_u64_le_unchecked(&self.0, STAKE_STAKE_DELEGATION_ACTIVATION_EPOCH_OFFSET)
+        deser_u64_le_unchecked(
+            self.0.as_valid().as_readonly().as_inner(),
+            STAKE_STAKE_DELEGATION_ACTIVATION_EPOCH_OFFSET,
+        )
     }
 
     pub fn stake_stake_delegation_deactivation_epoch(&self) -> u64 {
-        deser_u64_le_unchecked(&self.0, STAKE_STAKE_DELEGATION_DEACTIVATION_EPOCH_OFFSET)
+        deser_u64_le_unchecked(
+            self.0.as_valid().as_readonly().as_inner(),
+            STAKE_STAKE_DELEGATION_DEACTIVATION_EPOCH_OFFSET,
+        )
     }
 
     pub fn stake_stake_delegation_warmup_cooldown_rate_deprecated(&self) -> f64 {
         deser_f64_le_unchecked(
-            &self.0,
+            self.0.as_valid().as_readonly().as_inner(),
             STAKE_STAKE_DELEGATION_WARMUP_COOLDOWN_RATE_DEPRECATED_OFFSET,
         )
     }
 
     pub fn stake_stake_credits_observed(&self) -> u64 {
-        deser_u64_le_unchecked(&self.0, STAKE_STAKE_CREDITS_OBSERVED_OFFSET)
+        deser_u64_le_unchecked(
+            self.0.as_valid().as_readonly().as_inner(),
+            STAKE_STAKE_CREDITS_OBSERVED_OFFSET,
+        )
     }
 
     // TODO: add tests for 1.17
     pub fn stake_stake_flags(&self) -> u8 {
-        let d = self.0.data();
+        let d = self.0.as_valid().as_readonly().as_inner().data();
         d[STAKE_STAKE_FLAGS_OFFSET]
     }
 
@@ -345,18 +386,6 @@ impl<T: ReadonlyAccountData> TryFrom<ValidStakeAccount<T>> for StakeStakeAccount
     }
 }
 
-impl<'a, T> From<&'a StakeStakeAccount<T>> for ValidStakeAccount<&'a T> {
-    fn from(value: &'a StakeStakeAccount<T>) -> Self {
-        value.as_valid()
-    }
-}
-
-impl<T> From<StakeStakeAccount<T>> for ValidStakeAccount<T> {
-    fn from(value: StakeStakeAccount<T>) -> Self {
-        value.into_valid()
-    }
-}
-
 impl<T: ReadonlyAccountData> TryFrom<StakeOrInitializedStakeAccount<T>> for StakeStakeAccount<T> {
     type Error = ProgramError;
 
@@ -365,9 +394,9 @@ impl<T: ReadonlyAccountData> TryFrom<StakeOrInitializedStakeAccount<T>> for Stak
     }
 }
 
-impl<'a, T> From<&'a StakeStakeAccount<T>> for StakeOrInitializedStakeAccount<&'a T> {
-    fn from(value: &'a StakeStakeAccount<T>) -> Self {
-        value.as_stake_or_initialized()
+impl<T> AsRef<StakeOrInitializedStakeAccount<T>> for StakeStakeAccount<T> {
+    fn as_ref(&self) -> &StakeOrInitializedStakeAccount<T> {
+        self.as_stake_or_initialized()
     }
 }
 

@@ -13,8 +13,7 @@ pub struct SplitFreeAccounts<S> {
 impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> SplitFreeAccounts<S> {
     pub fn resolve(&self) -> Result<SplitKeys, ProgramError> {
         let Self { from, to } = self;
-        let s = ReadonlyStakeAccount(from);
-        let s = s.try_into_valid()?;
+        let s = ReadonlyStakeAccount::try_new(from)?;
         let s = s.try_into_stake_or_initialized()?;
         Ok(SplitKeys {
             from: *from.pubkey(),

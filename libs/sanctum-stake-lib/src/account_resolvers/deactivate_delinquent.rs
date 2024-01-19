@@ -16,8 +16,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DeactivateDelinquentFreeAcc
             stake,
             reference_vote,
         } = self;
-        let s = ReadonlyStakeAccount(stake);
-        let s = s.try_into_valid()?;
+        let s = ReadonlyStakeAccount::try_new(stake)?;
         let s = s.try_into_stake()?;
         Ok(DeactivateDelinquentKeys {
             stake: *stake.pubkey(),

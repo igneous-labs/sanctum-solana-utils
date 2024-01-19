@@ -61,8 +61,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> SetLockupFreeAccounts<S> {
         getter: fn(&StakeOrInitializedStakeAccount<&'a S>) -> Pubkey,
     ) -> Result<Pubkey, ProgramError> {
         let Self { stake } = self;
-        let s = ReadonlyStakeAccount(stake);
-        let s = s.try_into_valid()?;
+        let s = ReadonlyStakeAccount::try_new(stake)?;
         let s = s.try_into_stake_or_initialized()?;
         Ok(getter(&s))
     }

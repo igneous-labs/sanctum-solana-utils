@@ -17,8 +17,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DelegateStakeFreeAccounts<S
 
     pub fn resolve_to_free_keys(&self) -> Result<DelegateStakeFreeKeys, ProgramError> {
         let Self { stake, vote } = self;
-        let s = ReadonlyStakeAccount(stake);
-        let s = s.try_into_valid()?;
+        let s = ReadonlyStakeAccount::try_new(stake)?;
         let s = s.try_into_stake_or_initialized()?;
         Ok(DelegateStakeFreeKeys {
             stake: *stake.pubkey(),

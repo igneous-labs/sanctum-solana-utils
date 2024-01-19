@@ -16,8 +16,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DeactivateFreeAccounts<S> {
 
     pub fn resolve_to_free_keys(&self) -> Result<DeactivateFreeKeys, ProgramError> {
         let Self { stake } = self;
-        let s = ReadonlyStakeAccount(stake);
-        let s = s.try_into_valid()?;
+        let s = ReadonlyStakeAccount::try_new(stake)?;
         let s = s.try_into_stake_or_initialized()?;
         let stake_authority = s.stake_meta_authorized_staker();
         Ok(DeactivateFreeKeys {

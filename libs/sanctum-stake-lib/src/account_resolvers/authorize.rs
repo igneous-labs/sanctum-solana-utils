@@ -31,8 +31,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeFreeAccounts<S> {
         authority_getter: fn(&StakeOrInitializedStakeAccount<&'a S>) -> Pubkey,
     ) -> Result<AuthorizeFreeKeys, ProgramError> {
         let Self { stake } = self;
-        let s = ReadonlyStakeAccount(stake);
-        let s = s.try_into_valid()?;
+        let s = ReadonlyStakeAccount::try_new(stake)?;
         let s = s.try_into_stake_or_initialized()?;
         let authority = authority_getter(&s);
         Ok(AuthorizeFreeKeys {

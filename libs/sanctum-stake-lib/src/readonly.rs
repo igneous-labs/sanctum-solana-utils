@@ -48,7 +48,7 @@ pub const STAKE_STAKE_CREDITS_OBSERVED_OFFSET: usize =
 // stakeflags
 pub const STAKE_STAKE_FLAGS_OFFSET: usize = STAKE_STAKE_CREDITS_OBSERVED_OFFSET + 8;
 
-/// A possible stake account
+/// A valid stake account, checked at construction
 ///
 /// ## Example
 ///
@@ -60,8 +60,7 @@ pub const STAKE_STAKE_FLAGS_OFFSET: usize = STAKE_STAKE_CREDITS_OBSERVED_OFFSET 
 /// };
 ///
 /// pub fn process(account: &AccountInfo) -> ProgramResult {
-///     let account = ReadonlyStakeAccount(account);
-///     let account = account.try_into_valid()?;
+///     let account = ReadonlyStakeAccount::try_new(account)?;
 ///     let account = account.try_into_stake()?;
 ///     solana_program::msg!("{}", account.stake_stake_credits_observed());
 ///     Ok(())
@@ -69,7 +68,7 @@ pub const STAKE_STAKE_FLAGS_OFFSET: usize = STAKE_STAKE_CREDITS_OBSERVED_OFFSET 
 /// ```
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ReadonlyStakeAccount<T>(pub T);
+pub struct ReadonlyStakeAccount<T>(T);
 
 impl<T> ReadonlyStakeAccount<T> {
     pub fn as_inner(&self) -> &T {
@@ -82,53 +81,22 @@ impl<T> ReadonlyStakeAccount<T> {
 }
 
 impl<T: ReadonlyAccountData> ReadonlyStakeAccount<T> {
-    pub fn stake_data_is_valid(&self) -> bool {
-        let d = self.0.data();
-        if d.len() != STAKE_ACCOUNT_LEN {
-            return false;
+    pub fn try_new(account: T) -> Result<Self, ProgramError> {
+        {
+            let d = account.data();
+            if d.len() != STAKE_ACCOUNT_LEN {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
+                .try_into()
+                .unwrap();
+            StakeStateMarker::try_from(*b)?;
         }
-        let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
-            .try_into()
-            .unwrap();
-        StakeStateMarker::try_from(*b).is_ok()
+        Ok(Self(account))
     }
 
-    pub fn try_into_valid(self) -> Result<ValidStakeAccount<T>, ProgramError> {
-        if !self.stake_data_is_valid() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        Ok(ValidStakeAccount(self))
-    }
-}
-
-impl<T> AsRef<T> for ReadonlyStakeAccount<T> {
-    fn as_ref(&self) -> &T {
-        self.as_inner()
-    }
-}
-
-// can't impl From<ReadonlyStakeAccount<T>> for T due to orphan rules
-
-/// A stake account that has been checked to contain valid data.
-///
-/// The only safe way to create this struct is via [`TryFrom<ReadonlyStakeAccount>`]
-#[repr(transparent)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ValidStakeAccount<T>(ReadonlyStakeAccount<T>);
-
-impl<T> ValidStakeAccount<T> {
-    pub fn as_readonly(&self) -> &ReadonlyStakeAccount<T> {
-        &self.0
-    }
-
-    pub fn into_readonly(self) -> ReadonlyStakeAccount<T> {
-        self.0
-    }
-}
-
-impl<T: ReadonlyAccountData> ValidStakeAccount<T> {
     pub fn stake_state_marker(&self) -> StakeStateMarker {
-        let d = self.0.as_inner().data();
+        let d = self.as_inner().data();
         let b: &[u8; 4] = d[STAKE_DISCM_OFFSET..STAKE_DISCM_OFFSET + 4]
             .try_into()
             .unwrap();
@@ -158,39 +126,19 @@ impl<T: ReadonlyAccountData> ValidStakeAccount<T> {
     }
 }
 
-impl<T: ReadonlyAccountData> TryFrom<ReadonlyStakeAccount<T>> for ValidStakeAccount<T> {
-    type Error = ProgramError;
-
-    fn try_from(value: ReadonlyStakeAccount<T>) -> Result<Self, Self::Error> {
-        value.try_into_valid()
-    }
-}
-
-impl<T> AsRef<ReadonlyStakeAccount<T>> for ValidStakeAccount<T> {
-    fn as_ref(&self) -> &ReadonlyStakeAccount<T> {
-        self.as_readonly()
-    }
-}
-
-impl<T> From<ValidStakeAccount<T>> for ReadonlyStakeAccount<T> {
-    fn from(value: ValidStakeAccount<T>) -> Self {
-        value.into_readonly()
-    }
-}
-
 /// A stake account that has been checked to be in the `Initialized` or `Stake` state.
 ///
 /// The only safe way to create this struct is via [`TryFrom<Valid<T>>`]
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StakeOrInitializedStakeAccount<T>(ValidStakeAccount<T>);
+pub struct StakeOrInitializedStakeAccount<T>(ReadonlyStakeAccount<T>);
 
 impl<T> StakeOrInitializedStakeAccount<T> {
-    pub fn as_valid(&self) -> &ValidStakeAccount<T> {
+    pub fn as_readonly(&self) -> &ReadonlyStakeAccount<T> {
         &self.0
     }
 
-    pub fn into_valid(self) -> ValidStakeAccount<T> {
+    pub fn into_readonly(self) -> ReadonlyStakeAccount<T> {
         self.0
     }
 }
@@ -205,10 +153,7 @@ impl<T: ReadonlyAccountData> StakeOrInitializedStakeAccount<T> {
     }
 
     pub fn stake_meta_rent_exempt_reserve(&self) -> u64 {
-        deser_u64_le_unchecked(
-            self.0.as_readonly().as_inner(),
-            STAKE_META_RENT_EXEMPT_RESERVE_OFFSET,
-        )
+        deser_u64_le_unchecked(self.0.as_inner(), STAKE_META_RENT_EXEMPT_RESERVE_OFFSET)
     }
 
     pub fn stake_meta_authorized(&self) -> Authorized {
@@ -219,17 +164,11 @@ impl<T: ReadonlyAccountData> StakeOrInitializedStakeAccount<T> {
     }
 
     pub fn stake_meta_authorized_staker(&self) -> Pubkey {
-        deser_pubkey_unchecked(
-            self.0.as_readonly().as_inner(),
-            STAKE_META_AUTHORIZED_STAKER_OFFSET,
-        )
+        deser_pubkey_unchecked(self.0.as_inner(), STAKE_META_AUTHORIZED_STAKER_OFFSET)
     }
 
     pub fn stake_meta_authorized_withdrawer(&self) -> Pubkey {
-        deser_pubkey_unchecked(
-            self.0.as_readonly().as_inner(),
-            STAKE_META_AUTHORIZED_WITHDRAWER_OFFSET,
-        )
+        deser_pubkey_unchecked(self.0.as_inner(), STAKE_META_AUTHORIZED_WITHDRAWER_OFFSET)
     }
 
     pub fn stake_meta_lockup(&self) -> Lockup {
@@ -241,24 +180,15 @@ impl<T: ReadonlyAccountData> StakeOrInitializedStakeAccount<T> {
     }
 
     pub fn stake_meta_lockup_unix_timestamp(&self) -> i64 {
-        deser_i64_le_unchecked(
-            self.0.as_readonly().as_inner(),
-            STAKE_META_LOCKUP_UNIX_TIMESTAMP_OFFSET,
-        )
+        deser_i64_le_unchecked(self.0.as_inner(), STAKE_META_LOCKUP_UNIX_TIMESTAMP_OFFSET)
     }
 
     pub fn stake_meta_lockup_epoch(&self) -> u64 {
-        deser_u64_le_unchecked(
-            self.0.as_readonly().as_inner(),
-            STAKE_META_LOCKUP_EPOCH_OFFSET,
-        )
+        deser_u64_le_unchecked(self.0.as_inner(), STAKE_META_LOCKUP_EPOCH_OFFSET)
     }
 
     pub fn stake_meta_lockup_custodian(&self) -> Pubkey {
-        deser_pubkey_unchecked(
-            self.0.as_readonly().as_inner(),
-            STAKE_META_LOCKUP_CUSTODIAN_OFFSET,
-        )
+        deser_pubkey_unchecked(self.0.as_inner(), STAKE_META_LOCKUP_CUSTODIAN_OFFSET)
     }
 
     /// The original solana-program API takes an optional custodian pubkey arg and returns true
@@ -269,27 +199,29 @@ impl<T: ReadonlyAccountData> StakeOrInitializedStakeAccount<T> {
     }
 
     pub fn try_into_stake(self) -> Result<StakeStakeAccount<T>, ProgramError> {
-        self.into_valid().try_into()
+        self.into_readonly().try_into()
     }
 }
 
-impl<T: ReadonlyAccountData> TryFrom<ValidStakeAccount<T>> for StakeOrInitializedStakeAccount<T> {
+impl<T: ReadonlyAccountData> TryFrom<ReadonlyStakeAccount<T>>
+    for StakeOrInitializedStakeAccount<T>
+{
     type Error = ProgramError;
 
-    fn try_from(value: ValidStakeAccount<T>) -> Result<Self, Self::Error> {
+    fn try_from(value: ReadonlyStakeAccount<T>) -> Result<Self, Self::Error> {
         value.try_into_stake_or_initialized()
     }
 }
 
-impl<T> AsRef<ValidStakeAccount<T>> for StakeOrInitializedStakeAccount<T> {
-    fn as_ref(&self) -> &ValidStakeAccount<T> {
-        self.as_valid()
+impl<T> AsRef<ReadonlyStakeAccount<T>> for StakeOrInitializedStakeAccount<T> {
+    fn as_ref(&self) -> &ReadonlyStakeAccount<T> {
+        self.as_readonly()
     }
 }
 
-impl<T> From<StakeOrInitializedStakeAccount<T>> for ValidStakeAccount<T> {
+impl<T> From<StakeOrInitializedStakeAccount<T>> for ReadonlyStakeAccount<T> {
     fn from(value: StakeOrInitializedStakeAccount<T>) -> Self {
-        value.into_valid()
+        value.into_readonly()
     }
 }
 
@@ -331,49 +263,49 @@ impl<T: ReadonlyAccountData> StakeStakeAccount<T> {
 
     pub fn stake_stake_delegation_voter_pubkey(&self) -> Pubkey {
         deser_pubkey_unchecked(
-            self.0.as_valid().as_readonly().as_inner(),
+            self.0.as_readonly().as_inner(),
             STAKE_STAKE_DELEGATION_VOTER_PUBKEY_OFFSET,
         )
     }
 
     pub fn stake_stake_delegation_stake(&self) -> u64 {
         deser_u64_le_unchecked(
-            self.0.as_valid().as_readonly().as_inner(),
+            self.0.as_readonly().as_inner(),
             STAKE_STAKE_DELEGATION_STAKE_OFFSET,
         )
     }
 
     pub fn stake_stake_delegation_activation_epoch(&self) -> u64 {
         deser_u64_le_unchecked(
-            self.0.as_valid().as_readonly().as_inner(),
+            self.0.as_readonly().as_inner(),
             STAKE_STAKE_DELEGATION_ACTIVATION_EPOCH_OFFSET,
         )
     }
 
     pub fn stake_stake_delegation_deactivation_epoch(&self) -> u64 {
         deser_u64_le_unchecked(
-            self.0.as_valid().as_readonly().as_inner(),
+            self.0.as_readonly().as_inner(),
             STAKE_STAKE_DELEGATION_DEACTIVATION_EPOCH_OFFSET,
         )
     }
 
     pub fn stake_stake_delegation_warmup_cooldown_rate_deprecated(&self) -> f64 {
         deser_f64_le_unchecked(
-            self.0.as_valid().as_readonly().as_inner(),
+            self.0.as_readonly().as_inner(),
             STAKE_STAKE_DELEGATION_WARMUP_COOLDOWN_RATE_DEPRECATED_OFFSET,
         )
     }
 
     pub fn stake_stake_credits_observed(&self) -> u64 {
         deser_u64_le_unchecked(
-            self.0.as_valid().as_readonly().as_inner(),
+            self.0.as_readonly().as_inner(),
             STAKE_STAKE_CREDITS_OBSERVED_OFFSET,
         )
     }
 
     // TODO: add tests for 1.17
     pub fn stake_stake_flags(&self) -> u8 {
-        let d = self.0.as_valid().as_readonly().as_inner().data();
+        let d = self.0.as_readonly().as_inner().data();
         d[STAKE_STAKE_FLAGS_OFFSET]
     }
 
@@ -382,10 +314,10 @@ impl<T: ReadonlyAccountData> StakeStakeAccount<T> {
     }
 }
 
-impl<T: ReadonlyAccountData> TryFrom<ValidStakeAccount<T>> for StakeStakeAccount<T> {
+impl<T: ReadonlyAccountData> TryFrom<ReadonlyStakeAccount<T>> for StakeStakeAccount<T> {
     type Error = ProgramError;
 
-    fn try_from(value: ValidStakeAccount<T>) -> Result<Self, Self::Error> {
+    fn try_from(value: ReadonlyStakeAccount<T>) -> Result<Self, Self::Error> {
         value.try_into_stake()
     }
 }
@@ -484,10 +416,11 @@ mod tests {
     proptest! {
         #[test]
         fn stake_readonly_matches_full_deser_invalid(data: [u8; STAKE_ACCOUNT_LEN]) {
-            let account = ReadonlyStakeAccount(AccountData(&data));
+            let res = ReadonlyStakeAccount::try_new(AccountData(&data));
             let unpack_res = StakeState::deserialize(&mut data.as_ref());
-            if !account.stake_data_is_valid() {
-                prop_assert!(unpack_res.is_err());
+            match res {
+                Ok(_) => prop_assert!(unpack_res.is_ok()),
+                Err(_) => prop_assert!(unpack_res.is_err()),
             }
         }
     }
@@ -542,9 +475,7 @@ mod tests {
             stake_state
                 .serialize(&mut data.as_mut_slice())
                 .unwrap();
-            let account = ReadonlyStakeAccount(AccountData(&data));
-            prop_assert!(account.stake_data_is_valid());
-            let account = account.try_into_valid().unwrap();
+            let account = ReadonlyStakeAccount::try_new(AccountData(&data)).unwrap();
             match stake_state {
                 StakeState::Uninitialized => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::Uninitialized),
                 StakeState::Initialized(meta) => assert_meta_eq(&account.try_into_stake_or_initialized().unwrap(), &meta, &clock).unwrap(),

@@ -7,8 +7,7 @@ use stake_program_interface::MergeKeys;
 use crate::ReadonlyStakeAccount;
 
 fn read_stake_authority_checked<T: ReadonlyAccountData>(stake: T) -> Result<Pubkey, ProgramError> {
-    let s = ReadonlyStakeAccount(stake);
-    let s = s.try_into_valid()?;
+    let s = ReadonlyStakeAccount::try_new(stake)?;
     let s = s.try_into_stake_or_initialized()?;
     Ok(s.stake_meta_authorized_staker())
 }

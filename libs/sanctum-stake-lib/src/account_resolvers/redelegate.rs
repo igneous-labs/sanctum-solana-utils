@@ -18,8 +18,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> RedelegateFreeAccounts<S> {
             uninitialized_stake,
             vote,
         } = self;
-        let s = ReadonlyStakeAccount(stake);
-        let s = s.try_into_valid()?;
+        let s = ReadonlyStakeAccount::try_new(stake)?;
         let s = s.try_into_stake_or_initialized()?;
         Ok(RedelegateFreeKeys {
             stake: *stake.pubkey(),

@@ -60,8 +60,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeCheckedFreeAccount
             stake,
             new_authority,
         } = self;
-        let s = ReadonlyStakeAccount(stake);
-        let s = s.try_into_valid()?;
+        let s = ReadonlyStakeAccount::try_new(stake)?;
         let s = s.try_into_stake_or_initialized()?;
         Ok(AuthorizeCheckedFreeKeys {
             stake: *stake.pubkey(),

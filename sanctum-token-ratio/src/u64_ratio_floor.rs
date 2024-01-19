@@ -60,7 +60,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
         // n != 0 here, safe to do unchecked division
 
         let dy = y.checked_mul(d).ok_or(MathError)?;
-        let mut min: u64 = (dy / n).try_into().map_err(|_e| MathError)?;
+        let min: u64 = (dy / n).try_into().map_err(|_e| MathError)?;
 
         let dy_plus_1 = y_plus_1.checked_mul(d).ok_or(MathError)?;
         let mut max: u64 = (dy_plus_1 / n).try_into().map_err(|_e| MathError)?;
@@ -69,13 +69,13 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
             max = max.saturating_add(1);
         }
 
-        // (dy%n + d) < n, RHS doesn't hold
+        // should never happen since
+        // y_plus_1 > y
+        /*
         if min > max {
-            if (min - 1) > max {
-                return Err(MathError);
-            }
-            core::mem::swap(&mut min, &mut max);
+            return Err(MathError);
         }
+         */
 
         Ok(U64ValueRange { min, max })
     }

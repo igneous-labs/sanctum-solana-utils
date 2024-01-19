@@ -36,7 +36,8 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
     ///
     /// Returns:
     /// - `U64ValueRange::full()` if denom == 0 || num == 0 and amt_after_apply == 0
-    /// - Exclusive range if (dy%n + d) < n, RHS doesn't hold. Actual range is a decimal range between min and max
+    /// - min exclusive, rounds down if dy is not divisible by n
+    /// - max is always exclusive. Rounds up if d(y + 1) is not divisible by n
     ///
     /// Range outputs are capped to u64 range (saturating_add/sub)
     ///
@@ -59,26 +60,22 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64RatioFloor<N, D> {
         // n != 0 here, safe to do unchecked division
 
         let dy = y.checked_mul(d).ok_or(MathError)?;
-        let mut min: u64 = (dy / n).try_into().map_err(|_e| MathError)?;
-        let min_rem = dy % n;
-        if min_rem != 0 {
-            min = min.saturating_add(1);
-        }
+        let min: u64 = (dy / n).try_into().map_err(|_e| MathError)?;
 
         let dy_plus_1 = y_plus_1.checked_mul(d).ok_or(MathError)?;
         let mut max: u64 = (dy_plus_1 / n).try_into().map_err(|_e| MathError)?;
         let max_rem = dy_plus_1 % n;
-        if max_rem == 0 {
-            max = max.saturating_sub(1);
+        if max_rem != 0 {
+            max = max.saturating_add(1);
         }
 
-        // (dy%n + d) < n, RHS doesn't hold
+        // should never happen since
+        // y_plus_1 > y
+        /*
         if min > max {
-            if (min - 1) > max {
-                return Err(MathError);
-            }
-            core::mem::swap(&mut min, &mut max);
+            return Err(MathError);
         }
+         */
 
         Ok(U64ValueRange { min, max })
     }
@@ -239,8 +236,9 @@ mod tests {
         fn ratio_gte_one_round_trip((amt, ratio) in ratio_gte_one_amt_no_overflow()) {
             let applied = ratio.apply(amt).unwrap();
             let U64ValueRange { min, max } = ratio.reverse(applied).unwrap();
-            prop_assert_eq!(min, max);
-            prop_assert_eq!(min, amt);
+            prop_assert!(min <= max);
+            prop_assert!(min == amt || min == amt - 1);
+            prop_assert!(max == amt || max == amt + 1);
         }
     }
 
@@ -252,9 +250,11 @@ mod tests {
             // will not always be eq due to floor
             prop_assert!(min <= amt);
             prop_assert!(amt <= max);
-            // but make sure they applying the ratio again yields the same result
-            prop_assert_eq!(applied, ratio.apply(min).unwrap());
-            prop_assert_eq!(applied, ratio.apply(max).unwrap());
+            // but make sure they applying the ratio again yields result that differ at most by 1 in the correct direction
+            let apply_min = ratio.apply(min).unwrap();
+            prop_assert!(applied == apply_min || applied == apply_min + 1);
+            let apply_max = ratio.apply(max).unwrap();
+            prop_assert!(applied == apply_max || applied == apply_max - 1);
         }
     }
 
@@ -263,8 +263,10 @@ mod tests {
         fn ratio_lte_one_reverse_round_trip((amt_after_apply, ratio) in ratio_lte_one_reverse_no_overflow()) {
             let U64ValueRange { min, max } = ratio.reverse(amt_after_apply).unwrap();
             prop_assert!(min <= max);
-            prop_assert_eq!(amt_after_apply, ratio.apply(min).unwrap());
-            prop_assert_eq!(amt_after_apply, ratio.apply(max).unwrap());
+            let apply_min = ratio.apply(min).unwrap();
+            prop_assert!(amt_after_apply == apply_min || amt_after_apply == apply_min + 1);
+            let apply_max = ratio.apply(max).unwrap();
+            prop_assert!(amt_after_apply == apply_max || amt_after_apply == apply_max - 1);
         }
     }
 

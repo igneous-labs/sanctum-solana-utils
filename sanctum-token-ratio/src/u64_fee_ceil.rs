@@ -293,13 +293,20 @@ mod tests {
     proptest! {
         #[test]
         fn amt_after_fee_round_trip(amt: u64, fee in valid_nonmax_fees()) {
-            let AmtsAfterFee { amt_after_fee, .. } = fee.apply(amt).unwrap();
+            let AmtsAfterFee { amt_after_fee, fee_charged } = fee.apply(amt).unwrap();
 
             let U64ValueRange { min, max } = fee.reverse_from_amt_after_fee(amt_after_fee).unwrap();
 
             // cannot guarantee reversed == amt or fee_charged == apply_on_reversed.fee_charged
-            prop_assert_eq!(amt_after_fee, fee.apply(min).unwrap().amt_after_fee);
-            prop_assert_eq!(amt_after_fee, fee.apply(max).unwrap().amt_after_fee);
+            // but check that amt_after_fee charged differs from the original value by at most 1 in the correct direction
+
+            let apply_min = fee.apply(min).unwrap();
+            prop_assert!(fee_charged >= apply_min.fee_charged);
+            prop_assert!(amt_after_fee == apply_min.amt_after_fee || amt_after_fee == apply_min.amt_after_fee + 1);
+
+            let apply_max = fee.apply(max).unwrap();
+            prop_assert!(fee_charged <= apply_max.fee_charged);
+            prop_assert!(amt_after_fee == apply_max.amt_after_fee || amt_after_fee == apply_max.amt_after_fee - 1);
         }
     }
 

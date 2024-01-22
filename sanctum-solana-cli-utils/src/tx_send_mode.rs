@@ -1,14 +1,19 @@
 use std::fmt::Display;
 
 use async_trait::async_trait;
-use solana_sdk::transaction::Transaction;
+use data_encoding::BASE64;
+use solana_client::rpc_client::SerializableTransaction;
 
-/// A flag for specifying whether to send transactions to
-/// the network or just simulate them
+/// Enum for specifying how to handle transactions output.
+/// - `SendActual` sends the actual transaction to the cluster
+/// - `SimOnly` simulates the transaction against the cluster
+/// - `DumpMsg` outputs base64 encoded serialized transaction to stdout for use with multisigs, explorer inspectors, or piping into other applications
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum TxSendMode {
-    SimulateOnly,
     SendActual,
+    SimOnly,
+    DumpMsg,
 }
 
 impl Default for TxSendMode {
@@ -51,29 +56,35 @@ impl TxSendMode {
     /// ```
     pub fn from_should_dry_run(should_dry_run: bool) -> Self {
         match should_dry_run {
-            true => Self::SimulateOnly,
+            true => Self::SimOnly,
             false => Self::SendActual,
         }
     }
 }
 
 pub trait TxSendingRpcClient {
-    /// Sends or simulates the given transaction, outputting the following to stdout:
-    /// - simulation results if `send_mode == TxSendMode::SimulateOnly`
+    /// Handles the given transaction, outputting the following to stdout:
+    /// - simulation results if `send_mode == TxSendMode::SimOnly`
     /// - transaction signature if `send_mode == TxSendMode::SendActual`
-    fn send_or_sim_tx(&self, tx: &Transaction, send_mode: TxSendMode);
+    /// - base64 encoded serialized tx if `send_mode == TxSendMode::DumpMsg`
+    fn handle_tx<T: SerializableTransaction>(&self, tx: &T, send_mode: TxSendMode);
 }
 
 impl TxSendingRpcClient for solana_client::rpc_client::RpcClient {
-    fn send_or_sim_tx(&self, tx: &Transaction, send_mode: TxSendMode) {
+    fn handle_tx<T: SerializableTransaction>(&self, tx: &T, send_mode: TxSendMode) {
         match send_mode {
             TxSendMode::SendActual => {
                 let signature = self.send_and_confirm_transaction_with_spinner(tx).unwrap();
-                println!("Signature: {}", signature);
+                eprintln!("Signature: {}", signature);
             }
-            TxSendMode::SimulateOnly => {
+            TxSendMode::SimOnly => {
                 let result = self.simulate_transaction(tx).unwrap();
-                println!("Simulate result: {:?}", result);
+                eprintln!("Simulate result: {:?}", result);
+            }
+            TxSendMode::DumpMsg => {
+                // somehow `BASE64.encode(&tx.message_data())` as suggested by all the explorers
+                // results in a different output that cannot be handled by their inspectors lmao
+                println!("{}", BASE64.encode(&bincode::serialize(&tx).unwrap()))
             }
         }
     }
@@ -81,29 +92,32 @@ impl TxSendingRpcClient for solana_client::rpc_client::RpcClient {
 
 #[async_trait]
 pub trait TxSendingNonblockingRpcClient {
-    /// Sends or simulates the given transaction, outputting the following to stdout:
-    /// - simulation results if `send_mode == TxSendMode::SimulateOnly`
+    /// Handles the given transaction, outputting the following to stdout:
+    /// - simulation results if `send_mode == TxSendMode::SimOnly`
     /// - transaction signature if `send_mode == TxSendMode::SendActual`
-    async fn send_or_sim_tx(&self, tx: &Transaction, send_mode: TxSendMode);
+    /// - base64 encoded serialized tx if `send_mode == TxSendMode::DumpMsg`
+    async fn handle_tx<T: SerializableTransaction + Sync>(&self, tx: &T, send_mode: TxSendMode);
 }
 
 #[async_trait]
 impl TxSendingNonblockingRpcClient for solana_client::nonblocking::rpc_client::RpcClient {
-    /// Sends or simulates the given transaction, outputting the following to stdout:
-    /// - simulation results if `send_mode == TxSendMode::SimulateOnly`
-    /// - transaction signature if `send_mode == TxSendMode::SendActual`
-    async fn send_or_sim_tx(&self, tx: &Transaction, send_mode: TxSendMode) {
+    async fn handle_tx<T: SerializableTransaction + Sync>(&self, tx: &T, send_mode: TxSendMode) {
         match send_mode {
             TxSendMode::SendActual => {
                 let signature = self
                     .send_and_confirm_transaction_with_spinner(tx)
                     .await
                     .unwrap();
-                println!("Signature: {}", signature);
+                eprintln!("Signature: {}", signature);
             }
-            TxSendMode::SimulateOnly => {
+            TxSendMode::SimOnly => {
                 let result = self.simulate_transaction(tx).await.unwrap();
-                println!("Simulate result: {:?}", result);
+                eprintln!("Simulate result: {:?}", result);
+            }
+            TxSendMode::DumpMsg => {
+                // somehow `BASE64.encode(&tx.message_data())` as suggested by all the explorers
+                // results in a different output that cannot be handled by their inspectors lmao
+                println!("{}", BASE64.encode(&bincode::serialize(&tx).unwrap()))
             }
         }
     }

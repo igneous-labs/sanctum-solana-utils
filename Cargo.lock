@@ -3247,15 +3247,18 @@ dependencies = [
 
 [[package]]
 name = "sanctum-solana-cli-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
+ "bincode",
  "clap 2.34.0",
  "clap 4.4.11",
+ "data-encoding",
  "solana-clap-utils",
  "solana-cli-config",
  "solana-client",
  "solana-sdk",
+ "tokio",
 ]
 
 [[package]]

@@ -18,6 +18,8 @@ license = "MIT OR Apache-2.0"
 async-trait = ">=0.1"
 bincode = "^1"
 borsh = { version = ">=0.9", default-features = false } # no default-features for no_std support
+clap = ">=3"
+data-encoding = "^2"
 num-derive = ">=0.1"
 num-traits = ">=0.1"
 proptest = "^1"
@@ -37,6 +39,7 @@ spl-token = { version = ">=0.1.0", features = ["no-entrypoint"] }
 spl-token-2022 = { version = ">=0.1.0", features = ["no-entrypoint"] }
 static_assertions = "^1"
 thiserror = "^1"
+tokio = "^1"
 
 # workspace members
 sanctum-solana-test-utils = { path = "./sanctum-solana-test-utils" }

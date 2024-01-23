@@ -24,7 +24,7 @@ use crate::banks_rpc_server::json_rpc::{
     deser_get_multiple_accounts_params, JsonRpcReq, JsonRpcResp, RpcMethod,
 };
 
-use self::json_rpc::deser_get_latest_blockhash_params;
+use self::json_rpc::{deser_get_account_info_params, deser_get_latest_blockhash_params};
 
 mod json_rpc;
 
@@ -76,18 +76,14 @@ impl BanksRpcServer {
     }
 
     // TODO: handle cfg. This just returns base64 encoded for now
-    pub async fn get_multiple_accounts(
+    pub async fn get_account_info(
         &mut self,
-        keys: Vec<Pubkey>,
+        key: Pubkey,
         _cfg: Option<RpcAccountInfoConfig>,
-    ) -> Result<Vec<Option<UiAccount>>, Box<dyn Error + Send + Sync>> {
-        let mut res = Vec::with_capacity(keys.len());
-        for key in keys {
-            res.push(self.bc.get_account(key).await?.map(|account| {
-                UiAccount::encode(&key, &account, UiAccountEncoding::Base64, None, None)
-            }));
-        }
-        Ok(res)
+    ) -> Result<Option<UiAccount>, Box<dyn Error + Send + Sync>> {
+        Ok(self.bc.get_account(key).await?.map(|account| {
+            UiAccount::encode(&key, &account, UiAccountEncoding::Base64, None, None)
+        }))
     }
 
     pub async fn get_latest_blockhash(&mut self, cfg: Option<CommitmentConfig>) -> RpcBlockhash {
@@ -101,6 +97,21 @@ impl BanksRpcServer {
             blockhash: blockhash.to_string(),
             last_valid_block_height,
         }
+    }
+
+    // TODO: handle cfg. This just returns base64 encoded for now
+    pub async fn get_multiple_accounts(
+        &mut self,
+        keys: Vec<Pubkey>,
+        _cfg: Option<RpcAccountInfoConfig>,
+    ) -> Result<Vec<Option<UiAccount>>, Box<dyn Error + Send + Sync>> {
+        let mut res = Vec::with_capacity(keys.len());
+        for key in keys {
+            res.push(self.bc.get_account(key).await?.map(|account| {
+                UiAccount::encode(&key, &account, UiAccountEncoding::Base64, None, None)
+            }));
+        }
+        Ok(res)
     }
 }
 
@@ -124,31 +135,43 @@ impl Service<Request<Incoming>> for BanksRpcServer {
                 params,
             } = serde_json::from_reader(body.reader())?;
             Ok(match method {
+                RpcMethod::GetAccountInfo => {
+                    let (key, cfg) = deser_get_account_info_params(params)?;
+                    JsonRpcResp::with_ctx(
+                        id,
+                        this.get_account_info(key, cfg).await?,
+                        this.curr_slot().await,
+                    )
+                    .into()
+                }
+                RpcMethod::GetLatestBlockhash => {
+                    let cfg = deser_get_latest_blockhash_params(params)?;
+                    JsonRpcResp::with_ctx(
+                        id,
+                        this.get_latest_blockhash(cfg).await,
+                        this.curr_slot().await,
+                    )
+                    .into()
+                }
+                RpcMethod::GetMultipleAccounts => {
+                    let (keys, cfg) = deser_get_multiple_accounts_params(params)?;
+                    JsonRpcResp::with_ctx(
+                        id,
+                        this.get_multiple_accounts(keys, cfg).await?,
+                        this.curr_slot().await,
+                    )
+                    .into()
+                }
                 RpcMethod::GetVersion => {
                     let version = solana_version::Version::default();
-                    let resp = JsonRpcResp::new(
+                    JsonRpcResp::new(
                         id,
                         RpcVersionInfo {
                             solana_core: version.to_string(),
                             feature_set: Some(version.feature_set),
                         },
-                    );
-                    resp.into()
-                }
-                RpcMethod::GetMultipleAccounts => {
-                    let (keys, cfg) = deser_get_multiple_accounts_params(params)?;
-                    let value = this.get_multiple_accounts(keys, cfg).await?;
-                    let resp = JsonRpcResp::with_ctx(id, value, this.curr_slot().await);
-                    resp.into()
-                }
-                RpcMethod::GetLatestBlockhash => {
-                    let cfg = deser_get_latest_blockhash_params(params)?;
-                    let resp = JsonRpcResp::with_ctx(
-                        id,
-                        this.get_latest_blockhash(cfg).await,
-                        this.curr_slot().await,
-                    );
-                    resp.into()
+                    )
+                    .into()
                 }
             })
         })

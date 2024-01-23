@@ -1,7 +1,7 @@
-mod json_rpc_ident;
 mod req;
 mod resp;
+mod typedefs;
 
-pub use json_rpc_ident::*;
 pub use req::*;
 pub use resp::*;
+pub use typedefs::*;

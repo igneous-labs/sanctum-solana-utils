@@ -10,11 +10,13 @@ use super::JsonRpc2Ident;
 // TODO: other methods
 /// solana_rpc_client_api::request::RpcRequest doesn't implement Serialize or Deserialize, or TryFromStr to use with #[serde(with = "As::<DisplayFromStr>")],
 /// so we're redefining it here
+#[allow(clippy::enum_variant_names)] // common "Get" prefix
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RpcMethod {
     GetLatestBlockhash,
     GetMultipleAccounts,
+    GetVersion, // many RpcClient methods call this method before calling the actual method
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

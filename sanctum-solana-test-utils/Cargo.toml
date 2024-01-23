@@ -7,7 +7,7 @@ repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
 
 [features]
 default = []
-banks-rpc-server = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:serde_with", "dep:solana-rpc-client-api", "dep:tokio"]
+banks-rpc-server = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:serde_with", "dep:solana-rpc-client-api", "dep:solana-version", "dep:tokio"]
 proptest = ["dep:proptest"]
 stake = []
 token = ["spl-token"]
@@ -27,11 +27,15 @@ solana-sdk = { workspace = true }
 
 # optional
 http-body-util = { workspace = true, optional = true }
-hyper = { workspace = true, features = ["http2", "server"], optional = true }
+hyper = { workspace = true, features = ["http1", "server"], optional = true }
 hyper-util = { workspace = true, features = ["tokio"], optional = true }
 proptest = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 solana-rpc-client-api = { workspace = true, optional = true }
+solana-version = { workspace = true, optional = true }
 spl-token = { workspace = true, optional = true }
 spl-token-2022 = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["net"], optional = true }
+tokio = { workspace = true, features = ["net", "rt-multi-thread"], optional = true }
+
+[dev-dependencies]
+solana-client = { workspace = true }

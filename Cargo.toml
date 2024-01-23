@@ -31,6 +31,13 @@ serde = { version = "^1", default-features = false, features = [
 ] } # no default-features for no_std support
 serde_json = "^1"
 serde_with = "^3"
+spl-token = { version = ">=0.1.0", features = ["no-entrypoint"] }
+spl-token-2022 = { version = ">=0.1.0", features = ["no-entrypoint"] }
+static_assertions = "^1"
+thiserror = "^1"
+tokio = "^1"
+
+# solana crates
 solana-account-decoder = "^1"
 solana-clap-utils = "^1"
 solana-cli-config = "^1"
@@ -40,11 +47,7 @@ solana-program-test = "^1"
 solana-readonly-account = "^1"
 solana-rpc-client-api = "^1"
 solana-sdk = "^1"
-spl-token = { version = ">=0.1.0", features = ["no-entrypoint"] }
-spl-token-2022 = { version = ">=0.1.0", features = ["no-entrypoint"] }
-static_assertions = "^1"
-thiserror = "^1"
-tokio = "^1"
+solana-version = "^1"
 
 # workspace members
 sanctum-solana-test-utils = { path = "./sanctum-solana-test-utils" }

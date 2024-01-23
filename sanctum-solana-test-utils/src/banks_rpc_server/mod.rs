@@ -1,19 +1,21 @@
 //! A http server that runs solana RPC requests against a `BanksClient`
-//! so that you can run CLI integration tests against `ProgramTest` instead of an actual cluster
+//! so that you can for e.g. run CLI integration tests against `ProgramTest` instead of an actual cluster
 
 use http_body_util::{BodyExt, Full};
 use hyper::{
     body::{Buf, Bytes, Incoming},
-    rt::Executor,
-    server::conn::http2,
+    server::conn::http1,
     service::Service,
     Request, Response,
 };
 use hyper_util::rt::TokioIo;
 use solana_account_decoder::{UiAccount, UiAccountEncoding};
-use solana_program::{clock::Clock, hash::Hash, pubkey::Pubkey};
+use solana_program::{clock::Clock, pubkey::Pubkey};
 use solana_program_test::BanksClient;
-use solana_rpc_client_api::config::RpcAccountInfoConfig;
+use solana_rpc_client_api::{
+    config::RpcAccountInfoConfig,
+    response::{RpcBlockhash, RpcVersionInfo},
+};
 use solana_sdk::commitment_config::CommitmentConfig;
 use std::{error::Error, future::Future, pin::Pin};
 use tokio::{net::TcpListener, task::JoinHandle};
@@ -31,22 +33,19 @@ pub struct BanksRpcServer {
     // TODO: change this to BanksServer when solana makes it easier
     // to construct them from ProgramTest
     bc: BanksClient,
-    rbh: Hash,
 }
 
 impl BanksRpcServer {
-    /// Spawns the HTTP server on a random unused port and return the port
-    pub async fn spawn_empty_ipv4(
+    /// Spawns the HTTP server on `http://127.0.0.1:{random_unused_port}` (IPV4).
+    ///
+    /// Returns `(bound_port, BanksRpcServer join handle)`
+    pub async fn spawn_random_unused(
         bc: BanksClient,
-        rbh: Hash,
     ) -> (u16, JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>) {
-        let s = Self { bc, rbh };
-        for port in 1025..65535 {
-            if let Ok(tcp_listener) = TcpListener::bind(("127.0.0.1", port)).await {
-                return (port, s.spawn(tcp_listener));
-            }
-        }
-        panic!("No available ports found");
+        let s = Self { bc };
+        let tcp_listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = tcp_listener.local_addr().unwrap().port();
+        (port, s.spawn(tcp_listener))
     }
 
     /// Spawn the HTTP sever in the background
@@ -60,12 +59,10 @@ impl BanksRpcServer {
             loop {
                 let (tcp_stream, _socket_addr) = tcp_listener.accept().await?;
                 let io = TokioIo::new(tcp_stream);
-                let server = self.clone();
+                let this = self.clone();
                 tokio::task::spawn(async move {
-                    if let Err(err) = http2::Builder::new(TokioExecutor)
-                        .serve_connection(io, server)
-                        .await
-                    {
+                    // RpcClient doesn't support http2
+                    if let Err(err) = http1::Builder::new().serve_connection(io, this).await {
                         eprintln!("Error serving connection: {:?}", err);
                     }
                 });
@@ -79,7 +76,7 @@ impl BanksRpcServer {
         slot
     }
 
-    // TODO: handle cfg, it just returns base64 encoded for now
+    // TODO: handle cfg. This just returns base64 encoded for now
     pub async fn get_multiple_accounts(
         &mut self,
         keys: Vec<Pubkey>,
@@ -95,9 +92,17 @@ impl BanksRpcServer {
     }
 
     // TODO: handle cfg, it just returns the blockhash it started with for now
-    // TODO: convert to async if necessary
-    pub fn get_latest_blockhash(&self, _cfg: Option<CommitmentConfig>) -> Hash {
-        self.rbh
+    pub async fn get_latest_blockhash(&mut self, cfg: Option<CommitmentConfig>) -> RpcBlockhash {
+        let (blockhash, last_valid_block_height) = self
+            .bc
+            .get_latest_blockhash_with_commitment(cfg.unwrap_or_default().commitment)
+            .await
+            .unwrap()
+            .unwrap();
+        RpcBlockhash {
+            blockhash: blockhash.to_string(),
+            last_valid_block_height,
+        }
     }
 }
 
@@ -108,8 +113,8 @@ impl Service<Request<Incoming>> for BanksRpcServer {
 
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    // TODO: fix too many .clone()s
-    // TODO: can create own future type instead of Pin<Box>
+    // TODO: can create own future type instead of Pin<Box> to avoid self.clone()?
+    // Actly idk, all the BanksClient methods requires &mut self
     fn call(&self, req: Request<Incoming>) -> Self::Future {
         let mut this = self.clone();
         Box::pin(async move {
@@ -121,35 +126,33 @@ impl Service<Request<Incoming>> for BanksRpcServer {
                 params,
             } = serde_json::from_reader(body.reader())?;
             Ok(match method {
+                RpcMethod::GetVersion => {
+                    let version = solana_version::Version::default();
+                    let resp = JsonRpcResp::new(
+                        id,
+                        RpcVersionInfo {
+                            solana_core: version.to_string(),
+                            feature_set: Some(version.feature_set),
+                        },
+                    );
+                    resp.into()
+                }
                 RpcMethod::GetMultipleAccounts => {
                     let (keys, cfg) = deser_get_multiple_accounts_params(params)?;
                     let value = this.get_multiple_accounts(keys, cfg).await?;
-                    let resp = JsonRpcResp::new(id, value, this.curr_slot().await);
+                    let resp = JsonRpcResp::with_ctx(id, value, this.curr_slot().await);
                     resp.into()
                 }
                 RpcMethod::GetLatestBlockhash => {
                     let cfg = deser_get_latest_blockhash_params(params)?;
-                    let resp = JsonRpcResp::new(
+                    let resp = JsonRpcResp::with_ctx(
                         id,
-                        this.get_latest_blockhash(cfg),
+                        this.get_latest_blockhash(cfg).await,
                         this.curr_slot().await,
                     );
                     resp.into()
                 }
             })
         })
-    }
-}
-
-#[derive(Clone)]
-struct TokioExecutor;
-
-impl<F> Executor<F> for TokioExecutor
-where
-    F: Future + Send + 'static,
-    F::Output: Send + 'static,
-{
-    fn execute(&self, future: F) {
-        tokio::spawn(future);
     }
 }

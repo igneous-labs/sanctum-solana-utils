@@ -9,11 +9,21 @@ use super::JsonRpc2Ident;
 pub struct JsonRpcResp<T> {
     pub jsonrpc: JsonRpc2Ident,
     pub id: u64,
-    pub result: Response<T>,
+    pub result: T,
 }
 
 impl<T> JsonRpcResp<T> {
-    pub fn new(id: u64, value: T, slot: u64) -> Self {
+    pub fn new(id: u64, result: T) -> Self {
+        Self {
+            jsonrpc: Default::default(),
+            id,
+            result,
+        }
+    }
+}
+
+impl<T> JsonRpcResp<Response<T>> {
+    pub fn with_ctx(id: u64, value: T, slot: u64) -> Self {
         Self {
             jsonrpc: Default::default(),
             id,

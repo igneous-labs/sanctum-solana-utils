@@ -21,6 +21,10 @@ pub use solana_readonly_account::sdk::KeyedAccount;
 #[cfg_attr(docsrs, doc(cfg(feature = "banks-rpc-server")))]
 pub mod banks_rpc_server;
 
+#[cfg(feature = "cli")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
+pub mod cli;
+
 #[cfg(feature = "proptest")]
 #[cfg_attr(docsrs, doc(cfg(feature = "proptest")))]
 pub mod proptest_utils;

@@ -3345,16 +3345,21 @@ name = "sanctum-solana-test-utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bincode",
  "borsh 0.10.3",
+ "data-encoding",
  "http-body-util",
  "hyper 1.1.0",
  "hyper-util",
  "num-traits",
  "proptest",
+ "sanctum-solana-cli-utils",
  "serde",
  "serde_json",
  "serde_with 3.5.0",
+ "serde_yaml",
  "solana-account-decoder",
+ "solana-cli-config",
  "solana-client",
  "solana-program",
  "solana-program-test",
@@ -3364,6 +3369,7 @@ dependencies = [
  "solana-version",
  "spl-token",
  "spl-token-2022",
+ "tempfile",
  "tokio",
 ]
 

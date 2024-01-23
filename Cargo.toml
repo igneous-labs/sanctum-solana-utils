@@ -31,9 +31,11 @@ serde = { version = "^1", default-features = false, features = [
 ] } # no default-features for no_std support
 serde_json = "^1"
 serde_with = "^3"
+serde_yaml = ">=0.1"
 spl-token = { version = ">=0.1.0", features = ["no-entrypoint"] }
 spl-token-2022 = { version = ">=0.1.0", features = ["no-entrypoint"] }
 static_assertions = "^1"
+tempfile = "^3"
 thiserror = "^1"
 tokio = "^1"
 
@@ -50,6 +52,7 @@ solana-sdk = "^1"
 solana-version = "^1"
 
 # workspace members
+sanctum-solana-cli-utils = { path = "./sanctum-solana-cli-utils" }
 sanctum-solana-test-utils = { path = "./sanctum-solana-test-utils" }
 spl_associated_token_account_interface = { path = "./generated/spl_associated_token_account_interface" }
 spl_token_interface = { path = "./generated/spl_token_interface" }

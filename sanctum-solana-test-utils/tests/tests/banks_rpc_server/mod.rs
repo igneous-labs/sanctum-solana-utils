@@ -3,6 +3,7 @@
 // `can call blocking only when running on the multi-threaded runtime`
 
 mod common;
+mod get_account_info;
 mod get_latest_blockhash;
 mod get_multiple_accounts;
 mod get_version;

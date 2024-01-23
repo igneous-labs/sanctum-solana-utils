@@ -1,14 +1,8 @@
 use clap::{
-    builder::{BoolishValueParser, TypedValueParser, ValueParser},
+    builder::{BoolishValueParser, TypedValueParser},
     ArgAction, Parser,
 };
-use sanctum_solana_cli_utils::{
-    ConfigWrapper, TxSendMode, TxSendingNonblockingRpcClient, TxSendingRpcClient,
-};
-use solana_sdk::{
-    message::VersionedMessage, signature::Keypair, signer::Signer, system_instruction,
-    transaction::Transaction,
-};
+use sanctum_solana_cli_utils::TxSendMode;
 
 #[cfg(feature = "clap")]
 #[test]
@@ -67,7 +61,17 @@ fn parse_tx_send_mode_from_dry_run() {
 #[cfg(feature = "clap")]
 #[tokio::test]
 async fn base64_tx_encode() {
-    use solana_sdk::{message::v0::Message, transaction::VersionedTransaction};
+    use clap::builder::ValueParser;
+    use sanctum_solana_cli_utils::{
+        ConfigWrapper, TxSendingNonblockingRpcClient, TxSendingRpcClient,
+    };
+    use solana_sdk::{
+        message::{v0, VersionedMessage},
+        signature::Keypair,
+        signer::Signer,
+        system_instruction,
+        transaction::{Transaction, VersionedTransaction},
+    };
 
     #[derive(Parser, Debug)]
     #[command(author, version, about)]
@@ -90,7 +94,7 @@ async fn base64_tx_encode() {
 
     let test_versioned_tx = VersionedTransaction {
         message: VersionedMessage::V0(
-            Message::try_compile(&payer.pubkey(), &[ix], &[], Default::default()).unwrap(),
+            v0::Message::try_compile(&payer.pubkey(), &[ix], &[], Default::default()).unwrap(),
         ),
         signatures: vec![],
     };

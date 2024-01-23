@@ -53,8 +53,7 @@ impl BanksRpcServer {
         self,
         tcp_listener: TcpListener,
     ) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
-        // just clone BanksClient on every req lul, it consists of some Arcs and atomics:
-        // https://github.com/solana-labs/solana/blob/b78d41792aabe65a78a44d90174439b2f5579866/banks-server/src/banks_server.rs#L53
+        // just clone BanksClient on every req lul, it consists of a single Channel
         tokio::task::spawn(async move {
             loop {
                 let (tcp_stream, _socket_addr) = tcp_listener.accept().await?;

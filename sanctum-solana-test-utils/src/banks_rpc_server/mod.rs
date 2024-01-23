@@ -90,7 +90,6 @@ impl BanksRpcServer {
         Ok(res)
     }
 
-    // TODO: handle cfg, it just returns the blockhash it started with for now
     pub async fn get_latest_blockhash(&mut self, cfg: Option<CommitmentConfig>) -> RpcBlockhash {
         let (blockhash, last_valid_block_height) = self
             .bc
@@ -112,7 +111,7 @@ impl Service<Request<Incoming>> for BanksRpcServer {
 
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    // TODO: can create own future type instead of Pin<Box> to avoid self.clone()?
+    // TODO: can create own future type instead of Pin<Box> to avoid self.clone()
     // Actly idk, all the BanksClient methods requires &mut self
     fn call(&self, req: Request<Incoming>) -> Self::Future {
         let mut this = self.clone();

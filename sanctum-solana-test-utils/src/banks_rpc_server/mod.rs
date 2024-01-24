@@ -9,22 +9,25 @@ use hyper::{
     Request, Response,
 };
 use hyper_util::rt::TokioIo;
-use solana_account_decoder::{UiAccount, UiAccountEncoding};
+use serde_json::Value;
+use solana_account_decoder::{UiAccount, UiAccountEncoding, UiDataSliceConfig};
 use solana_program::{clock::Clock, pubkey::Pubkey};
 use solana_program_test::BanksClient;
 use solana_rpc_client_api::{
     config::RpcAccountInfoConfig,
     response::{RpcBlockhash, RpcVersionInfo},
 };
-use solana_sdk::commitment_config::CommitmentConfig;
-use std::{error::Error, future::Future, pin::Pin};
+use solana_sdk::{account::Account, commitment_config::CommitmentConfig};
+use std::{cmp, error::Error, future::Future, pin::Pin};
 use tokio::{net::TcpListener, task::JoinHandle};
 
 use crate::banks_rpc_server::json_rpc::{
     deser_get_multiple_accounts_params, JsonRpcReq, JsonRpcResp, RpcMethod,
 };
 
-use self::json_rpc::{deser_get_account_info_params, deser_get_latest_blockhash_params};
+use self::json_rpc::{
+    deser_get_account_info_params, deser_get_latest_blockhash_params, to_http_resp,
+};
 
 mod json_rpc;
 
@@ -33,6 +36,20 @@ pub struct BanksRpcServer {
     // TODO: change this to BanksServer when solana makes it easier
     // to construct them from ProgramTest
     bc: BanksClient,
+}
+
+fn account_data_sliced(mut account: Account, ds: Option<UiDataSliceConfig>) -> Account {
+    let UiDataSliceConfig { offset, length } = match ds {
+        Some(ds) => ds,
+        None => return account,
+    };
+    if offset >= account.data.len() {
+        account.data = Vec::new();
+        return account;
+    }
+    let end = cmp::min(offset + length, account.data.len());
+    account.data = account.data.drain(offset..end).collect();
+    account
 }
 
 impl BanksRpcServer {
@@ -75,14 +92,21 @@ impl BanksRpcServer {
         slot
     }
 
-    // TODO: handle cfg. This just returns base64 encoded for now
+    // TODO: handle cfg encoding, commitment, min_context_slot.
+    // This just returns base64 encoded for now
     pub async fn get_account_info(
         &mut self,
         key: Pubkey,
-        _cfg: Option<RpcAccountInfoConfig>,
+        cfg: Option<RpcAccountInfoConfig>,
     ) -> Result<Option<UiAccount>, Box<dyn Error + Send + Sync>> {
         Ok(self.bc.get_account(key).await?.map(|account| {
-            UiAccount::encode(&key, &account, UiAccountEncoding::Base64, None, None)
+            UiAccount::encode(
+                &key,
+                &account_data_sliced(account, cfg.map_or_else(|| None, |c| c.data_slice)),
+                UiAccountEncoding::Base64,
+                None,
+                None,
+            )
         }))
     }
 
@@ -99,19 +123,89 @@ impl BanksRpcServer {
         }
     }
 
-    // TODO: handle cfg. This just returns base64 encoded for now
+    // TODO: handle cfg encoding, commitment, min_context_slot.
+    // This just returns base64 encoded for now
     pub async fn get_multiple_accounts(
         &mut self,
         keys: Vec<Pubkey>,
-        _cfg: Option<RpcAccountInfoConfig>,
+        cfg: Option<RpcAccountInfoConfig>,
     ) -> Result<Vec<Option<UiAccount>>, Box<dyn Error + Send + Sync>> {
         let mut res = Vec::with_capacity(keys.len());
+        let ds = cfg.map_or_else(|| None, |c| c.data_slice);
         for key in keys {
             res.push(self.bc.get_account(key).await?.map(|account| {
-                UiAccount::encode(&key, &account, UiAccountEncoding::Base64, None, None)
+                UiAccount::encode(
+                    &key,
+                    &account_data_sliced(account, ds),
+                    UiAccountEncoding::Base64,
+                    None,
+                    None,
+                )
             }));
         }
         Ok(res)
+    }
+
+    pub async fn handle_batched_reqs(
+        &mut self,
+        reqs: Vec<JsonRpcReq>,
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
+        let mut res = Vec::with_capacity(reqs.len());
+        for req in reqs {
+            res.push(self.handle_req(req).await?);
+        }
+        Ok(serde_json::to_value(res).unwrap())
+    }
+
+    pub async fn handle_req(
+        &mut self,
+        JsonRpcReq {
+            jsonrpc: _,
+            id,
+            method,
+            params,
+        }: JsonRpcReq,
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
+        Ok(match method {
+            RpcMethod::GetAccountInfo => {
+                let (key, cfg) = deser_get_account_info_params(params)?;
+                JsonRpcResp::with_ctx(
+                    id,
+                    self.get_account_info(key, cfg).await?,
+                    self.curr_slot().await,
+                )
+                .into()
+            }
+            RpcMethod::GetLatestBlockhash => {
+                let cfg = deser_get_latest_blockhash_params(params)?;
+                JsonRpcResp::with_ctx(
+                    id,
+                    self.get_latest_blockhash(cfg).await,
+                    self.curr_slot().await,
+                )
+                .into()
+            }
+            RpcMethod::GetMultipleAccounts => {
+                let (keys, cfg) = deser_get_multiple_accounts_params(params)?;
+                JsonRpcResp::with_ctx(
+                    id,
+                    self.get_multiple_accounts(keys, cfg).await?,
+                    self.curr_slot().await,
+                )
+                .into()
+            }
+            RpcMethod::GetVersion => {
+                let version = solana_version::Version::default();
+                JsonRpcResp::new(
+                    id,
+                    RpcVersionInfo {
+                        solana_core: version.to_string(),
+                        feature_set: Some(version.feature_set),
+                    },
+                )
+                .into()
+            }
+        })
     }
 }
 
@@ -128,52 +222,14 @@ impl Service<Request<Incoming>> for BanksRpcServer {
         let mut this = self.clone();
         Box::pin(async move {
             let body = req.into_body().collect().await.ok().unwrap().to_bytes();
-            let JsonRpcReq {
-                jsonrpc: _,
-                id,
-                method,
-                params,
-            } = serde_json::from_reader(body.reader())?;
-            Ok(match method {
-                RpcMethod::GetAccountInfo => {
-                    let (key, cfg) = deser_get_account_info_params(params)?;
-                    JsonRpcResp::with_ctx(
-                        id,
-                        this.get_account_info(key, cfg).await?,
-                        this.curr_slot().await,
-                    )
-                    .into()
-                }
-                RpcMethod::GetLatestBlockhash => {
-                    let cfg = deser_get_latest_blockhash_params(params)?;
-                    JsonRpcResp::with_ctx(
-                        id,
-                        this.get_latest_blockhash(cfg).await,
-                        this.curr_slot().await,
-                    )
-                    .into()
-                }
-                RpcMethod::GetMultipleAccounts => {
-                    let (keys, cfg) = deser_get_multiple_accounts_params(params)?;
-                    JsonRpcResp::with_ctx(
-                        id,
-                        this.get_multiple_accounts(keys, cfg).await?,
-                        this.curr_slot().await,
-                    )
-                    .into()
-                }
-                RpcMethod::GetVersion => {
-                    let version = solana_version::Version::default();
-                    JsonRpcResp::new(
-                        id,
-                        RpcVersionInfo {
-                            solana_core: version.to_string(),
-                            feature_set: Some(version.feature_set),
-                        },
-                    )
-                    .into()
-                }
-            })
+            let resp = if let Ok(v) = serde_json::from_reader(body.clone().reader()) {
+                this.handle_batched_reqs(v).await
+            } else if let Ok(r) = serde_json::from_reader(body.reader()) {
+                this.handle_req(r).await
+            } else {
+                Err("Invalid request".into())
+            }?;
+            Ok(to_http_resp(serde_json::to_vec(&resp).unwrap().into()))
         })
     }
 }

@@ -34,6 +34,39 @@ pub trait ExtendedBanksClient {
 }
 
 #[async_trait]
+impl<B: ExtendedBanksClient + Send> ExtendedBanksClient for &mut B {
+    async fn exec_get_return_data<T: Into<VersionedTransaction> + Send>(
+        &mut self,
+        tx: T,
+    ) -> TransactionReturnData {
+        (*self).exec_get_return_data(tx).await
+    }
+
+    async fn get_account_unwrapped(&mut self, addr: Pubkey) -> Account {
+        (*self).get_account_unwrapped(addr).await
+    }
+
+    async fn get_account_data(&mut self, addr: Pubkey) -> Vec<u8> {
+        (*self).get_account_data(addr).await
+    }
+
+    async fn get_borsh_account<T: BorshDeserialize>(&mut self, addr: Pubkey) -> T {
+        (*self).get_borsh_account(addr).await
+    }
+
+    async fn assert_account_not_exist(&mut self, addr: Pubkey) {
+        (*self).assert_account_not_exist(addr).await
+    }
+
+    async fn exec_b64_tx(
+        &mut self,
+        b64_tx: &[u8],
+    ) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
+        (*self).exec_b64_tx(b64_tx).await
+    }
+}
+
+#[async_trait]
 impl ExtendedBanksClient for BanksClient {
     async fn exec_get_return_data<T: Into<VersionedTransaction> + Send>(
         &mut self,

@@ -1,53 +1,14 @@
 //! TODO: deprecate this once solana upgrades `solana-clap-utils` to newer versions of clap
 //! Stuff in here enables the usage of `solana-clap-utils` with `clap >= 3.0` instead of `clap ^2.0`
 
-use solana_clap_utils::keypair::signer_from_path;
 use solana_cli_config::{Config, CONFIG_FILE};
 use solana_sdk::{
     commitment_config::{CommitmentConfig, CommitmentLevel},
     signer::Signer,
 };
-use std::{error::Error, fmt::Display, io, str::FromStr};
+use std::{fmt::Display, io, str::FromStr};
 
-/// Same as [`parse_named_signer`], but with `name` arg just set to "signer"
-pub fn parse_signer(arg: &str) -> Result<Box<dyn Signer>, Box<dyn Error>> {
-    parse_named_signer(ParseNamedSigner {
-        name: "signer",
-        arg,
-    })
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct ParseNamedSigner<'a> {
-    pub name: &'a str,
-    pub arg: &'a str,
-}
-
-/// Parses a signer arg.
-///
-/// # Supports:
-/// - file system keypair files
-/// - SignerSourceKind::Usb (usb://ledger) without `confirm_key`
-///
-/// # Does NOT support:
-/// - SignerSourceKind::Prompt with skip seed phrase validation
-/// - SignerSourceKind::Usb (usb://ledger) with `confirm_key`
-/// - SignerSourceKind::Pubkey
-///
-/// # Panics
-/// - if usb://ledger and ledger is not unlocked and on solana app
-///
-/// # Details
-/// `Box<dyn Signer>` is not `Clone`, `Send`, or `Sync`, `Box<dyn Error>` is not `Send`, `Sync`, or `'static`,
-/// so you can't actually use this fn as a [`clap::builder::TypedValueParser`] in an Args struct.
-/// Guess you can type the arg to a `String` first and then run this afterwards.
-///
-/// See https://docs.rs/solana-clap-utils/latest/src/solana_clap_utils/keypair.rs.html#752-820 for more details.
-pub fn parse_named_signer(
-    ParseNamedSigner { name, arg }: ParseNamedSigner,
-) -> Result<Box<dyn Signer>, Box<dyn Error>> {
-    signer_from_path(&clap2::ArgMatches::default(), arg, name, &mut None)
-}
+use crate::{parse_named_signer, ParseNamedSigner};
 
 /// Newtype to make `solana_cli_config::Config` compatible with clap >= 3.0
 /// by implementing Clone on

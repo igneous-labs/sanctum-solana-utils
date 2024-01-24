@@ -4,15 +4,16 @@ use data_encoding::BASE64;
 use solana_program::pubkey::Pubkey;
 use solana_program_test::{BanksClient, BanksClientError, BanksTransactionResultWithMetadata};
 use solana_sdk::{
-    account::Account,
-    transaction::{Transaction, VersionedTransaction},
-    transaction_context::TransactionReturnData,
+    account::Account, transaction::VersionedTransaction, transaction_context::TransactionReturnData,
 };
 
 #[async_trait]
 pub trait ExtendedBanksClient {
     /// NB: return data is truncated. Probably wanna pass it through zero_padded_return_data() first
-    async fn exec_get_return_data(&mut self, tx: Transaction) -> TransactionReturnData;
+    async fn exec_get_return_data<T: Into<VersionedTransaction> + Send>(
+        &mut self,
+        tx: T,
+    ) -> TransactionReturnData;
 
     async fn get_account_unwrapped(&mut self, addr: Pubkey) -> Account;
 
@@ -34,7 +35,10 @@ pub trait ExtendedBanksClient {
 
 #[async_trait]
 impl ExtendedBanksClient for BanksClient {
-    async fn exec_get_return_data(&mut self, tx: Transaction) -> TransactionReturnData {
+    async fn exec_get_return_data<T: Into<VersionedTransaction> + Send>(
+        &mut self,
+        tx: T,
+    ) -> TransactionReturnData {
         let BanksTransactionResultWithMetadata { result, metadata } =
             self.process_transaction_with_metadata(tx).await.unwrap();
         result.unwrap(); // check result ok
@@ -64,10 +68,7 @@ impl ExtendedBanksClient for BanksClient {
         b64_tx: &[u8],
     ) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
         let bytes = BASE64.decode(b64_tx).unwrap();
-        if let Ok(tx) = bincode::deserialize::<VersionedTransaction>(&bytes) {
-            return self.process_transaction_with_metadata(tx).await;
-        }
-        let tx: Transaction = bincode::deserialize(&bytes).unwrap();
+        let tx: VersionedTransaction = bincode::deserialize(&bytes).unwrap();
         self.process_transaction_with_metadata(tx).await
     }
 }
@@ -79,7 +80,7 @@ mod tests {
         system_instruction,
     };
     use solana_program_test::ProgramTest;
-    use solana_sdk::signer::Signer;
+    use solana_sdk::{signer::Signer, transaction::Transaction};
 
     use super::*;
 

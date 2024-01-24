@@ -4,6 +4,13 @@ use solana_cli_config::Config;
 use solana_sdk::signature::Keypair;
 use tempfile::NamedTempFile;
 
+pub fn temp_keypair_file(keypair: &Keypair) -> NamedTempFile {
+    let kp_bytes = keypair.to_bytes();
+    let f = NamedTempFile::new().unwrap();
+    serde_json::to_writer(f.as_file(), kp_bytes.as_ref()).unwrap();
+    f
+}
+
 /// Contained `NamedTempFile`s are deleted when dropped
 pub struct TempCliConfig {
     keypair: NamedTempFile,
@@ -12,10 +19,7 @@ pub struct TempCliConfig {
 
 impl TempCliConfig {
     pub fn from_keypair_and_rpc_url(keypair: &Keypair, json_rpc_url: String) -> Self {
-        let kp_bytes = keypair.to_bytes();
-        let keypair = NamedTempFile::new().unwrap();
-        serde_json::to_writer(keypair.as_file(), kp_bytes.as_ref()).unwrap();
-
+        let keypair = temp_keypair_file(keypair);
         let config = NamedTempFile::new().unwrap();
         serde_yaml::to_writer(
             config.as_file(),

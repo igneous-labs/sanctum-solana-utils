@@ -4,16 +4,20 @@ version = "0.2.0"
 edition = "2021"
 license.workspace = true
 
+# features: ["clap"]
+
 [dependencies]
 async-trait = { workspace = true }
 bincode = { workspace = true }
-clap = { workspace = true, features = ["derive"], optional = true }
 clap2 = { package = "clap", version = "^2.0" } # ^2.0 required for solana-clap-utils
 data-encoding = { workspace = true }
 solana-clap-utils = { workspace = true }
 solana-cli-config = { workspace = true }
 solana-client = { workspace = true }
 solana-sdk = { workspace = true }
+
+# optional
+clap = { workspace = true, features = ["derive"], optional = true }
 
 [dev-dependencies]
 clap = { version = "^4.0", features = ["derive"] }

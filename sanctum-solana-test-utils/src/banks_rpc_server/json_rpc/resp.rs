@@ -1,9 +1,18 @@
 use http_body_util::Full;
 use hyper::body::Bytes;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use solana_rpc_client_api::response::{Response, RpcResponseContext};
 
 use super::JsonRpc2Ident;
+
+pub fn to_http_resp(data: Bytes) -> hyper::Response<Full<Bytes>> {
+    hyper::Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .body(data.into())
+        .unwrap()
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JsonRpcResp<T> {
@@ -35,12 +44,8 @@ impl<T> JsonRpcResp<Response<T>> {
     }
 }
 
-impl<T: Serialize> From<JsonRpcResp<T>> for hyper::Response<Full<Bytes>> {
+impl<T: Serialize> From<JsonRpcResp<T>> for Value {
     fn from(value: JsonRpcResp<T>) -> Self {
-        hyper::Response::builder()
-            .status(200)
-            .header("Content-Type", "application/json")
-            .body(serde_json::to_vec(&value).unwrap().into())
-            .unwrap()
+        serde_json::to_value(value).unwrap()
     }
 }

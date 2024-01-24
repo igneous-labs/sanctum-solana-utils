@@ -7,7 +7,47 @@ use solana_sdk::{
     commitment_config::{CommitmentConfig, CommitmentLevel},
     signer::Signer,
 };
-use std::{fmt::Display, io, str::FromStr};
+use std::{error::Error, fmt::Display, io, str::FromStr};
+
+/// Same as [`parse_named_signer`], but with `name` arg just set to "signer"
+pub fn parse_signer(arg: &str) -> Result<Box<dyn Signer>, Box<dyn Error>> {
+    parse_named_signer(ParseNamedSigner {
+        name: "signer",
+        arg,
+    })
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ParseNamedSigner<'a> {
+    pub name: &'a str,
+    pub arg: &'a str,
+}
+
+/// Parses a signer arg.
+///
+/// # Supports:
+/// - file system keypair files
+/// - SignerSourceKind::Usb (usb://ledger) without `confirm_key`
+///
+/// # Does NOT support:
+/// - SignerSourceKind::Prompt with skip seed phrase validation
+/// - SignerSourceKind::Usb (usb://ledger) with `confirm_key`
+/// - SignerSourceKind::Pubkey
+///
+/// # Panics
+/// - if usb://ledger and ledger is not unlocked and on solana app
+///
+/// # Details
+/// `Box<dyn Signer>` is not `Clone`, `Send`, or `Sync`, `Box<dyn Error>` is not `Send`, `Sync`, or `'static`,
+/// so you can't actually use this fn as a [`clap::builder::TypedValueParser`] in an Args struct.
+/// Guess you can type the arg to a `String` first and then run this afterwards.
+///
+/// See https://docs.rs/solana-clap-utils/latest/src/solana_clap_utils/keypair.rs.html#752-820 for more details.
+pub fn parse_named_signer(
+    ParseNamedSigner { name, arg }: ParseNamedSigner,
+) -> Result<Box<dyn Signer>, Box<dyn Error>> {
+    signer_from_path(&clap2::ArgMatches::default(), arg, name, &mut None)
+}
 
 /// Newtype to make `solana_cli_config::Config` compatible with clap >= 3.0
 /// by implementing Clone on
@@ -38,6 +78,12 @@ impl AsRef<Config> for ConfigWrapper {
     }
 }
 
+impl From<ConfigWrapper> for Config {
+    fn from(ConfigWrapper(cfg): ConfigWrapper) -> Self {
+        cfg
+    }
+}
+
 impl ConfigWrapper {
     /// Creates a synchronous `RpcClient` from the config's
     /// `json_rpc_url` and `commitment`
@@ -63,26 +109,15 @@ impl ConfigWrapper {
 
     /// Loads the wallet specified by the cli config.
     ///
-    /// # Supports:
-    /// - file system keypair files
-    /// - SignerSourceKind::Usb (usb://ledger) without `confirm_key`
-    ///
-    /// # Does NOT support:
-    /// - SignerSourceKind::Prompt with skip seed phrase validation
-    /// - SignerSourceKind::Usb (usb://ledger) with `confirm_key`
-    /// - SignerSourceKind::Pubkey
-    ///
-    /// See https://docs.rs/solana-clap-utils/latest/src/solana_clap_utils/keypair.rs.html#752-820 for more details.
+    /// Uses [`parse_named_signer`] under the hood so its restrictions apply.
     ///
     /// # Panics
-    /// - if usb://ledger and ledger is not unlocked and on solana app
+    /// - if parsing failed
     pub fn signer(&self) -> Box<dyn Signer> {
-        signer_from_path(
-            &clap2::ArgMatches::default(),
-            &self.0.keypair_path,
-            "wallet",
-            &mut None,
-        )
+        parse_named_signer(ParseNamedSigner {
+            name: "wallet",
+            arg: &self.0.keypair_path,
+        })
         .unwrap()
     }
 

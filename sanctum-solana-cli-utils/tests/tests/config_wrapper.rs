@@ -17,5 +17,9 @@ fn parse_solana_cli_config() {
     }
 
     // panics if user doesn't have solana CLI installed
-    Args::parse_from(["cmd"]);
+    let Args { config } = Args::parse_from(["cmd"]);
+    // make sure getters work
+    config.nonblocking_rpc_client();
+    config.rpc_client();
+    config.signer();
 }

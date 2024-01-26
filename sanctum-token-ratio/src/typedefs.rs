@@ -1,5 +1,5 @@
 /// amt_after_fees + fee_charged = amt_before_fees
-#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "borsh",
@@ -14,7 +14,7 @@ pub struct AmtsAfterFee {
 pub const AMTS_AFTER_FEE_BORSH_SER_LEN: usize = 16;
 
 /// A range of u64 values. Values inclusive.
-#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "borsh",
@@ -30,22 +30,16 @@ pub const U64_VALUE_RANGE_BORSH_SER_LEN: usize = 16;
 
 impl U64ValueRange {
     /// `[0, 0]`
-    pub const fn zero() -> Self {
-        Self::single(0)
-    }
-
-    /// `[0, u64::MAX]`
-    pub const fn full() -> Self {
-        Self {
-            min: 0,
-            max: u64::MAX,
-        }
-    }
+    pub const ZERO: Self = Self::single(0);
 
     /// `[u64::MAX, u64::MAX]`
-    pub const fn max() -> Self {
-        Self::single(u64::MAX)
-    }
+    pub const MAX: Self = Self::single(u64::MAX);
+
+    /// `[0, u64::MAX]`
+    pub const FULL: Self = Self {
+        min: 0,
+        max: u64::MAX,
+    };
 
     /// `[value, value]`
     pub const fn single(value: u64) -> Self {
@@ -53,5 +47,37 @@ impl U64ValueRange {
             min: value,
             max: value,
         }
+    }
+}
+
+/// Indicates that any division operations in its main application should ceiling divide instead of floor
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub struct CeilDiv<T>(pub T);
+
+impl<T> AsRef<T> for CeilDiv<T> {
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> From<T> for CeilDiv<T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}
+
+/// Indicates that any division operations in its main application should floor divide instead of ceiling
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub struct FloorDiv<T>(pub T);
+
+impl<T> AsRef<T> for FloorDiv<T> {
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> From<T> for FloorDiv<T> {
+    fn from(value: T) -> Self {
+        Self(value)
     }
 }

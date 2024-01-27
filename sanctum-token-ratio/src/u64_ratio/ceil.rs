@@ -90,7 +90,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
 mod tests {
     use proptest::prelude::*;
 
-    use crate::test_utils::*;
+    use crate::ratio_test_utils::*;
 
     use super::*;
 

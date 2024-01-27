@@ -1,3 +1,5 @@
+//! TOOD: add proptests to check documented invariants
+
 use crate::MathError;
 
 #[repr(transparent)]

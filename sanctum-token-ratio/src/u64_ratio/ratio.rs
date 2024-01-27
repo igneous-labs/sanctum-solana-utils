@@ -1,6 +1,4 @@
-use core::{cmp::Ordering, ops::Deref};
-
-use crate::{MathError, U64ValueRange};
+use core::cmp::Ordering;
 
 /// A ratio that is applied to a u64 token amount.
 /// A zero `denom` is treated as 0.
@@ -17,28 +15,16 @@ pub struct U64Ratio<N, D> {
     pub denom: D,
 }
 
-impl<
-        LN: Copy + Into<u128>,
-        LD: Copy + Into<u128>,
-        RN: Copy + Into<u128>,
-        RD: Copy + Into<u128>,
-    > PartialEq<U64Ratio<RN, RD>> for U64Ratio<LN, LD>
-{
-    fn eq(&self, rhs: &U64Ratio<RN, RD>) -> bool {
-        let ln: u128 = self.num.into();
-        let ld: u128 = self.denom.into();
-        let rn: u128 = rhs.num.into();
-        let rd: u128 = rhs.denom.into();
+impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64Ratio<N, D> {
+    pub fn is_zero(&self) -> bool {
+        self.num.into() == 0 || self.denom.into() == 0
+    }
 
-        // panic on overflow, even if overflow checks off
-        let lhs = ln.checked_mul(rd).unwrap();
-        let rhs = rn.checked_mul(ld).unwrap();
-
-        lhs == rhs
+    /// Returns true if this ratio represents 1.0 i.e. num == denom
+    pub fn is_one(&self) -> bool {
+        !self.is_zero() && self.num.into() == self.denom.into()
     }
 }
-
-impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Eq for U64Ratio<N, D> {}
 
 fn cmp_inner<
     LN: Copy + Into<u128>,
@@ -66,6 +52,20 @@ impl<
         LD: Copy + Into<u128>,
         RN: Copy + Into<u128>,
         RD: Copy + Into<u128>,
+    > PartialEq<U64Ratio<RN, RD>> for U64Ratio<LN, LD>
+{
+    fn eq(&self, rhs: &U64Ratio<RN, RD>) -> bool {
+        cmp_inner(self, rhs).is_eq()
+    }
+}
+
+impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Eq for U64Ratio<N, D> {}
+
+impl<
+        LN: Copy + Into<u128>,
+        LD: Copy + Into<u128>,
+        RN: Copy + Into<u128>,
+        RD: Copy + Into<u128>,
     > PartialOrd<U64Ratio<RN, RD>> for U64Ratio<LN, LD>
 {
     fn partial_cmp(&self, rhs: &U64Ratio<RN, RD>) -> Option<Ordering> {
@@ -79,24 +79,8 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> Ord for U64Ratio<N, D> {
     }
 }
 
-pub trait ReversibleRatio {
-    fn apply(&self, amount: u64) -> Result<u64, MathError>;
-
-    fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError>;
-}
-
-impl<Ref: Deref<Target = T>, T: ReversibleRatio + ?Sized> ReversibleRatio for Ref {
-    fn apply(&self, amount: u64) -> Result<u64, MathError> {
-        self.deref().apply(amount)
-    }
-
-    fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError> {
-        self.deref().reverse(amt_after_apply)
-    }
-}
-
 #[cfg(all(test, feature = "std"))]
-pub(crate) mod test_utils {
+pub(crate) mod ratio_test_utils {
     use proptest::prelude::*;
 
     use super::*;

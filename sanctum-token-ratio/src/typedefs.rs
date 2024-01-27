@@ -2,22 +2,29 @@
 
 use crate::MathError;
 
+// inline all simple functions so that they can be inlined by consumers.
+// dont need to do the same for generic fns and methods on generic structs since those
+// are available to be inlined by consumers. TODO: confirm this
+
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct AmtsAfterFeeBuilder(u64);
 
 impl AmtsAfterFeeBuilder {
     /// Constructs a new `AmtsAfterFeeBuilder` from an amt_before_fee
+    #[inline]
     pub const fn new_amt_bef_fee(abf: u64) -> Self {
         Self(abf)
     }
 
     /// Returns the amt_before_fee encapsulated by this builder
+    #[inline]
     pub const fn amt_bef_fee(&self) -> u64 {
         self.0
     }
 
     /// Errors if fee_charged > amt_before_fee
+    #[inline]
     pub const fn with_fee_charged(self, fee_charged: u64) -> Result<AmtsAfterFee, MathError> {
         // match instead of ok_or(MathError)? to enable use with const
         let amt_after_fee = match self.amt_bef_fee().checked_sub(fee_charged) {
@@ -31,6 +38,7 @@ impl AmtsAfterFeeBuilder {
     }
 
     /// Panics if fee_charged > amt_before_fee
+    #[inline]
     pub const fn with_fee_charged_unchecked(self, fee_charged: u64) -> AmtsAfterFee {
         // cannot unwrap() in const fn, but can match with panic! static msg
         match self.with_fee_charged(fee_charged) {
@@ -40,6 +48,7 @@ impl AmtsAfterFeeBuilder {
     }
 
     /// Errors if amt_after_fee > amt_before_fee
+    #[inline]
     pub const fn with_amt_aft_fee(self, amt_after_fee: u64) -> Result<AmtsAfterFee, MathError> {
         // match instead of ok_or(MathError)? to enable use with const
         let fee_charged = match self.amt_bef_fee().checked_sub(amt_after_fee) {
@@ -53,6 +62,7 @@ impl AmtsAfterFeeBuilder {
     }
 
     /// Panics if amt_after_fee > amt_before_fee
+    #[inline]
     pub const fn with_amt_aft_fee_unchecked(self, amt_after_fee: u64) -> AmtsAfterFee {
         // cannot unwrap() in const fn, but can match with panic! static msg
         match self.with_amt_aft_fee(amt_after_fee) {
@@ -78,14 +88,17 @@ pub struct AmtsAfterFee {
 }
 
 impl AmtsAfterFee {
+    #[inline]
     pub const fn amt_after_fee(&self) -> u64 {
         self.amt_after_fee
     }
 
+    #[inline]
     pub const fn fee_charged(&self) -> u64 {
         self.fee_charged
     }
 
+    #[inline]
     pub const fn amt_before_fee(&self) -> u64 {
         // cannot unwrap() in const fn, but can match with unreachable!()
         match self.amt_after_fee().checked_add(self.fee_charged()) {
@@ -132,6 +145,7 @@ impl U64ValueRange {
 
     /// Create a new U64ValueRange from a min limit and max limit
     /// that can be passed in either order.
+    #[inline]
     pub const fn from_range_auto(a: u64, b: u64) -> Self {
         if a > b {
             Self { min: b, max: a }
@@ -141,6 +155,7 @@ impl U64ValueRange {
     }
 
     /// Errors if min > max
+    #[inline]
     pub const fn from_min_max(min: u64, max: u64) -> Result<Self, MathError> {
         if min > max {
             return Err(MathError);
@@ -149,6 +164,7 @@ impl U64ValueRange {
     }
 
     /// Panics if min > max
+    #[inline]
     pub const fn from_min_max_unchecked(min: u64, max: u64) -> Self {
         // cannot unwrap() in const fn, but can match with panic! static msg
         match Self::from_min_max(min, max) {
@@ -158,6 +174,7 @@ impl U64ValueRange {
     }
 
     /// `[value, value]`
+    #[inline]
     pub const fn single(value: u64) -> Self {
         Self {
             min: value,
@@ -167,10 +184,12 @@ impl U64ValueRange {
 
     // Getters prefixed with `get_` to avoid collision with std::cmp methods
 
+    #[inline]
     pub const fn get_min(&self) -> u64 {
         self.min
     }
 
+    #[inline]
     pub const fn get_max(&self) -> u64 {
         self.max
     }

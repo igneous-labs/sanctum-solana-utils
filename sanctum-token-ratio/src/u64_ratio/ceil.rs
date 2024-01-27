@@ -5,11 +5,11 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
     ///
     /// Returns 0 if denominator == 0
     fn apply(&self, amount: u64) -> Result<u64, MathError> {
-        let U64Ratio { num, denom } = self.0;
-        let d: u128 = denom.into();
-        if d == 0 {
+        if self.0.is_zero() {
             return Ok(0);
         }
+        let U64Ratio { num, denom } = self.0;
+        let d: u128 = denom.into();
         let n: u128 = num.into();
         let x: u128 = amount.into();
         x.checked_mul(n)
@@ -47,16 +47,16 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
     /// x < dy / n
     /// ```
     fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError> {
-        let U64Ratio { num, denom } = self.0;
-        let d: u128 = denom.into();
-        let n: u128 = num.into();
-        if d == 0 || n == 0 {
+        if self.0.is_zero() {
             if amt_after_apply == 0 {
                 return Ok(U64ValueRange::FULL);
             } else {
                 return Err(MathError);
             };
         }
+        let U64Ratio { num, denom } = self.0;
+        let d: u128 = denom.into();
+        let n: u128 = num.into();
         // if ratio > 0, then
         // only way ceil div results in 0 is if amt_before_apply == 0
         if amt_after_apply == 0 {
@@ -94,7 +94,112 @@ mod tests {
 
     use super::*;
 
-    // TODO: Add the other tests adapted from floor
+    prop_compose! {
+        fn ratio_gte_one()
+            (ratio in u64_ratio_gte_one()) -> CeilDiv<U64Ratio<u64, u64>> {
+                CeilDiv(ratio)
+            }
+    }
+
+    prop_compose! {
+        fn ratio_lte_one()
+            (ratio in u64_ratio_lte_one()) -> CeilDiv<U64Ratio<u64, u64>> {
+                CeilDiv(ratio)
+            }
+    }
+
+    prop_compose! {
+        /// max_limit is the max number that ratio can be applied to without overflowing u64
+        fn ratio_gte_one_and_overflow_max_limit()
+            (u64ratio in ratio_gte_one()) -> (u64, CeilDiv<U64Ratio<u64, u64>>) {
+                if u64ratio.0.num == 0 {
+                    return (u64::MAX, u64ratio);
+                }
+                let max_limit = u64ratio.0.denom as u128 * u64::MAX as u128 / u64ratio.0.num as u128;
+                if max_limit >= u64::MAX as u128 {
+                    return (u64::MAX, u64ratio);
+                }
+                (max_limit.try_into().unwrap(), u64ratio)
+            }
+    }
+
+    prop_compose! {
+        fn ratio_gte_one_amt_no_overflow()
+            ((maxlimit, u64ratio) in ratio_gte_one_and_overflow_max_limit())
+            (amt in 0..=maxlimit, u64ratio in Just(u64ratio)) -> (u64, CeilDiv<U64Ratio<u64, u64>>) {
+                (amt, u64ratio)
+            }
+    }
+
+    prop_compose! {
+        fn ratio_lte_one_reverse_no_overflow()
+            ((amt_after_apply, CeilDiv(U64Ratio { num, denom })) in ratio_gte_one_amt_no_overflow()) -> (u64, CeilDiv<U64Ratio<u64, u64>>)
+            {
+                (amt_after_apply, CeilDiv(U64Ratio { num: denom, denom: num }))
+            }
+    }
+
+    proptest! {
+        #[test]
+        fn ratio_gte_one_min_max_invariant((amt, ratio) in ratio_gte_one_amt_no_overflow()) {
+            let applied = ratio.apply(amt).unwrap();
+            let r = ratio.reverse(applied).unwrap();
+            prop_assert!(r.get_min() <= r.get_max());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn ratio_lte_one_min_max_invariant((amt_after_apply, ratio) in ratio_lte_one_reverse_no_overflow()) {
+            let r = ratio.reverse(amt_after_apply).unwrap();
+            prop_assert!(r.get_min() <= r.get_max());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn ratio_gte_one_round_trip((amt, ratio) in ratio_gte_one_amt_no_overflow()) {
+            let applied = ratio.apply(amt).unwrap();
+            let r = ratio.reverse(applied).unwrap();
+            let min = r.get_min();
+            let max = r.get_max();
+            prop_assert!(min <= max);
+            prop_assert!(min == amt || min == amt - 1);
+            prop_assert!(max == amt || max == amt + 1);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn ratio_lte_one_round_trip(amt: u64, ratio in ratio_lte_one()) {
+            let applied = ratio.apply(amt).unwrap();
+            let r = ratio.reverse(applied).unwrap();
+            let min = r.get_min();
+            let max = r.get_max();
+            // will not always be eq due to floor
+            prop_assert!(min <= amt);
+            prop_assert!(amt <= max);
+            // but make sure they applying the ratio again yields result that differ at most by 1 in the correct direction
+            let apply_min = ratio.apply(min).unwrap();
+            prop_assert!(applied == apply_min || applied == apply_min + 1);
+            let apply_max = ratio.apply(max).unwrap();
+            prop_assert!(applied == apply_max || applied == apply_max - 1);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn ratio_lte_one_reverse_round_trip((amt_after_apply, ratio) in ratio_lte_one_reverse_no_overflow()) {
+            let r = ratio.reverse(amt_after_apply).unwrap();
+            let min = r.get_min();
+            let max = r.get_max();
+            prop_assert!(min <= max);
+            let apply_min = ratio.apply(min).unwrap();
+            prop_assert!(amt_after_apply == apply_min || amt_after_apply == apply_min + 1);
+            let apply_max = ratio.apply(max).unwrap();
+            prop_assert!(amt_after_apply == apply_max || amt_after_apply == apply_max - 1);
+        }
+    }
 
     prop_compose! {
         fn zero_num_ratio()

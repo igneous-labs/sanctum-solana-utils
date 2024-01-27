@@ -5,11 +5,11 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U6
     ///
     /// Returns 0 if denominator == 0
     fn apply(&self, amount: u64) -> Result<u64, MathError> {
-        let U64Ratio { num, denom } = self.0;
-        let d: u128 = denom.into();
-        if d == 0 {
+        if self.0.is_zero() {
             return Ok(0);
         }
+        let U64Ratio { num, denom } = self.0;
+        let d: u128 = denom.into();
         let n: u128 = num.into();
         let x: u128 = amount.into();
         x.checked_mul(n)
@@ -47,17 +47,16 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U6
     /// x < d(y+1) / n
     /// ```
     fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError> {
-        let U64Ratio { num, denom } = self.0;
-        let d: u128 = denom.into();
-        let n: u128 = num.into();
-        if d == 0 || n == 0 {
+        if self.0.is_zero() {
             if amt_after_apply == 0 {
                 return Ok(U64ValueRange::FULL);
             } else {
                 return Err(MathError);
             };
         }
-
+        let U64Ratio { num, denom } = self.0;
+        let d: u128 = denom.into();
+        let n: u128 = num.into();
         let y: u128 = amt_after_apply.into();
 
         let dy = y.checked_mul(d).ok_or(MathError)?;
@@ -98,7 +97,7 @@ mod tests {
             num: NUM,
             denom: DENOM,
         });
-        // assert!(NUM > DENOM);
+        // assert!(NUM > DENOM); true, will be optimized out by compiler
         const AMT_AFTER_APPLY: u64 = 239994113087062952;
         RATIO.reverse(AMT_AFTER_APPLY).unwrap();
     }

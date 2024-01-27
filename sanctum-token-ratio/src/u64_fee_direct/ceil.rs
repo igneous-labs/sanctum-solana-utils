@@ -3,7 +3,7 @@ use crate::{
     ReversibleRatio, U64FeeDirect, U64Ratio, U64ValueRange,
 };
 
-impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for FloorDiv<U64FeeDirect<N, D>> {
+impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for CeilDiv<U64FeeDirect<N, D>> {
     /// Returns the results of applying this fee to a token amount
     ///
     /// Returns:
@@ -12,7 +12,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for FloorDiv<U64F
     /// Errors if:
     /// - fee_num > fee_denom (fee > 100%)
     fn apply(&self, amt_before_fee: u64) -> Result<AmtsAfterFee, MathError> {
-        let fee_charged = FloorDiv(self.0.to_u64_ratio()).apply(amt_before_fee)?;
+        let fee_charged = CeilDiv(self.0.to_u64_ratio()).apply(amt_before_fee)?;
         AmtsAfterFeeBuilder::new_amt_bef_fee(amt_before_fee).with_fee_charged(fee_charged)
     }
 
@@ -32,16 +32,16 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for FloorDiv<U64F
     /// ```md
     /// let y = amt_after_fee, x = amt_before_fee, n = fee_numerator, d = fee_denominator
     ///
-    /// y = x - floor(nx/d)
-    /// floor(nx/d) = x - y
-    /// x - y <= nx/d < x - y + 1
+    /// y = x - ceil(nx/d)
+    /// ceil(nx/d) = x - y
+    /// x - y - 1 < nx/d <= x - y
     ///
-    /// LHS: x(1 - n/d) <= y
-    /// RHS: y - 1 < x(1 - n/d)
-    /// y - 1 < x(1 - n/d) <= y
-    /// y - 1 < x[(d - n)/d] <= y
+    /// LHS: x(1 - n/d) < y + 1
+    /// RHS: y <= x(1 - n/d)
+    /// y <= x(1 - n/d) < y + 1
+    /// y <= x[(d - n)/d] < y + 1
     ///
-    /// This is the same as reversing CeilDiv<U64Ratio> with n = d - n instead.
+    /// This is the same as reversing FloorDiv<U64Ratio> with n = d - n instead.
     /// ```
     fn reverse_from_amt_after_fee(&self, amt_after_fee: u64) -> Result<U64ValueRange, MathError> {
         let Self(fee) = self;
@@ -51,7 +51,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for FloorDiv<U64F
         let n: u128 = (*fee.fee_num()).into();
         let d: u128 = (*fee.fee_denom()).into();
         let d_minus_n = d.checked_sub(n).ok_or(MathError)?;
-        CeilDiv(U64Ratio {
+        FloorDiv(U64Ratio {
             num: d_minus_n,
             denom: d,
         })
@@ -73,16 +73,16 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for FloorDiv<U64F
     /// ```md
     /// let y = fee_charged, x = amt_before_fee, n = fee_numerator, d = fee_denominator
     ///
-    /// y = floor(nx/d)
+    /// y = ceil(nx/d)
     ///
-    /// This is the same as reversing FloorDiv<U64Ratio>
+    /// This is the same as reversing CeilDiv<U64Ratio>
     /// ```
     fn reverse_from_fee_charged(&self, fee_charged: u64) -> Result<U64ValueRange, MathError> {
         let Self(fee) = self;
         if fee.is_max() {
             return Ok(U64ValueRange::single(fee_charged));
         }
-        FloorDiv(fee.to_u64_ratio()).reverse(fee_charged)
+        CeilDiv(fee.to_u64_ratio()).reverse(fee_charged)
     }
 }
 
@@ -96,36 +96,36 @@ mod tests {
 
     prop_compose! {
         fn valid_fees()
-            (fee in valid_u64_fees()) -> FloorDiv<U64FeeDirect<u64, u64>> {
-                FloorDiv(fee)
+            (fee in valid_u64_fees()) -> CeilDiv<U64FeeDirect<u64, u64>> {
+                CeilDiv(fee)
             }
     }
 
     prop_compose! {
         fn valid_nonzero_fees()
-            (fee in valid_nonzero_u64_fees()) -> FloorDiv<U64FeeDirect<u64, u64>> {
-                FloorDiv(fee)
+            (fee in valid_nonzero_u64_fees()) -> CeilDiv<U64FeeDirect<u64, u64>> {
+                CeilDiv(fee)
             }
     }
 
     prop_compose! {
         fn valid_nonmax_fees()
-            (fee in valid_nonzero_u64_fees()) -> FloorDiv<U64FeeDirect<u64, u64>> {
-                FloorDiv(fee)
+            (fee in valid_nonzero_u64_fees()) -> CeilDiv<U64FeeDirect<u64, u64>> {
+                CeilDiv(fee)
             }
     }
 
     prop_compose! {
         fn valid_max_fees()
-            (fee in valid_max_u64_fees()) -> FloorDiv<U64FeeDirect<u64, u64>> {
-                FloorDiv(fee)
+            (fee in valid_max_u64_fees()) -> CeilDiv<U64FeeDirect<u64, u64>> {
+                CeilDiv(fee)
             }
     }
 
     prop_compose! {
         fn valid_zero_fees()
-            (fee in valid_zero_u64_fees()) -> FloorDiv<U64FeeDirect<u64, u64>> {
-                FloorDiv(fee)
+            (fee in valid_zero_u64_fees()) -> CeilDiv<U64FeeDirect<u64, u64>> {
+                CeilDiv(fee)
             }
     }
 

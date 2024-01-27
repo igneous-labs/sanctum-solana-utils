@@ -19,6 +19,7 @@ impl<T> DecodeError<T> for MathError {
         "MathError"
     }
 }
+
 impl PrintProgramError for MathError {
     fn print<E>(&self)
     where

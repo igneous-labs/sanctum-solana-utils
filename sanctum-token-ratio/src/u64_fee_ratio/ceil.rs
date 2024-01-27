@@ -1,6 +1,6 @@
 use crate::{
-    AmtsAfterFee, AmtsAfterFeeBuilder, CeilDiv, FeeRatio, FeeRatioBounds, FeeRatioInv, FloorDiv,
-    MathError, ReversibleFee, ReversibleRatio, U64FeeRatio, U64ValueRange,
+    AmtsAfterFee, AmtsAfterFeeBuilder, CeilDiv, FeeRatio, FeeRatioBounds, FeeRatioInv,
+    FeeRatioValid, FloorDiv, MathError, ReversibleFee, ReversibleRatio, U64FeeRatio, U64ValueRange,
 };
 
 impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for CeilDiv<U64FeeRatio<N, D>> {
@@ -47,6 +47,8 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for CeilDiv<U64Fe
         let Self(fee) = self;
         if fee.is_zero() {
             Ok(U64ValueRange::single(amt_after_fee))
+        } else if !fee.is_valid() {
+            Err(MathError)
         } else {
             FloorDiv(fee.one_minus_fee_ratio()?).reverse(amt_after_fee)
         }
@@ -75,6 +77,8 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for CeilDiv<U64Fe
         let Self(fee) = self;
         if fee.is_max() {
             Ok(U64ValueRange::single(fee_charged))
+        } else if !fee.is_valid() {
+            Err(MathError)
         } else {
             CeilDiv(fee.to_u64_ratio()).reverse(fee_charged)
         }
@@ -250,6 +254,29 @@ mod tests {
         #[test]
         fn max_fee_fee_charged_reverse_no_op(fee_charged: u64, fee in valid_max_fees()) {
             prop_assert_eq!(fee.reverse_from_fee_charged(fee_charged).unwrap(), U64ValueRange::single(fee_charged));
+        }
+    }
+
+    // invalid
+
+    proptest! {
+        #[test]
+        fn invalid_fee_apply_err(amt: u64, fee in invalid_fee_ratio()) {
+            prop_assert_eq!(CeilDiv(fee).apply(amt).unwrap_err(), MathError);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn invalid_fee_amt_after_fee_reverse_err(amt_after_fee: u64, fee in invalid_fee_ratio()) {
+            prop_assert_eq!(CeilDiv(fee).reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn invalid_fee_fee_charged_reverse_err(fee_charged: u64, fee in invalid_fee_ratio()) {
+            prop_assert_eq!(CeilDiv(fee).reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
         }
     }
 }

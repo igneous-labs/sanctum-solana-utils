@@ -116,7 +116,7 @@ impl<T: FeeRatio> FeeRatioInv for T {
 
 /// Useful when working with untrusted data
 /// e.g. bytes deserialized over network
-pub trait FeeRatioValidator {
+pub trait FeeRatioValid {
     fn is_valid(&self) -> bool;
 
     fn validate(self) -> Result<Self, MathError>
@@ -131,10 +131,12 @@ pub trait FeeRatioValidator {
 }
 
 // blanket to make it unoverridable
-impl<T: FeeRatio> FeeRatioValidator for T {
+impl<T: FeeRatio> FeeRatioValid for T {
     fn is_valid(&self) -> bool {
-        let n: u128 = self.fee_num().into();
-        let d: u128 = self.fee_denom().into();
-        n <= d
+        if self.is_zero() {
+            true
+        } else {
+            self.fee_num().into() <= self.fee_denom().into()
+        }
     }
 }

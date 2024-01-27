@@ -95,6 +95,14 @@ pub(crate) mod fee_ratio_test_utils {
     use super::*;
 
     prop_compose! {
+        pub fn invalid_fee_ratio()
+            (fee_num in any::<u64>())
+            (fee_denom in 1..fee_num, fee_num in Just(fee_num)) -> U64FeeRatio<u64, u64> {
+                U64FeeRatio { fee_num, fee_denom }
+            }
+    }
+
+    prop_compose! {
         pub fn valid_fee_ratio()
             (fee_denom in any::<u64>())
             (fee_num in 0..=fee_denom, fee_denom in Just(fee_denom)) -> U64FeeRatio<u64, u64> {
@@ -143,5 +151,28 @@ pub(crate) mod fee_ratio_test_utils {
         valid_zero_num_fee_ratio()
             .boxed()
             .prop_union(valid_zero_denom_fee_ratio().boxed())
+    }
+}
+
+#[cfg(all(test, feature = "std"))]
+mod tests {
+    use proptest::prelude::*;
+
+    use crate::{fee_ratio_test_utils::*, FeeRatioValid};
+
+    proptest! {
+        #[test]
+        fn correct_valid_conditions(valid in valid_fee_ratio()) {
+            prop_assert!(valid.is_valid());
+            prop_assert!(valid.validate().is_ok());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn correct_invalid_conditions(invalid in invalid_fee_ratio()) {
+            prop_assert!(!invalid.is_valid());
+            prop_assert!(invalid.validate().is_err());
+        }
     }
 }

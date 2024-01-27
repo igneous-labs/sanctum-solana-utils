@@ -188,4 +188,27 @@ mod tests {
             );
         }
     }
+
+    // invalid
+
+    proptest! {
+        #[test]
+        fn invalid_fee_apply_err(amt: u64, fee in invalid_bps_fee()) {
+            prop_assert_eq!(FloorDiv(fee).apply(amt).unwrap_err(), MathError);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn invalid_fee_amt_after_fee_reverse_err(amt_after_fee: u64, fee in invalid_bps_fee()) {
+            prop_assert_eq!(FloorDiv(fee).reverse_from_amt_after_fee(amt_after_fee).unwrap_err(), MathError);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn invalid_fee_fee_charged_reverse_err(fee_charged: u64, fee in invalid_bps_fee()) {
+            prop_assert_eq!(FloorDiv(fee).reverse_from_fee_charged(fee_charged).unwrap_err(), MathError);
+        }
+    }
 }

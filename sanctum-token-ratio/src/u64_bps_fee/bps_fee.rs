@@ -74,6 +74,13 @@ pub(crate) mod bps_fee_test_utils {
     use super::*;
 
     prop_compose! {
+        pub fn invalid_bps_fee()
+            (bps in 10_001..=u16::MAX) -> U64BpsFee {
+                U64BpsFee(bps)
+            }
+    }
+
+    prop_compose! {
         pub fn valid_bps_fee()
             (bps in 0..=BPS_DENOMINATOR) -> U64BpsFee {
                 U64BpsFee(bps)
@@ -89,8 +96,31 @@ pub(crate) mod bps_fee_test_utils {
 
     prop_compose! {
         pub fn valid_nonmax_bps_fee()
-            (bps in 0..BPS_DENOMINATOR) ->U64BpsFee {
+            (bps in 0..BPS_DENOMINATOR) -> U64BpsFee {
                 U64BpsFee(bps)
             }
+    }
+}
+
+#[cfg(all(test, feature = "std"))]
+mod tests {
+    use proptest::prelude::*;
+
+    use crate::{bps_fee_test_utils::*, FeeRatioValid};
+
+    proptest! {
+        #[test]
+        fn correct_valid_conditions(valid in valid_bps_fee()) {
+            prop_assert!(valid.is_valid());
+            prop_assert!(valid.validate().is_ok());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn correct_invalid_conditions(invalid in invalid_bps_fee()) {
+            prop_assert!(!invalid.is_valid());
+            prop_assert!(invalid.validate().is_err());
+        }
     }
 }

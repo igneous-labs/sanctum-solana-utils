@@ -89,16 +89,17 @@ impl<T: FeeRatio> FeeRatioBounds for T {
     }
 }
 
-pub trait FeeRatioRem {
+/// Reads `1 - fee_ratio` aka `(d - n)/d`
+pub trait FeeRatioInv {
     type N: Copy + Into<u128>;
     type D: Copy + Into<u128>;
 
-    /// (d-n) / d
+    /// (d - n)/d
     fn one_minus_fee_ratio(&self) -> Result<U64Ratio<u128, u128>, MathError>;
 }
 
 // blanket to make it unoverridable
-impl<T: FeeRatio> FeeRatioRem for T {
+impl<T: FeeRatio> FeeRatioInv for T {
     type N = T::N;
 
     type D = T::D;
@@ -110,5 +111,30 @@ impl<T: FeeRatio> FeeRatioRem for T {
             Some(num) => Ok(U64Ratio { num, denom: d }),
             None => Err(MathError),
         }
+    }
+}
+
+/// Useful when working with untrusted data
+/// e.g. bytes deserialized over network
+pub trait FeeRatioValidator {
+    fn is_valid(&self) -> bool;
+
+    fn validate(self) -> Result<Self, MathError>
+    where
+        Self: Sized,
+    {
+        match self.is_valid() {
+            true => Ok(self),
+            false => Err(MathError),
+        }
+    }
+}
+
+// blanket to make it unoverridable
+impl<T: FeeRatio> FeeRatioValidator for T {
+    fn is_valid(&self) -> bool {
+        let n: u128 = self.fee_num().into();
+        let d: u128 = self.fee_denom().into();
+        n <= d
     }
 }

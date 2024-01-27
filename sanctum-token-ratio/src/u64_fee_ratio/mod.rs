@@ -1,4 +1,4 @@
-//! See [`U64FeeDirect`]
+//! See [`U64FeeRatio`]
 
 mod ceil;
 mod fee_ratio;

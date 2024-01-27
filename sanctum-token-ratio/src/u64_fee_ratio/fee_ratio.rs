@@ -9,9 +9,6 @@ use crate::{FeeRatio, MathError, U64Ratio};
 ///
 /// `amt_after_fee = amt - fee_charged`.
 ///
-/// This is in contrast to [`crate::U64FeeRem`], which first calculates
-/// amt_after_fee by taking (1.0 - fee) * amt
-///
 /// Invariant: must be <= 1.0 (fee_num <= fee_denom).
 /// Fields are private to guarantee this invariant
 ///
@@ -29,7 +26,7 @@ pub struct U64FeeRatio<N, D> {
 }
 
 impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeRatio<N, D> {
-    pub fn from_fee_num_and_denom(fee_num: N, fee_denom: D) -> Result<Self, MathError> {
+    pub fn try_from_fee_num_and_denom(fee_num: N, fee_denom: D) -> Result<Self, MathError> {
         if fee_num.into() > fee_denom.into() {
             Err(MathError)
         } else {

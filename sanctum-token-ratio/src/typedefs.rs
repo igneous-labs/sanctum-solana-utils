@@ -27,14 +27,13 @@ impl AmtsAfterFeeBuilder {
     #[inline]
     pub const fn with_fee_charged(self, fee_charged: u64) -> Result<AmtsAfterFee, MathError> {
         // match instead of ok_or(MathError)? to enable use with const
-        let amt_after_fee = match self.amt_bef_fee().checked_sub(fee_charged) {
-            Some(a) => a,
-            None => return Err(MathError),
-        };
-        Ok(AmtsAfterFee {
-            amt_after_fee,
-            fee_charged,
-        })
+        match self.amt_bef_fee().checked_sub(fee_charged) {
+            Some(amt_after_fee) => Ok(AmtsAfterFee {
+                amt_after_fee,
+                fee_charged,
+            }),
+            None => Err(MathError),
+        }
     }
 
     /// Panics if fee_charged > amt_before_fee
@@ -51,14 +50,13 @@ impl AmtsAfterFeeBuilder {
     #[inline]
     pub const fn with_amt_aft_fee(self, amt_after_fee: u64) -> Result<AmtsAfterFee, MathError> {
         // match instead of ok_or(MathError)? to enable use with const
-        let fee_charged = match self.amt_bef_fee().checked_sub(amt_after_fee) {
-            Some(f) => f,
-            None => return Err(MathError),
-        };
-        Ok(AmtsAfterFee {
-            amt_after_fee,
-            fee_charged,
-        })
+        match self.amt_bef_fee().checked_sub(amt_after_fee) {
+            Some(fee_charged) => Ok(AmtsAfterFee {
+                amt_after_fee,
+                fee_charged,
+            }),
+            None => Err(MathError),
+        }
     }
 
     /// Panics if amt_after_fee > amt_before_fee
@@ -99,13 +97,11 @@ impl AmtsAfterFee {
     }
 
     #[inline]
-    pub const fn amt_before_fee(&self) -> u64 {
-        // cannot unwrap() in const fn, but can match with unreachable!()
+    pub const fn amt_before_fee(&self) -> Result<u64, MathError> {
         match self.amt_after_fee().checked_add(self.fee_charged()) {
-            Some(r) => r,
-            // since we can only create this from AmtsAfterFeeBuilder,
-            // no overflow is guaranteed
-            None => unreachable!(),
+            Some(r) => Ok(r),
+            // overflow may occur if from untrusted sources e.g. deserialized over network
+            None => Err(MathError),
         }
     }
 }
@@ -158,9 +154,10 @@ impl U64ValueRange {
     #[inline]
     pub const fn from_min_max(min: u64, max: u64) -> Result<Self, MathError> {
         if min > max {
-            return Err(MathError);
+            Err(MathError)
+        } else {
+            Ok(Self { min, max })
         }
-        Ok(Self { min, max })
     }
 
     /// Panics if min > max
@@ -180,6 +177,23 @@ impl U64ValueRange {
             min: value,
             max: value,
         }
+    }
+
+    /// Verifies if this range is valid (min <= max)
+    /// Useful for dealing with untrusted data e.g. deserialized over network
+    #[inline]
+    pub const fn validate(self) -> Result<Self, MathError> {
+        match self.is_valid() {
+            true => Ok(self),
+            false => Err(MathError),
+        }
+    }
+
+    /// Returns true if this range is valid (min <= max)
+    /// Useful for dealing with untrusted data e.g. deserialized over network
+    #[inline]
+    pub const fn is_valid(&self) -> bool {
+        self.min <= self.max
     }
 
     // Getters prefixed with `get_` to avoid collision with std::cmp methods

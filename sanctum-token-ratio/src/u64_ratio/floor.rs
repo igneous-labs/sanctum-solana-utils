@@ -97,7 +97,7 @@ mod tests {
             num: NUM,
             denom: DENOM,
         });
-        // assert!(NUM > DENOM); true, will be optimized out by compiler
+        // assert!(NUM > DENOM); // true, will be optimized out by compiler
         const AMT_AFTER_APPLY: u64 = 239994113087062952;
         RATIO.reverse(AMT_AFTER_APPLY).unwrap();
     }

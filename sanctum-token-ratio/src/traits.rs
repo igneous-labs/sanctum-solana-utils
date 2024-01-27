@@ -1,6 +1,6 @@
 use core::ops::Deref;
 
-use crate::{AmtsAfterFee, MathError, U64ValueRange};
+use crate::{AmtsAfterFee, MathError, U64Ratio, U64ValueRange};
 
 pub trait ReversibleFee {
     fn apply(&self, amt_before_fee: u64) -> Result<AmtsAfterFee, MathError>;
@@ -37,5 +37,78 @@ impl<Ref: Deref<Target = T>, T: ReversibleRatio + ?Sized> ReversibleRatio for Re
 
     fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError> {
         self.deref().reverse(amt_after_apply)
+    }
+}
+
+/// A fee rate/percentage that is expressed as a ratio
+pub trait FeeRatio {
+    type N: Copy + Into<u128>;
+    type D: Copy + Into<u128>;
+
+    fn to_u64_ratio(&self) -> U64Ratio<Self::N, Self::D>;
+
+    fn fee_num(&self) -> Self::N;
+
+    fn fee_denom(&self) -> Self::D;
+}
+
+impl<Ref: Deref<Target = T>, T: FeeRatio + ?Sized> FeeRatio for Ref {
+    type N = T::N;
+
+    type D = T::D;
+
+    fn to_u64_ratio(&self) -> U64Ratio<Self::N, Self::D> {
+        self.deref().to_u64_ratio()
+    }
+
+    fn fee_num(&self) -> Self::N {
+        self.deref().fee_num()
+    }
+
+    fn fee_denom(&self) -> Self::D {
+        self.deref().fee_denom()
+    }
+}
+
+pub trait FeeRatioBounds {
+    /// Returns true if this fee charges nothing (0%)
+    fn is_zero(&self) -> bool;
+
+    /// Returns true if this fee charges 100%
+    fn is_max(&self) -> bool;
+}
+
+// blanket to make it unoverridable
+impl<T: FeeRatio> FeeRatioBounds for T {
+    fn is_zero(&self) -> bool {
+        self.to_u64_ratio().is_zero()
+    }
+
+    fn is_max(&self) -> bool {
+        self.to_u64_ratio().is_one()
+    }
+}
+
+pub trait FeeRatioRem {
+    type N: Copy + Into<u128>;
+    type D: Copy + Into<u128>;
+
+    /// (d-n) / d
+    fn one_minus_fee_ratio(&self) -> Result<U64Ratio<u128, u128>, MathError>;
+}
+
+// blanket to make it unoverridable
+impl<T: FeeRatio> FeeRatioRem for T {
+    type N = T::N;
+
+    type D = T::D;
+
+    fn one_minus_fee_ratio(&self) -> Result<U64Ratio<u128, u128>, MathError> {
+        let n: u128 = self.fee_num().into();
+        let d: u128 = self.fee_denom().into();
+        match d.checked_sub(n) {
+            Some(num) => Ok(U64Ratio { num, denom: d }),
+            None => Err(MathError),
+        }
     }
 }

@@ -48,10 +48,10 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
     /// ```
     fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError> {
         if self.0.is_zero() {
-            if amt_after_apply == 0 {
-                return Ok(U64ValueRange::FULL);
+            return if amt_after_apply == 0 {
+                Ok(U64ValueRange::FULL)
             } else {
-                return Err(MathError);
+                Err(MathError)
             };
         }
         let U64Ratio { num, denom } = self.0;

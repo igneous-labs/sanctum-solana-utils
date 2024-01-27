@@ -1,6 +1,4 @@
-use crate::{utils::UncheckedCeilDiv, FloorDiv, MathError, U64Ratio, U64ValueRange};
-
-use super::ReversibleRatio;
+use crate::{utils::CheckedCeilDiv, FloorDiv, MathError, ReversibleRatio, U64Ratio, U64ValueRange};
 
 impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U64Ratio<N, D>> {
     /// Returns amt * num // denom.
@@ -15,7 +13,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U6
         let n: u128 = num.into();
         let x: u128 = amount.into();
         x.checked_mul(n)
-            .map(|nx| nx / d) // d != 0
+            .and_then(|nx| nx.checked_div(d))
             .and_then(|res| res.try_into().ok())
             .ok_or(MathError)
     }
@@ -77,23 +75,17 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U6
             .and_then(|max| max.try_into().ok())
             .ok_or(MathError)?;
 
-        // should never happen since
+        // min should always <= max since
         // y_plus_1 > y
-        /*
-        if min > max {
-            return Err(MathError);
-        }
-         */
-
-        Ok(U64ValueRange { min, max })
+        U64ValueRange::from_min_max(min, max)
     }
 }
 
-//all(test, feature = "std")
-
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use proptest::prelude::*;
+
+    use crate::test_utils::*;
 
     use super::*;
 
@@ -113,17 +105,15 @@ mod tests {
 
     prop_compose! {
         fn ratio_gte_one()
-            (denom in any::<u64>())
-            (num in denom..=u64::MAX, denom in Just(denom)) -> FloorDiv<U64Ratio<u64, u64>> {
-                FloorDiv(U64Ratio { num, denom })
+            (ratio in u64_ratio_gte_one()) -> FloorDiv<U64Ratio<u64, u64>> {
+                FloorDiv(ratio)
             }
     }
 
     prop_compose! {
         fn ratio_lte_one()
-            (denom in any::<u64>())
-            (num in 0..=denom, denom in Just(denom)) -> FloorDiv<U64Ratio<u64, u64>> {
-                FloorDiv(U64Ratio { num, denom })
+            (ratio in u64_ratio_lte_one()) -> FloorDiv<U64Ratio<u64, u64>> {
+                FloorDiv(ratio)
             }
     }
 
@@ -158,36 +148,20 @@ mod tests {
             }
     }
 
-    prop_compose! {
-        fn zero_num_ratio()
-            (denom in any::<u64>()) -> FloorDiv<U64Ratio<u64, u64>>
-            {
-                FloorDiv(U64Ratio { num: 0, denom })
-            }
-    }
-
-    prop_compose! {
-        fn zero_denom_ratio()
-            (num in any::<u64>()) -> FloorDiv<U64Ratio<u64, u64>>
-            {
-                FloorDiv(U64Ratio { num, denom: 0 })
-            }
-    }
-
     proptest! {
         #[test]
         fn ratio_gte_one_min_max_invariant((amt, ratio) in ratio_gte_one_amt_no_overflow()) {
             let applied = ratio.apply(amt).unwrap();
-            let U64ValueRange { min, max } = ratio.reverse(applied).unwrap();
-            prop_assert!(min <= max);
+            let r = ratio.reverse(applied).unwrap();
+            prop_assert!(r.get_min() <= r.get_max());
         }
     }
 
     proptest! {
         #[test]
         fn ratio_lte_one_min_max_invariant((amt_after_apply, ratio) in ratio_lte_one_reverse_no_overflow()) {
-            let U64ValueRange { min, max } = ratio.reverse(amt_after_apply).unwrap();
-            prop_assert!(min <= max);
+            let r = ratio.reverse(amt_after_apply).unwrap();
+            prop_assert!(r.get_min() <= r.get_max());
         }
     }
 
@@ -195,7 +169,9 @@ mod tests {
         #[test]
         fn ratio_gte_one_round_trip((amt, ratio) in ratio_gte_one_amt_no_overflow()) {
             let applied = ratio.apply(amt).unwrap();
-            let U64ValueRange { min, max } = ratio.reverse(applied).unwrap();
+            let r = ratio.reverse(applied).unwrap();
+            let min = r.get_min();
+            let max = r.get_max();
             prop_assert!(min <= max);
             prop_assert!(min == amt || min == amt - 1);
             prop_assert!(max == amt || max == amt + 1);
@@ -206,7 +182,9 @@ mod tests {
         #[test]
         fn ratio_lte_one_round_trip(amt: u64, ratio in ratio_lte_one()) {
             let applied = ratio.apply(amt).unwrap();
-            let U64ValueRange { min, max } = ratio.reverse(applied).unwrap();
+            let r = ratio.reverse(applied).unwrap();
+            let min = r.get_min();
+            let max = r.get_max();
             // will not always be eq due to floor
             prop_assert!(min <= amt);
             prop_assert!(amt <= max);
@@ -221,13 +199,31 @@ mod tests {
     proptest! {
         #[test]
         fn ratio_lte_one_reverse_round_trip((amt_after_apply, ratio) in ratio_lte_one_reverse_no_overflow()) {
-            let U64ValueRange { min, max } = ratio.reverse(amt_after_apply).unwrap();
+            let r = ratio.reverse(amt_after_apply).unwrap();
+            let min = r.get_min();
+            let max = r.get_max();
             prop_assert!(min <= max);
             let apply_min = ratio.apply(min).unwrap();
             prop_assert!(amt_after_apply == apply_min || amt_after_apply == apply_min + 1);
             let apply_max = ratio.apply(max).unwrap();
             prop_assert!(amt_after_apply == apply_max || amt_after_apply == apply_max - 1);
         }
+    }
+
+    prop_compose! {
+        fn zero_num_ratio()
+            (ratio in zero_num_u64_ratio()) -> FloorDiv<U64Ratio<u64, u64>>
+            {
+                FloorDiv(ratio)
+            }
+    }
+
+    prop_compose! {
+        fn zero_denom_ratio()
+            (ratio in zero_denom_u64_ratio()) -> FloorDiv<U64Ratio<u64, u64>>
+            {
+                FloorDiv(ratio)
+            }
     }
 
     proptest! {
@@ -269,34 +265,6 @@ mod tests {
         #[test]
         fn zero_num_zero_amt_after_apply_reverse_full_range(ratio in zero_num_ratio()) {
             prop_assert_eq!(ratio.reverse(0).unwrap(), U64ValueRange::FULL);
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn ord(common: u64, a: u64, b: u64) {
-            if a == b {
-                prop_assert_eq!(
-                    U64Ratio { num: a, denom: common },
-                    U64Ratio { num: b, denom: common }
-                );
-                prop_assert_eq!(
-                    U64Ratio { num: common, denom: a },
-                    U64Ratio { num: common, denom: b }
-                );
-            }
-            let (smaller, larger) = if a < b {
-                (a, b)
-            } else {
-                (b, a)
-            };
-            let s = U64Ratio { num: smaller, denom: common };
-            let l = U64Ratio { num: larger, denom: common };
-            prop_assert!(s < l);
-
-            let s = U64Ratio { num: common, denom: larger };
-            let l = U64Ratio { num: common, denom: smaller };
-            prop_assert!(s < l);
         }
     }
 }

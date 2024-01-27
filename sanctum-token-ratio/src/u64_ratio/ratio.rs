@@ -1,4 +1,4 @@
-use core::cmp::Ordering;
+use core::{cmp::Ordering, ops::Deref};
 
 use crate::{MathError, U64ValueRange};
 
@@ -85,12 +85,86 @@ pub trait ReversibleRatio {
     fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError>;
 }
 
-impl<T: ReversibleRatio> ReversibleRatio for &T {
+impl<Ref: Deref<Target = T>, T: ReversibleRatio + ?Sized> ReversibleRatio for Ref {
     fn apply(&self, amount: u64) -> Result<u64, MathError> {
-        (*self).apply(amount)
+        self.deref().apply(amount)
     }
 
     fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError> {
-        (*self).reverse(amt_after_apply)
+        self.deref().reverse(amt_after_apply)
+    }
+}
+
+#[cfg(all(test, feature = "std"))]
+pub(crate) mod test_utils {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    prop_compose! {
+        pub fn u64_ratio_gte_one()
+            (denom in any::<u64>())
+            (num in denom..=u64::MAX, denom in Just(denom)) -> U64Ratio<u64, u64> {
+                U64Ratio { num, denom }
+            }
+    }
+
+    prop_compose! {
+        pub fn u64_ratio_lte_one()
+            (denom in any::<u64>())
+            (num in 0..=denom, denom in Just(denom)) -> U64Ratio<u64, u64> {
+                U64Ratio { num, denom }
+            }
+    }
+
+    prop_compose! {
+        pub fn zero_num_u64_ratio()
+            (denom in any::<u64>()) -> U64Ratio<u64, u64>
+            {
+                U64Ratio { num: 0, denom }
+            }
+    }
+
+    prop_compose! {
+        pub fn zero_denom_u64_ratio()
+            (num in any::<u64>()) -> U64Ratio<u64, u64>
+            {
+                U64Ratio { num, denom: 0 }
+            }
+    }
+}
+
+#[cfg(all(test, feature = "std"))]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    proptest! {
+        #[test]
+        fn ord(common: u64, a: u64, b: u64) {
+            if a == b {
+                prop_assert_eq!(
+                    U64Ratio { num: a, denom: common },
+                    U64Ratio { num: b, denom: common }
+                );
+                prop_assert_eq!(
+                    U64Ratio { num: common, denom: a },
+                    U64Ratio { num: common, denom: b }
+                );
+            }
+            let (smaller, larger) = if a < b {
+                (a, b)
+            } else {
+                (b, a)
+            };
+            let s = U64Ratio { num: smaller, denom: common };
+            let l = U64Ratio { num: larger, denom: common };
+            prop_assert!(s < l);
+
+            let s = U64Ratio { num: common, denom: larger };
+            let l = U64Ratio { num: common, denom: smaller };
+            prop_assert!(s < l);
+        }
     }
 }

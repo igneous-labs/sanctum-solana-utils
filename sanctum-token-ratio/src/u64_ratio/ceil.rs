@@ -55,11 +55,6 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
                 Err(MathError)
             };
         }
-        // if ratio > 0, then
-        // only way ceil div results in 0 is if amt_before_apply == 0
-        if amt_after_apply == 0 {
-            return Ok(U64ValueRange::ZERO);
-        }
 
         let U64Ratio { num, denom } = self.0;
         let d: u128 = denom.into();
@@ -68,8 +63,8 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
 
         let dy = d.checked_mul(y).ok_or(MathError)?;
 
-        let d_y_minus_d = dy.checked_sub(d).ok_or(MathError)?;
-        let min: u64 = d_y_minus_d
+        let dy_minus_d = dy.checked_sub(d).ok_or(MathError)?;
+        let min: u64 = dy_minus_d
             .checked_div(n)
             .and_then(|min| min.try_into().ok())
             .ok_or(MathError)?;

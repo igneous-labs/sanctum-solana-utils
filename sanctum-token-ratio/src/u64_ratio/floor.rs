@@ -1,7 +1,7 @@
 use crate::{utils::CheckedCeilDiv, FloorDiv, MathError, ReversibleRatio, U64Ratio, U64ValueRange};
 
 impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U64Ratio<N, D>> {
-    /// Returns amt * num // denom.
+    /// Returns `floor(amt * num / denom)`
     ///
     /// Returns 0 if denominator == 0
     fn apply(&self, amount: u64) -> Result<u64, MathError> {
@@ -22,9 +22,9 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U6
     /// to get `amt_after_apply`
     ///
     /// # Returns
-    /// - `U64ValueRange::full()` if denom == 0 || num == 0 and amt_after_apply == 0
+    /// - [`U64ValueRange::FULL`] if denom == 0 || num == 0 and amt_after_apply == 0
     /// - min exclusive, rounds down if dy is not divisible by n. Else min inclusive.
-    /// - max is always exclusive. Rounds up if d(y + 1) is not divisible by n
+    /// - max is always exclusive. Rounds up if dy + d is not divisible by n
     ///
     /// Range outputs are capped to u64 range (saturating_add/sub)
     ///

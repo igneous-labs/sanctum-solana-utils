@@ -22,7 +22,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
     /// to get `amt_after_apply`
     ///
     /// # Returns
-    /// - `U64ValueRange::full()` if denom == 0 || num == 0 and amt_after_apply == 0
+    /// - [`U64ValueRange::FULL`] if denom == 0 || num == 0 and amt_after_apply == 0
     /// - min exclusive, rounds down if dy is not divisible by n. Else min inclusive.
     /// - max is always exclusive. Rounds up if dy is not divisible by n
     ///

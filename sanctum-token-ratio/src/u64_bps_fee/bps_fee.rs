@@ -10,7 +10,9 @@ use crate::{FeeRatio, MathError, U64FeeRatio, U64Ratio, BPS_DENOMINATOR};
 /// Fields are private to guarantee this invariant
 ///
 /// Must use with [`crate::CeilDiv`] or [`crate::FloorDiv`]
-/// which determines how `/ fee_denom` is performed
+/// which determines how `/ fee_denom` is performed.
+///
+/// Works the same way as [`U64FeeRatio`], with `fee_denom` set to [`BPS_DENOMINATOR`]
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

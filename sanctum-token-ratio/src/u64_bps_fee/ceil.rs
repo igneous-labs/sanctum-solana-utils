@@ -1,14 +1,17 @@
 use crate::{AmtsAfterFee, CeilDiv, MathError, ReversibleFee, U64BpsFee, U64ValueRange};
 
 impl ReversibleFee for CeilDiv<U64BpsFee> {
+    #[inline]
     fn apply(&self, amt_before_fee: u64) -> Result<AmtsAfterFee, MathError> {
         CeilDiv(self.0.try_to_u64_fee_ratio()?).apply(amt_before_fee)
     }
 
+    #[inline]
     fn reverse_from_amt_after_fee(&self, amt_after_fee: u64) -> Result<U64ValueRange, MathError> {
         CeilDiv(self.0.try_to_u64_fee_ratio()?).reverse_from_amt_after_fee(amt_after_fee)
     }
 
+    #[inline]
     fn reverse_from_fee_charged(&self, fee_charged: u64) -> Result<U64ValueRange, MathError> {
         CeilDiv(self.0.try_to_u64_fee_ratio()?).reverse_from_fee_charged(fee_charged)
     }

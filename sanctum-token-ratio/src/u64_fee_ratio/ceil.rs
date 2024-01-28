@@ -19,9 +19,9 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for CeilDiv<U64Fe
     /// Returns a possible amount that was fed into self.apply()
     ///
     /// # Returns:
-    /// - `U64ValueRange::single(amt_after_fee)` if fee_num == 0 || fee_denom == 0 (zero fees)
-    /// - `U64ValueRange::full()` if fee_num == fee_denom (fee = 100%) and amt_after_fee == 0
-    /// - `U64ValueRange::zero()` if fee != 100% and fee != 0 and amt_after_fee = 0
+    /// - [`U64ValueRange::single(amt_after_fee)`] if fee_num == 0 || fee_denom == 0 (zero fees)
+    /// - [`U64ValueRange::FULL`] if fee_num == fee_denom (fee = 100%) and amt_after_fee == 0
+    /// - [`U64ValueRange::ZERO`] if fee != 100% and fee != 0 and amt_after_fee = 0
     ///
     /// # Errors
     /// - if fee_num > fee_denom (fee > 100%)
@@ -57,7 +57,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleFee for CeilDiv<U64Fe
     /// Returns a possible amount that was fed into self.apply().
     ///
     /// # Returns:
-    /// - `U64ValueRange::full()` if zero fee and fee_charged == 0
+    /// - [`U64ValueRange::FULL`] if zero fee and fee_charged == 0
     /// - `fee_charged` if fee_num == fee_denom (fee == 100%)
     ///
     /// # Errors:

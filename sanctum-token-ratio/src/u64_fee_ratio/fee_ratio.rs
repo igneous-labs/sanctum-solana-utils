@@ -2,6 +2,11 @@ use core::cmp::Ordering;
 
 use crate::{FeeRatio, MathError, U64Ratio};
 
+// Cannot derive Hash because to ensure
+// `k1 == k2 -> hash(k1) == hash(k2)`
+// invariant is not violated, we need to hash the fraction's lowest form
+// https://doc.rust-lang.org/std/hash/trait.Hash.html#hash-and-eq
+
 /// A fee ratio applied directly to a token amount.
 /// A zero `fee_denom` is treated as a 0.
 ///
@@ -14,7 +19,7 @@ use crate::{FeeRatio, MathError, U64Ratio};
 ///
 /// Must use with [`crate::CeilDiv`] or [`crate::FloorDiv`]
 /// which determines how `/ fee_denom` is performed
-#[derive(Debug, Copy, Clone, Default, Hash)]
+#[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "borsh",

@@ -1,10 +1,15 @@
 use core::cmp::Ordering;
 
+// Cannot derive Hash because to ensure
+// `k1 == k2 -> hash(k1) == hash(k2)`
+// invariant is not violated, we need to hash the fraction's lowest form
+// https://doc.rust-lang.org/std/hash/trait.Hash.html#hash-and-eq
+
 /// A ratio that is applied to a u64 token amount.
 /// A zero `denom` is treated as 0.
 ///
 /// Must use with [`crate::CeilDiv`] or [`crate::FloorDiv`]
-#[derive(Debug, Copy, Clone, Default, Hash)]
+#[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "borsh",

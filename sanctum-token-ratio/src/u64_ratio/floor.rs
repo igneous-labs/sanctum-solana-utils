@@ -45,6 +45,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U6
     /// RHS (max):
     /// nx < d(y+1)
     /// x < d(y+1) / n
+    /// x < (dy + d) / n
     /// ```
     fn reverse(&self, amt_after_apply: u64) -> Result<U64ValueRange, MathError> {
         if self.0.is_zero() {
@@ -59,17 +60,15 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U6
         let n: u128 = num.into();
         let y: u128 = amt_after_apply.into();
 
-        let dy = y.checked_mul(d).ok_or(MathError)?;
+        let dy = d.checked_mul(y).ok_or(MathError)?;
+
         let min: u64 = dy
             .checked_div(n)
             .and_then(|min| min.try_into().ok())
             .ok_or(MathError)?;
 
-        let d_y_plus_1 = y
-            .checked_add(1)
-            .and_then(|y_plus_1| y_plus_1.checked_mul(d))
-            .ok_or(MathError)?;
-        let max: u64 = d_y_plus_1
+        let dy_plus_d = dy.checked_add(d).ok_or(MathError)?;
+        let max: u64 = dy_plus_d
             .checked_ceil_div(n)
             .and_then(|max| max.try_into().ok())
             .ok_or(MathError)?;

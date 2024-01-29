@@ -32,7 +32,7 @@ impl U64BpsFee {
 
     /// Errors if `bps > BPS_DENOMINATOR`
     #[inline]
-    pub const fn new(bps: u16) -> Result<Self, MathError> {
+    pub const fn try_new(bps: u16) -> Result<Self, MathError> {
         if bps > BPS_DENOMINATOR {
             Err(MathError)
         } else {
@@ -43,7 +43,7 @@ impl U64BpsFee {
     /// Panics if `bps > BPS_DENOMINATOR`
     #[inline]
     pub const fn new_unchecked(bps: u16) -> Self {
-        match Self::new(bps) {
+        match Self::try_new(bps) {
             Ok(s) => s,
             Err(_e) => panic!("bps > 10_000"),
         }

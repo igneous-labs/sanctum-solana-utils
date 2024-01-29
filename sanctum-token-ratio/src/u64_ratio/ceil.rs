@@ -25,6 +25,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
     /// - [`U64ValueRange::FULL`] if denom == 0 || num == 0 and amt_after_apply == 0
     /// - min exclusive, rounds down if dy is not divisible by n. Else min inclusive.
     /// - max is always exclusive. Rounds up if dy is not divisible by n
+    /// - [`U64ValueRange::ZERO`] if amt_after_apply == 0
     ///
     /// Range outputs are capped to u64 range (saturating_add/sub)
     ///
@@ -55,6 +56,11 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
                 Err(MathError)
             };
         }
+        // only way to get 0 after ceil div by a non-zero ratio is if input was 0.
+        // early return ensures dy - d below does not overflow
+        if amt_after_apply == 0 {
+            return Ok(U64ValueRange::ZERO);
+        }
 
         let U64Ratio { num, denom } = self.0;
         let d: u128 = denom.into();
@@ -76,7 +82,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for CeilDiv<U64
 
         // min should always <= max since
         // y_minus_1 < y
-        U64ValueRange::from_min_max(min, max)
+        U64ValueRange::try_from_min_max(min, max)
     }
 }
 
@@ -250,6 +256,13 @@ mod tests {
         #[test]
         fn zero_num_zero_amt_after_apply_reverse_full_range(ratio in zero_num_ratio()) {
             prop_assert_eq!(ratio.reverse(0).unwrap(), U64ValueRange::FULL);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn reverse_zero_is_zero(ratio in nonzero_u64_ratio()) {
+            prop_assert_eq!(CeilDiv(ratio).reverse(0).unwrap(), U64ValueRange::ZERO);
         }
     }
 }

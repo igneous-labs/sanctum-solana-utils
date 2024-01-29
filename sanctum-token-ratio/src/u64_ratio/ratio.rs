@@ -107,6 +107,13 @@ pub(crate) mod ratio_test_utils {
     }
 
     prop_compose! {
+        pub fn nonzero_u64_ratio()
+            (num in 1..=u64::MAX, denom in 1..=u64::MAX) -> U64Ratio<u64, u64> {
+                U64Ratio { num, denom }
+            }
+    }
+
+    prop_compose! {
         pub fn zero_num_u64_ratio()
             (denom in any::<u64>()) -> U64Ratio<u64, u64>
             {

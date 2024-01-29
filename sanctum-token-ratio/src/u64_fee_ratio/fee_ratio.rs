@@ -32,7 +32,11 @@ pub struct U64FeeRatio<N, D> {
 
 impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeRatio<N, D> {
     pub fn try_from_fee_num_and_denom(fee_num: N, fee_denom: D) -> Result<Self, MathError> {
-        if fee_num.into() > fee_denom.into() {
+        let n = fee_num.into();
+        let d = fee_denom.into();
+        if n == 0 || d == 0 {
+            Ok(Self { fee_num, fee_denom })
+        } else if n > d {
             Err(MathError)
         } else {
             Ok(Self { fee_num, fee_denom })

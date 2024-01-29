@@ -6,7 +6,6 @@ mod typedefs;
 mod u64_bps_fee;
 mod u64_fee_ratio;
 mod u64_ratio;
-mod utils;
 
 pub use err::*;
 pub use traits::*;
@@ -15,4 +14,5 @@ pub use u64_bps_fee::*;
 pub use u64_fee_ratio::*;
 pub use u64_ratio::*;
 
-pub const BPS_DENOMINATOR: u16 = 10_000;
+// private
+mod utils;

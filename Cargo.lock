@@ -3423,9 +3423,9 @@ dependencies = [
 
 [[package]]
 name = "sanctum-token-ratio"
-version = "1.0.0"
+version = "0.2.0"
 dependencies = [
- "borsh 0.10.3",
+ "borsh 0.9.3",
  "num-traits",
  "proptest",
  "serde",

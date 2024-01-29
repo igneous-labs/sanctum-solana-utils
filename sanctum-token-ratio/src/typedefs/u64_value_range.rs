@@ -43,7 +43,7 @@ impl U64ValueRange {
 
     /// Errors if min > max
     #[inline]
-    pub const fn from_min_max(min: u64, max: u64) -> Result<Self, MathError> {
+    pub const fn try_from_min_max(min: u64, max: u64) -> Result<Self, MathError> {
         if min > max {
             Err(MathError)
         } else {
@@ -55,7 +55,7 @@ impl U64ValueRange {
     #[inline]
     pub const fn from_min_max_unchecked(min: u64, max: u64) -> Self {
         // cannot unwrap() in const fn, but can match with panic! static msg
-        match Self::from_min_max(min, max) {
+        match Self::try_from_min_max(min, max) {
             Ok(r) => r,
             Err(_e) => panic!("min > max"),
         }

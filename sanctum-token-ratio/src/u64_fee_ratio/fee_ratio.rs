@@ -31,6 +31,7 @@ pub struct U64FeeRatio<N, D> {
 }
 
 impl<N: Copy + Into<u128>, D: Copy + Into<u128>> U64FeeRatio<N, D> {
+    // cant make this const bec .into() isnt const
     pub fn try_from_fee_num_and_denom(fee_num: N, fee_denom: D) -> Result<Self, MathError> {
         Self { fee_num, fee_denom }.validate()
     }

@@ -75,7 +75,7 @@ impl<N: Copy + Into<u128>, D: Copy + Into<u128>> ReversibleRatio for FloorDiv<U6
 
         // min should always <= max since
         // y_plus_1 > y
-        U64ValueRange::from_min_max(min, max)
+        U64ValueRange::try_from_min_max(min, max)
     }
 }
 

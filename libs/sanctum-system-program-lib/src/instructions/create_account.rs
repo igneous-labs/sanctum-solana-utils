@@ -1,67 +1,64 @@
-use solana_program::{
-    entrypoint::ProgramResult, instruction::Instruction, program_error::ProgramError,
-    pubkey::Pubkey, rent::Rent,
-};
+use solana_program::{entrypoint::ProgramResult, pubkey::Pubkey};
 use system_program_interface::{
-    create_account_invoke, create_account_invoke_signed, create_account_ix, CreateAccountAccounts,
-    CreateAccountIxArgs, CreateAccountKeys,
+    allocate_invoke, allocate_invoke_signed, assign_invoke, assign_invoke_signed, transfer_invoke,
+    transfer_invoke_signed, AllocateAccounts, AllocateIxArgs, AssignAccounts, AssignIxArgs,
+    CreateAccountAccounts, TransferAccounts, TransferIxArgs,
 };
 
 use crate::{onchain_rent_exempt_lamports_for, space_to_u64};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct CreateRentExemptAccountArgs {
+pub struct InitRentExemptAccountArgs {
     pub space: usize,
     pub owner: Pubkey,
 }
 
-pub fn create_rent_exempt_account_ix(
-    keys: CreateAccountKeys,
-    CreateRentExemptAccountArgs { space, owner }: CreateRentExemptAccountArgs,
-    rent: Rent,
-) -> Result<Instruction, ProgramError> {
-    let lamports = rent.minimum_balance(space);
-    let space = space_to_u64(space)?;
-    Ok(create_account_ix(
-        keys,
-        CreateAccountIxArgs {
-            lamports,
-            space,
-            owner,
-        },
-    ))
-}
-
-pub fn create_rent_exempt_account_invoke(
-    accounts: CreateAccountAccounts,
-    CreateRentExemptAccountArgs { space, owner }: CreateRentExemptAccountArgs,
+/// Allocates + assign + transfer required rent exempt lamports to a new account.
+///
+/// Does not use the CreateAccount ix since that fails if the account already has some lamports in it.
+pub fn init_rent_exempt_account_invoke(
+    CreateAccountAccounts { from, to }: CreateAccountAccounts,
+    InitRentExemptAccountArgs { space, owner }: InitRentExemptAccountArgs,
 ) -> ProgramResult {
-    let lamports = onchain_rent_exempt_lamports_for(space)?;
+    let required_lamports = onchain_rent_exempt_lamports_for(space)?.saturating_sub(to.lamports());
     let space = space_to_u64(space)?;
-    create_account_invoke(
-        accounts,
-        CreateAccountIxArgs {
-            lamports,
-            space,
-            owner,
-        },
-    )
+    allocate_invoke(AllocateAccounts { allocate: to }, AllocateIxArgs { space })?;
+    assign_invoke(AssignAccounts { assign: to }, AssignIxArgs { owner })?;
+    if required_lamports > 0 {
+        transfer_invoke(
+            TransferAccounts { from, to },
+            TransferIxArgs {
+                lamports: required_lamports,
+            },
+        )?;
+    }
+    Ok(())
 }
 
-pub fn create_rent_exempt_account_invoke_signed(
-    accounts: CreateAccountAccounts,
-    CreateRentExemptAccountArgs { space, owner }: CreateRentExemptAccountArgs,
+/// Allocates + assign + transfer required rent exempt lamports to a new account.
+///
+/// Does not use the CreateAccount ix since that fails if the account already has some lamports in it.
+pub fn init_rent_exempt_account_invoke_signed(
+    CreateAccountAccounts { from, to }: CreateAccountAccounts,
+    InitRentExemptAccountArgs { space, owner }: InitRentExemptAccountArgs,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let lamports = onchain_rent_exempt_lamports_for(space)?;
+    let required_lamports = onchain_rent_exempt_lamports_for(space)?.saturating_sub(to.lamports());
     let space = space_to_u64(space)?;
-    create_account_invoke_signed(
-        accounts,
-        CreateAccountIxArgs {
-            lamports,
-            space,
-            owner,
-        },
+    allocate_invoke_signed(
+        AllocateAccounts { allocate: to },
+        AllocateIxArgs { space },
         seeds,
-    )
+    )?;
+    assign_invoke_signed(AssignAccounts { assign: to }, AssignIxArgs { owner }, seeds)?;
+    if required_lamports > 0 {
+        transfer_invoke_signed(
+            TransferAccounts { from, to },
+            TransferIxArgs {
+                lamports: required_lamports,
+            },
+            seeds,
+        )?;
+    }
+    Ok(())
 }

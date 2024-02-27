@@ -1,14 +1,11 @@
-//! TODO: switch to StakeStateV2 for solana-program >= 1.17
-#![allow(deprecated)]
-
 use borsh::BorshSerialize;
 use solana_program::{
     pubkey::Pubkey,
-    stake::state::{Authorized, Delegation, Lockup, Meta, Stake, StakeState},
+    stake::state::{Authorized, Delegation, Lockup, Meta, Stake, StakeStateV2},
     stake_history::Epoch,
 };
 use solana_readonly_account::sdk::KeyedAccount;
-use solana_sdk::account::Account;
+use solana_sdk::{account::Account, stake::stake_flags::StakeFlags};
 
 use crate::{est_rent_exempt_lamports, ExtendedProgramTest, IntoAccount};
 
@@ -17,7 +14,7 @@ pub mod proptest_utils;
 
 #[derive(Clone, Copy, Debug)]
 pub struct StakeStateAndLamports {
-    pub stake_state: StakeState,
+    pub stake_state: StakeStateV2,
     /// staked amount ~ total_lamports - stake_state.meta.rent_exempt_reserve
     pub total_lamports: u64,
 }
@@ -113,8 +110,8 @@ impl<T: ExtendedProgramTest> StakeProgramTest for T {
         self.add_stake_account(
             addr,
             StakeStateAndLamports {
-                stake_state: StakeState::Initialized(Meta {
-                    rent_exempt_reserve: est_rent_exempt_lamports(StakeState::size_of()),
+                stake_state: StakeStateV2::Initialized(Meta {
+                    rent_exempt_reserve: est_rent_exempt_lamports(StakeStateV2::size_of()),
                     authorized,
                     lockup: Default::default(),
                 }),
@@ -136,8 +133,8 @@ impl<T: ExtendedProgramTest> StakeProgramTest for T {
             credits_observed,
         }: LiveStakeAccountParams,
     ) -> Self {
-        let rent_exempt_reserve = est_rent_exempt_lamports(StakeState::size_of());
-        let stake_state = StakeState::Stake(
+        let rent_exempt_reserve = est_rent_exempt_lamports(StakeStateV2::size_of());
+        let stake_state = StakeStateV2::Stake(
             Meta {
                 rent_exempt_reserve,
                 authorized,
@@ -153,6 +150,7 @@ impl<T: ExtendedProgramTest> StakeProgramTest for T {
                 },
                 credits_observed,
             },
+            StakeFlags::empty(),
         );
         self.add_stake_account(
             addr,
@@ -175,7 +173,7 @@ impl<T: ExtendedProgramTest> StakeProgramTest for T {
 impl IntoAccount for StakeStateAndLamports {
     fn into_account(self) -> Account {
         // The BorshDeserialize impl expects exactly 200 bytes
-        let mut data = vec![0u8; StakeState::size_of()];
+        let mut data = vec![0u8; StakeStateV2::size_of()];
         self.stake_state
             .serialize(&mut data.as_mut_slice())
             .unwrap();

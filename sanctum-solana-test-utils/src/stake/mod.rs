@@ -1,4 +1,5 @@
 //! TODO: switch to StakeStateV2 for solana-program >= 1.17
+#![allow(deprecated)]
 
 use borsh::BorshSerialize;
 use solana_program::{

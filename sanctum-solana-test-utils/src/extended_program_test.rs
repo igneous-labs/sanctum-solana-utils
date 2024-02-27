@@ -1,8 +1,7 @@
 use std::{io::Write, path::Path};
 
-use chrono_humanize::{Accuracy, HumanTime, Tense};
 use solana_program::{pubkey::Pubkey, system_program};
-use solana_program_test::{find_file, read_file, ProgramTest};
+use solana_program_test::ProgramTest;
 use solana_readonly_account::sdk::KeyedAccount;
 use solana_sdk::{
     account::Account,
@@ -10,9 +9,9 @@ use solana_sdk::{
     rent::Rent,
 };
 
-use crate::{test_fixtures_dir, KeyedUiAccount};
+use crate::{load_program_so, test_fixtures_dir, KeyedUiAccount};
 
-/// For nice method syntax on `ProgramTest`
+/// For nice method syntax on [`ProgramTest`]
 pub trait ExtendedProgramTest {
     fn add_account_chained(self, address: Pubkey, account: Account) -> Self;
     fn add_keyed_account(self, keyed_account: KeyedAccount) -> Self;
@@ -79,36 +78,9 @@ impl ExtendedProgramTest for ProgramTest {
         upgrade_auth_addr: Option<Pubkey>,
         last_upgrade_slot: u64,
     ) -> Self {
-        let so_file = format!("{program_name}.so");
-        let program_file = find_file(&so_file).unwrap_or_else(|| {
-            panic!("Program file data not available for {program_name} ({program_id})")
-        });
-        let so_prog_data = read_file(&program_file);
         let (prog_data_addr, _bump) =
             Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
-
-        // Copied from:
-        // https://docs.rs/solana-program-test/latest/src/solana_program_test/lib.rs.html#630-650
-        log::info!(
-            "\"{}\" SBF program from {}{}",
-            program_name,
-            program_file.display(),
-            std::fs::metadata(&program_file)
-                .map(|metadata| {
-                    metadata
-                        .modified()
-                        .map(|time| {
-                            format!(
-                                ", modified {}",
-                                HumanTime::from(time).to_text_en(Accuracy::Precise, Tense::Past)
-                            )
-                        })
-                        .ok()
-                })
-                .ok()
-                .flatten()
-                .unwrap_or_default()
-        );
+        let so_prog_data = load_program_so(program_name);
 
         // add program account
         let mut prog_acc_data = Vec::with_capacity(UpgradeableLoaderState::size_of_program());

@@ -458,6 +458,8 @@ fn deser_f64_le_unchecked<D: ReadonlyAccountData>(d: D, offset: usize) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    #![allow(deprecated)] // TODO: remove once we move from StakeState to StakeStateV2
+
     use borsh::{BorshDeserialize, BorshSerialize};
     use proptest::prelude::*;
     use sanctum_solana_test_utils::{proptest_utils::clock, stake::proptest_utils::stake_state};

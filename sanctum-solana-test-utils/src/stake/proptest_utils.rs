@@ -1,4 +1,5 @@
 use proptest::{prelude::*, strategy::Union};
+#[allow(deprecated)] // TODO: remove once we move from StakeState to StakeStateV2
 use solana_program::stake::state::{Authorized, Delegation, Lockup, Meta, Stake, StakeState};
 
 use crate::proptest_utils::pubkey;

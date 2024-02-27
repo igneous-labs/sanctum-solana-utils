@@ -6,13 +6,12 @@ use solana_sdk::{
     account::{Account, ReadableAccount},
     bpf_loader_upgradeable::{self, UpgradeableLoaderState},
     pubkey::Pubkey,
-    rent::Rent,
     signature::Keypair,
     signer::Signer,
     transaction::Transaction,
 };
 
-use crate::{load_program_so, ExtendedBanksClient};
+use crate::{default_rent_exempt_lamports, load_program_so, ExtendedBanksClient};
 
 /// Payer should have enough SOL for 2 transactions
 #[derive(Debug, Copy, Clone)]
@@ -75,7 +74,7 @@ impl ExtendedProgramTestContext for ProgramTestContext {
         self.set_account(
             &buffer_addr,
             &Account {
-                lamports: Rent::default().minimum_balance(buffer_acc_data.len()),
+                lamports: default_rent_exempt_lamports(buffer_acc_data.len()),
                 data: buffer_acc_data,
                 owner: bpf_loader_upgradeable::ID,
                 executable: false,

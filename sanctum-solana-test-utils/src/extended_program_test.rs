@@ -6,10 +6,9 @@ use solana_readonly_account::sdk::KeyedAccount;
 use solana_sdk::{
     account::Account,
     bpf_loader_upgradeable::{self, UpgradeableLoaderState},
-    rent::Rent,
 };
 
-use crate::{load_program_so, test_fixtures_dir, KeyedUiAccount};
+use crate::{default_rent_exempt_lamports, load_program_so, test_fixtures_dir, KeyedUiAccount};
 
 /// For nice method syntax on [`ProgramTest`]
 pub trait ExtendedProgramTest {
@@ -89,8 +88,7 @@ impl ExtendedProgramTest for ProgramTest {
         self.add_account(
             program_id,
             Account {
-                lamports: Rent::default()
-                    .minimum_balance(UpgradeableLoaderState::size_of_program()),
+                lamports: default_rent_exempt_lamports(UpgradeableLoaderState::size_of_program()),
                 data: prog_acc_data,
                 owner: bpf_loader_upgradeable::ID,
                 executable: true,
@@ -119,7 +117,7 @@ impl ExtendedProgramTest for ProgramTest {
         self.add_account(
             prog_data_addr,
             Account {
-                lamports: Rent::default().minimum_balance(prog_data_acc_data.len()),
+                lamports: default_rent_exempt_lamports(prog_data_acc_data.len()),
                 data: prog_data_acc_data,
                 owner: bpf_loader_upgradeable::ID,
                 executable: false,

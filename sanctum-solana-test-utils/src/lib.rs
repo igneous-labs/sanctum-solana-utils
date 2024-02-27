@@ -1,6 +1,7 @@
 mod consts;
 mod extended_banks_client;
 mod extended_program_test;
+mod extended_program_test_context;
 mod into_account;
 mod keyed_ui_account;
 mod paths;
@@ -9,6 +10,7 @@ mod tx;
 pub use consts::*;
 pub use extended_banks_client::*;
 pub use extended_program_test::*;
+pub use extended_program_test_context::*;
 pub use into_account::*;
 pub use keyed_ui_account::*;
 pub use paths::*;

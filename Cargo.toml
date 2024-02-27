@@ -18,11 +18,13 @@ license = "MIT OR Apache-2.0"
 async-trait = ">=0.1"
 bincode = "^1"
 borsh = { version = ">=0.9", default-features = false } # no default-features for no_std support
+chrono-humanize = "^0.2"
 clap = ">=3"
 data-encoding = "^2"
 http-body-util = "^0.1"
 hyper = "^1" # not compatible with reqwest version pulled in by solana
 hyper-util = "^0.1"
+log = "^0.4"
 num-derive = ">=0.1"
 num-traits = ">=0.1"
 proptest = "^1"

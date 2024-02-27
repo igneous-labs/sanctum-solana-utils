@@ -1,5 +1,6 @@
 use proptest::{prelude::*, strategy::Union};
-use solana_program::stake::state::{Authorized, Delegation, Lockup, Meta, Stake, StakeState};
+use solana_program::stake::state::{Authorized, Delegation, Lockup, Meta, Stake, StakeStateV2};
+use solana_sdk::stake::stake_flags::StakeFlags;
 
 use crate::proptest_utils::pubkey;
 
@@ -25,7 +26,7 @@ prop_compose! {
 }
 
 prop_compose! {
-    #[allow(deprecated)]
+    #[allow(deprecated)] // for warmup_cooldown_rate
     pub fn delegation()
         (voter_pubkey in pubkey(), stake: u64, activation_epoch: u64, deactivation_epoch: u64, warmup_cooldown_rate: f64) -> Delegation {
             Delegation { voter_pubkey, stake, activation_epoch, deactivation_epoch, warmup_cooldown_rate }
@@ -58,14 +59,13 @@ fn stake_state_marker() -> impl Strategy<Value = StakeStateMarker> {
 
 // TODO: StakeStateV2 for 1.17
 prop_compose! {
-    #[allow(deprecated)]
     pub fn stake_state()
-        (marker in stake_state_marker(), meta in meta(), stake in stake()) -> StakeState {
+        (marker in stake_state_marker(), meta in meta(), stake in stake()) -> StakeStateV2 {
             match marker {
-                StakeStateMarker::Uninitialized => StakeState::Uninitialized,
-                StakeStateMarker::Initialized => StakeState::Initialized(meta),
-                StakeStateMarker::Stake => StakeState::Stake(meta, stake),
-                StakeStateMarker::RewardsPool => StakeState::RewardsPool,
+                StakeStateMarker::Uninitialized => StakeStateV2::Uninitialized,
+                StakeStateMarker::Initialized => StakeStateV2::Initialized(meta),
+                StakeStateMarker::Stake => StakeStateV2::Stake(meta, stake, StakeFlags::empty()),
+                StakeStateMarker::RewardsPool => StakeStateV2::RewardsPool,
             }
         }
 }

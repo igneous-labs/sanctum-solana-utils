@@ -318,8 +318,8 @@ impl<T: ReadonlyAccountData> StakeStakeAccount<T> {
         }
     }
 
-    #[allow(deprecated)]
     pub fn stake_stake_delegation(&self) -> Delegation {
+        #[allow(deprecated)] // for warmup_cooldown_rate
         Delegation {
             voter_pubkey: self.stake_stake_delegation_voter_pubkey(),
             stake: self.stake_stake_delegation_stake(),
@@ -461,7 +461,7 @@ mod tests {
     use borsh::{BorshDeserialize, BorshSerialize};
     use proptest::prelude::*;
     use sanctum_solana_test_utils::{proptest_utils::clock, stake::proptest_utils::stake_state};
-    use solana_program::stake::state::StakeState;
+    use solana_program::stake::state::StakeStateV2;
 
     use super::*;
 
@@ -485,7 +485,7 @@ mod tests {
         #[test]
         fn stake_readonly_matches_full_deser_invalid(data: [u8; STAKE_ACCOUNT_LEN]) {
             let account = ReadonlyStakeAccount(AccountData(&data));
-            let unpack_res = StakeState::deserialize(&mut data.as_ref());
+            let unpack_res = StakeStateV2::deserialize(&mut data.as_ref());
             if !account.stake_data_is_valid() {
                 prop_assert!(unpack_res.is_err());
             }
@@ -535,10 +535,9 @@ mod tests {
     }
 
     proptest! {
-        #[allow(deprecated)]
         #[test]
         fn stake_readonly_matches_full_deser_valid(stake_state in stake_state(), clock in clock()) {
-            let mut data = vec![0u8; StakeState::size_of()];
+            let mut data = vec![0u8; StakeStateV2::size_of()];
             stake_state
                 .serialize(&mut data.as_mut_slice())
                 .unwrap();
@@ -546,9 +545,9 @@ mod tests {
             prop_assert!(account.stake_data_is_valid());
             let account = account.try_into_valid().unwrap();
             match stake_state {
-                StakeState::Uninitialized => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::Uninitialized),
-                StakeState::Initialized(meta) => assert_meta_eq(&account.try_into_stake_or_initialized().unwrap(), &meta, &clock).unwrap(),
-                StakeState::Stake(meta, stake) => {
+                StakeStateV2::Uninitialized => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::Uninitialized),
+                StakeStateV2::Initialized(meta) => assert_meta_eq(&account.try_into_stake_or_initialized().unwrap(), &meta, &clock).unwrap(),
+                StakeStateV2::Stake(meta, stake, _flags) => {
                     let account = account.try_into_stake_or_initialized().unwrap();
                     assert_meta_eq(&account, &meta, &clock).unwrap();
                     let account = account.try_into_stake().unwrap();
@@ -559,16 +558,12 @@ mod tests {
                     prop_assert_eq!(account.stake_stake_delegation_stake(), stake.delegation.stake);
                     prop_assert_eq!(account.stake_stake_delegation_activation_epoch(), stake.delegation.activation_epoch);
                     prop_assert_eq!(account.stake_stake_delegation_deactivation_epoch(), stake.delegation.deactivation_epoch);
-                    prop_assert_eq!(
-                        account.stake_stake_delegation_warmup_cooldown_rate_deprecated(),
-                        stake.delegation.warmup_cooldown_rate
-                    );
 
                     prop_assert_eq!(account.stake_stake_credits_observed(), stake.credits_observed);
 
                     prop_assert_eq!(account.stake_is_bootstrap(), stake.delegation.is_bootstrap());
                 },
-                StakeState::RewardsPool => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::RewardsPool),
+                StakeStateV2::RewardsPool => prop_assert_eq!(account.stake_state_marker(), StakeStateMarker::RewardsPool),
             }
         }
     }

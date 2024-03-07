@@ -64,7 +64,7 @@ fn get_compute_budget_ixs_with_rpc_prio_fees(
     ))
 }
 
-pub fn get_slot_weighted_mean_compute_budget_ixs(
+pub fn get_slot_weighted_median_compute_budget_ixs(
     client: RpcClient,
     addresses: &[Pubkey],
     unit_limit: u32,
@@ -73,7 +73,7 @@ pub fn get_slot_weighted_mean_compute_budget_ixs(
     get_compute_budget_ixs_with_rpc_prio_fees(&rpc_prio_fees, unit_limit)
 }
 
-pub async fn get_slot_weighted_mean_compute_budget_ixs_nonblocking(
+pub async fn get_slot_weighted_median_compute_budget_ixs_nonblocking(
     client: NonblockingRpcClient,
     addresses: &[Pubkey],
     unit_limit: u32,
@@ -93,7 +93,7 @@ mod tests {
             solana_sdk::commitment_config::CommitmentConfig::processed(),
         );
 
-        let res = get_slot_weighted_mean_compute_budget_ixs(rpc, &[], 1000).unwrap();
+        let res = get_slot_weighted_median_compute_budget_ixs(rpc, &[], 1000).unwrap();
         println!("priority ixs: {:?}", res);
     }
 }

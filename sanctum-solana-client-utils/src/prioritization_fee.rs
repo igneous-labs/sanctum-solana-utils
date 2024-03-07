@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use medians::Medianf64;
 
 use solana_client::nonblocking::rpc_client::RpcClient as NonblockingRpcClient;
@@ -18,7 +20,7 @@ fn get_compute_budget_ixs(unit_limit: u32, unit_price_micro_lamports: u64) -> [I
     ]
 }
 
-// Assume ~150 slots of sample size
+// assumes <= `MAX_SLOT_DISPLACEMENT` slots of sample size
 fn calc_slot_weighted_median_prioritization_fees(rpc_prio_fees: &[RpcPrioritizationFee]) -> u64 {
     if rpc_prio_fees.is_empty() {
         return 0u64;
@@ -34,7 +36,7 @@ fn calc_slot_weighted_median_prioritization_fees(rpc_prio_fees: &[RpcPrioritizat
         .slot
         - MAX_SLOT_DISPLACEMENT;
 
-    let (v, w): (Vec<f64>, Vec<f64>) = rpc_prio_fees
+    let (values, weights): (Vec<f64>, Vec<f64>) = rpc_prio_fees
         .iter()
         .filter_map(|fee| {
             if fee.prioritization_fee == 0 {
@@ -49,37 +51,63 @@ fn calc_slot_weighted_median_prioritization_fees(rpc_prio_fees: &[RpcPrioritizat
         .unzip();
 
     // Unwrap safty: the length of v and w are always the same
-    let median = v.medf_weighted(&w, WEIGHTED_MEDIAN_EPSILON).unwrap();
+    let median = values
+        .medf_weighted(&weights, WEIGHTED_MEDIAN_EPSILON)
+        .unwrap();
     median.floor() as u64
 }
 
-fn get_compute_budget_ixs_with_rpc_prio_fees(
+// /// Runs simulation and returns consumed compute unit
+// pub fn estimate_compute_unit_limit() -> u32 {
+//     todo!()
+// }
+
+/// Calculates slot weighted median prioritiziation fee and generate compute
+/// budget ixs
+///
+/// NOTE: assumes <= `MAX_SLOT_DISPLACEMENT` slots of sample size for `rpc_prio_fees`
+pub fn get_compute_budget_ixs_with_rpc_prio_fees(
     rpc_prio_fees: &[RpcPrioritizationFee],
     unit_limit: u32,
+    max_unit_price_micro_lamports: u64,
 ) -> Result<[Instruction; 2], ClientError> {
     let unit_price_micro_lamports = calc_slot_weighted_median_prioritization_fees(rpc_prio_fees);
     Ok(get_compute_budget_ixs(
         unit_limit,
-        unit_price_micro_lamports,
+        min(unit_price_micro_lamports, max_unit_price_micro_lamports),
     ))
 }
 
+/// Fetches recent prioritization fees and generate compute budget ixs by taking
+/// slot weighted median prioritization fee
 pub fn get_slot_weighted_median_compute_budget_ixs(
     client: RpcClient,
     addresses: &[Pubkey],
     unit_limit: u32,
+    max_unit_price_micro_lamports: u64,
 ) -> Result<[Instruction; 2], ClientError> {
     let rpc_prio_fees = client.get_recent_prioritization_fees(addresses)?;
-    get_compute_budget_ixs_with_rpc_prio_fees(&rpc_prio_fees, unit_limit)
+    get_compute_budget_ixs_with_rpc_prio_fees(
+        &rpc_prio_fees,
+        unit_limit,
+        max_unit_price_micro_lamports,
+    )
 }
 
+/// Fetches recent prioritization fees and generate compute budget ixs by taking
+/// slot weighted median prioritization fee (nonblocking)
 pub async fn get_slot_weighted_median_compute_budget_ixs_nonblocking(
     client: NonblockingRpcClient,
     addresses: &[Pubkey],
     unit_limit: u32,
+    max_unit_price_micro_lamports: u64,
 ) -> Result<[Instruction; 2], ClientError> {
     let rpc_prio_fees = client.get_recent_prioritization_fees(addresses).await?;
-    get_compute_budget_ixs_with_rpc_prio_fees(&rpc_prio_fees, unit_limit)
+    get_compute_budget_ixs_with_rpc_prio_fees(
+        &rpc_prio_fees,
+        unit_limit,
+        max_unit_price_micro_lamports,
+    )
 }
 
 #[cfg(test)]
@@ -93,7 +121,7 @@ mod tests {
             solana_sdk::commitment_config::CommitmentConfig::processed(),
         );
 
-        let res = get_slot_weighted_median_compute_budget_ixs(rpc, &[], 1000).unwrap();
+        let res = get_slot_weighted_median_compute_budget_ixs(rpc, &[], 200_000, 4_200).unwrap();
         println!("priority ixs: {:?}", res);
     }
 }

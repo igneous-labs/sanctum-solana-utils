@@ -7,6 +7,7 @@ members = [
     "sanctum-misc-utils",
     "sanctum-solana-cli-utils",
     "sanctum-solana-test-utils",
+    "sanctum-solana-client-utils",
     "sanctum-stored-account",
     "sanctum-token-ratio",
 ]

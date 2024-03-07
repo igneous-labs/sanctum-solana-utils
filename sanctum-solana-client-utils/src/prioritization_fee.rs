@@ -19,7 +19,7 @@ fn get_compute_budget_ixs(unit_limit: u32, unit_price_micro_lamports: u64) -> [I
 }
 
 // Assume ~150 slots of sample size
-fn get_slot_weighted_median_prioritization_fees(rpc_prio_fees: &[RpcPrioritizationFee]) -> u64 {
+fn calc_slot_weighted_median_prioritization_fees(rpc_prio_fees: &[RpcPrioritizationFee]) -> u64 {
     if rpc_prio_fees.is_empty() {
         return 0u64;
     }
@@ -46,7 +46,6 @@ fn get_slot_weighted_median_prioritization_fees(rpc_prio_fees: &[RpcPrioritizati
                 ))
             }
         })
-        .into_iter()
         .unzip();
 
     // Unwrap safty: the length of v and w are always the same
@@ -58,7 +57,7 @@ fn get_compute_budget_ixs_with_rpc_prio_fees(
     rpc_prio_fees: &[RpcPrioritizationFee],
     unit_limit: u32,
 ) -> Result<[Instruction; 2], ClientError> {
-    let unit_price_micro_lamports = get_slot_weighted_median_prioritization_fees(&rpc_prio_fees);
+    let unit_price_micro_lamports = calc_slot_weighted_median_prioritization_fees(rpc_prio_fees);
     Ok(get_compute_budget_ixs(
         unit_limit,
         unit_price_micro_lamports,

@@ -6,14 +6,18 @@ use solana_client::nonblocking::rpc_client::RpcClient as NonblockingRpcClient;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_response::RpcPrioritizationFee;
 use solana_rpc_client_api::client_error::Error as ClientError;
+use solana_rpc_client_api::config::RpcSimulateTransactionConfig;
+use solana_rpc_client_api::response::RpcSimulateTransactionResult;
 use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::instruction::Instruction;
+use solana_sdk::message::Message;
 use solana_sdk::pubkey::Pubkey;
+use solana_sdk::transaction::Transaction;
 
 const MAX_SLOT_DISPLACEMENT: u64 = 150;
 const WEIGHTED_MEDIAN_EPSILON: f64 = 0.0001;
 
-fn get_compute_budget_ixs(unit_limit: u32, unit_price_micro_lamports: u64) -> [Instruction; 2] {
+pub fn get_compute_budget_ixs(unit_limit: u32, unit_price_micro_lamports: u64) -> [Instruction; 2] {
     [
         ComputeBudgetInstruction::set_compute_unit_limit(unit_limit),
         ComputeBudgetInstruction::set_compute_unit_price(unit_price_micro_lamports),
@@ -21,7 +25,9 @@ fn get_compute_budget_ixs(unit_limit: u32, unit_price_micro_lamports: u64) -> [I
 }
 
 // assumes <= `MAX_SLOT_DISPLACEMENT` slots of sample size
-fn calc_slot_weighted_median_prioritization_fees(rpc_prio_fees: &[RpcPrioritizationFee]) -> u64 {
+pub fn calc_slot_weighted_median_prioritization_fees(
+    rpc_prio_fees: &[RpcPrioritizationFee],
+) -> u64 {
     if rpc_prio_fees.is_empty() {
         return 0u64;
     }
@@ -58,8 +64,27 @@ fn calc_slot_weighted_median_prioritization_fees(rpc_prio_fees: &[RpcPrioritizat
 }
 
 // /// Runs simulation and returns consumed compute unit
-// pub fn estimate_compute_unit_limit() -> u32 {
-//     todo!()
+// pub fn estimate_compute_unit_limit(
+//     client: RpcClient,
+//     ixs: &[Instruction],
+// ) -> Result<u64, ClientError> {
+//     let tx = Transaction::new_unsigned(Message::new(ixs, None));
+//     client
+//         .simulate_transaction_with_config(
+//             &tx,
+//             RpcSimulateTransactionConfig {
+//                 sig_verify: false,
+//                 ..Default::default()
+//             },
+//         )?
+//         .value
+//         .units_consumed
+//         .ok_or(ClientError::new_with_request(
+//             solana_rpc_client_api::client_error::ErrorKind::Custom(
+//                 "Could not retrieve consumed compute units from simulation".to_owned(),
+//             ),
+//             solana_rpc_client_api::request::RpcRequest::SimulateTransaction,
+//         ))
 // }
 
 /// Calculates slot weighted median prioritiziation fee and generate compute

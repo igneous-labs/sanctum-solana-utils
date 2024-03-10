@@ -3356,6 +3356,7 @@ dependencies = [
 name = "sanctum-solana-client-utils"
 version = "0.1.0"
 dependencies = [
+ "log",
  "medians",
  "solana-client",
  "solana-rpc-client-api",

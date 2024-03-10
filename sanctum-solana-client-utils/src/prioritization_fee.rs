@@ -29,6 +29,7 @@ pub fn calc_slot_weighted_median_prioritization_fees(
     rpc_prio_fees: &[RpcPrioritizationFee],
 ) -> u64 {
     if rpc_prio_fees.is_empty() {
+        log::warn!("Given sample for the recent prioritization fee was empty");
         return 0u64;
     }
 
@@ -60,6 +61,7 @@ pub fn calc_slot_weighted_median_prioritization_fees(
     let median = values
         .medf_weighted(&weights, WEIGHTED_MEDIAN_EPSILON)
         .unwrap();
+    log::debug!("Calculated slot weighted median for prioritization fee: {median}");
     median.floor() as u64
 }
 

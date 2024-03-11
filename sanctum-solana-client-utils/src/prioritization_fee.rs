@@ -7,7 +7,6 @@ use solana_client::{
 };
 use solana_rpc_client_api::{
     client_error::Error as ClientError, config::RpcSimulateTransactionConfig,
-    response::RpcSimulateTransactionResult,
 };
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction, instruction::Instruction, message::Message,
@@ -65,29 +64,29 @@ pub fn calc_slot_weighted_median_prioritization_fees(
     median.floor() as u64
 }
 
-// /// Runs simulation and returns consumed compute unit
-// pub fn estimate_compute_unit_limit(
-//     client: RpcClient,
-//     ixs: &[Instruction],
-// ) -> Result<u64, ClientError> {
-//     let tx = Transaction::new_unsigned(Message::new(ixs, None));
-//     client
-//         .simulate_transaction_with_config(
-//             &tx,
-//             RpcSimulateTransactionConfig {
-//                 sig_verify: false,
-//                 ..Default::default()
-//             },
-//         )?
-//         .value
-//         .units_consumed
-//         .ok_or(ClientError::new_with_request(
-//             solana_rpc_client_api::client_error::ErrorKind::Custom(
-//                 "Could not retrieve consumed compute units from simulation".to_owned(),
-//             ),
-//             solana_rpc_client_api::request::RpcRequest::SimulateTransaction,
-//         ))
-// }
+/// Runs simulation and returns consumed compute unit
+pub fn estimate_compute_unit_limit(
+    client: RpcClient,
+    ixs: &[Instruction],
+) -> Result<u64, ClientError> {
+    let tx = Transaction::new_unsigned(Message::new(ixs, None));
+    client
+        .simulate_transaction_with_config(
+            &tx,
+            RpcSimulateTransactionConfig {
+                sig_verify: false,
+                ..Default::default()
+            },
+        )?
+        .value
+        .units_consumed
+        .ok_or(ClientError::new_with_request(
+            solana_rpc_client_api::client_error::ErrorKind::Custom(
+                "Could not retrieve consumed compute units from simulation".to_owned(),
+            ),
+            solana_rpc_client_api::request::RpcRequest::SimulateTransaction,
+        ))
+}
 
 /// Calculates slot weighted median prioritiziation fee and generate compute
 /// budget ixs

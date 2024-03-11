@@ -1,18 +1,18 @@
 use std::cmp::min;
 
 use medians::Medianf64;
-
-use solana_client::nonblocking::rpc_client::RpcClient as NonblockingRpcClient;
-use solana_client::rpc_client::RpcClient;
-use solana_client::rpc_response::RpcPrioritizationFee;
-use solana_rpc_client_api::client_error::Error as ClientError;
-use solana_rpc_client_api::config::RpcSimulateTransactionConfig;
-use solana_rpc_client_api::response::RpcSimulateTransactionResult;
-use solana_sdk::compute_budget::ComputeBudgetInstruction;
-use solana_sdk::instruction::Instruction;
-use solana_sdk::message::Message;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::transaction::Transaction;
+use solana_client::{
+    nonblocking::rpc_client::RpcClient as NonblockingRpcClient, rpc_client::RpcClient,
+    rpc_response::RpcPrioritizationFee,
+};
+use solana_rpc_client_api::{
+    client_error::Error as ClientError, config::RpcSimulateTransactionConfig,
+    response::RpcSimulateTransactionResult,
+};
+use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction, instruction::Instruction, message::Message,
+    pubkey::Pubkey, transaction::Transaction,
+};
 
 const MAX_SLOT_DISPLACEMENT: u64 = 150;
 const WEIGHTED_MEDIAN_EPSILON: f64 = 0.0001;

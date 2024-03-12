@@ -2,18 +2,17 @@ use std::cmp::min;
 
 use medians::Medianf64;
 use solana_client::{
-    nonblocking::rpc_client::RpcClient as NonblockingRpcClient, rpc_client::RpcClient,
+    nonblocking::rpc_client::RpcClient as NonblockingRpcClient,
+    rpc_client::{RpcClient, SerializableTransaction},
     rpc_response::RpcPrioritizationFee,
 };
 use solana_rpc_client_api::{
     client_error::Error as ClientError, config::RpcSimulateTransactionConfig,
 };
 use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction, instruction::Instruction, message::Message,
-    pubkey::Pubkey, transaction::Transaction,
+    compute_budget::ComputeBudgetInstruction, instruction::Instruction, pubkey::Pubkey,
 };
 
-const MAX_SLOT_DISPLACEMENT: u64 = 150;
 const WEIGHTED_MEDIAN_EPSILON: f64 = 0.0001;
 
 pub fn get_compute_budget_ixs(unit_limit: u32, unit_price_micro_lamports: u64) -> [Instruction; 2] {
@@ -23,24 +22,35 @@ pub fn get_compute_budget_ixs(unit_limit: u32, unit_price_micro_lamports: u64) -
     ]
 }
 
-// assumes <= `MAX_SLOT_DISPLACEMENT` slots of sample size
+pub fn get_writable_account_keys(ixs: &[Instruction]) -> Vec<Pubkey> {
+    let mut res = ixs
+        .iter()
+        .map(|ix| {
+            ix.accounts
+                .iter()
+                .filter_map(|acc_meta| {
+                    if acc_meta.is_writable {
+                        Some(acc_meta.pubkey)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
+        .concat();
+    res.sort();
+    res.dedup();
+    res
+}
+
+// NOTE: assumes unreported slots has `prioritization_fee = 0`
 pub fn calc_slot_weighted_median_prioritization_fees(
     rpc_prio_fees: &[RpcPrioritizationFee],
-) -> u64 {
-    if rpc_prio_fees.is_empty() {
-        log::warn!("Given sample for the recent prioritization fee was empty");
-        return 0u64;
-    }
-
-    // min_slot (the most recent slot) is assumed to be max - MAX_SLOT_DISPLACEMENT
-    // NOTE: data for the slot at max - MAX_SLOT_DISPLACEMENT might be missing but we
-    // assume that it exists and the fee was 0 for that slot
-    let min_slot = rpc_prio_fees
-        .iter()
-        .max_by_key(|fee| fee.slot)
-        .unwrap()
-        .slot
-        - MAX_SLOT_DISPLACEMENT;
+) -> Option<u64> {
+    let max_slot = rpc_prio_fees.iter().max_by_key(|fee| fee.slot)?.slot;
+    let min_slot = rpc_prio_fees.iter().min_by_key(|fee| fee.slot)?.slot;
+    let slot_interval = max_slot - min_slot + 1;
 
     let (values, weights): (Vec<f64>, Vec<f64>) = rpc_prio_fees
         .iter()
@@ -50,7 +60,7 @@ pub fn calc_slot_weighted_median_prioritization_fees(
             } else {
                 Some((
                     fee.prioritization_fee as f64,
-                    (1 + fee.slot - min_slot) as f64 / MAX_SLOT_DISPLACEMENT as f64,
+                    (1 + fee.slot - min_slot) as f64 / slot_interval as f64,
                 ))
             }
         })
@@ -61,19 +71,17 @@ pub fn calc_slot_weighted_median_prioritization_fees(
         .medf_weighted(&weights, WEIGHTED_MEDIAN_EPSILON)
         .unwrap();
     log::debug!("Calculated slot weighted median for prioritization fee: {median}");
-    median.floor() as u64
+    Some(median.floor() as u64)
 }
 
-/// TODO: WIP
 /// Runs simulation and returns consumed compute unit
 pub fn estimate_compute_unit_limit(
     client: RpcClient,
-    ixs: &[Instruction],
+    tx: &impl SerializableTransaction,
 ) -> Result<u64, ClientError> {
-    let tx = Transaction::new_unsigned(Message::new(ixs, None));
     client
         .simulate_transaction_with_config(
-            &tx,
+            tx,
             RpcSimulateTransactionConfig {
                 sig_verify: false,
                 ..Default::default()
@@ -98,7 +106,13 @@ pub fn get_compute_budget_ixs_with_rpc_prio_fees(
     unit_limit: u32,
     max_unit_price_micro_lamports: u64,
 ) -> Result<[Instruction; 2], ClientError> {
-    let unit_price_micro_lamports = calc_slot_weighted_median_prioritization_fees(rpc_prio_fees);
+    let unit_price_micro_lamports = calc_slot_weighted_median_prioritization_fees(rpc_prio_fees)
+        .ok_or(ClientError::new_with_request(
+            solana_rpc_client_api::client_error::ErrorKind::Custom(
+                "Could not retrieve samples for prioritization fees".to_owned(),
+            ),
+            solana_rpc_client_api::request::RpcRequest::GetRecentPrioritizationFees,
+        ))?;
     Ok(get_compute_budget_ixs(
         unit_limit,
         min(unit_price_micro_lamports, max_unit_price_micro_lamports),

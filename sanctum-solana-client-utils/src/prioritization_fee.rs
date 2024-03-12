@@ -44,7 +44,12 @@ pub fn get_writable_account_keys(ixs: &[Instruction]) -> Vec<Pubkey> {
     res
 }
 
-// NOTE: assumes unreported slots has `prioritization_fee = 0`
+/// Calculate slot weighted median value of given sample of prioritization fees
+/// (see get_recent_prioritization_fees rpc call)
+///
+/// Weights are assigned such that the values would range from 1/(# of slots) to 1
+///
+/// NOTE: assumes unreported slots has `prioritization_fee = 0`
 pub fn calc_slot_weighted_median_prioritization_fees(
     rpc_prio_fees: &[RpcPrioritizationFee],
 ) -> Option<u64> {
@@ -74,7 +79,7 @@ pub fn calc_slot_weighted_median_prioritization_fees(
     Some(median.floor() as u64)
 }
 
-/// Runs simulation and returns consumed compute unit
+/// Runs a simulation and returns esimated compute units
 pub fn estimate_compute_unit_limit(
     client: RpcClient,
     tx: &impl SerializableTransaction,
@@ -99,8 +104,6 @@ pub fn estimate_compute_unit_limit(
 
 /// Calculates slot weighted median prioritiziation fee and generate compute
 /// budget ixs
-///
-/// NOTE: assumes <= `MAX_SLOT_DISPLACEMENT` slots of sample size for `rpc_prio_fees`
 pub fn get_compute_budget_ixs_with_rpc_prio_fees(
     rpc_prio_fees: &[RpcPrioritizationFee],
     unit_limit: u32,

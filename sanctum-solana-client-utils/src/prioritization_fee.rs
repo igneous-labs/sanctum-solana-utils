@@ -81,7 +81,7 @@ pub fn calc_slot_weighted_median_prioritization_fees(
 
 /// Runs a simulation and returns esimated compute units
 pub fn estimate_compute_unit_limit(
-    client: RpcClient,
+    client: &RpcClient,
     tx: &impl SerializableTransaction,
 ) -> Result<u64, ClientError> {
     client
@@ -92,6 +92,30 @@ pub fn estimate_compute_unit_limit(
                 ..Default::default()
             },
         )?
+        .value
+        .units_consumed
+        .ok_or(ClientError::new_with_request(
+            solana_rpc_client_api::client_error::ErrorKind::Custom(
+                "Could not retrieve consumed compute units from simulation".to_owned(),
+            ),
+            solana_rpc_client_api::request::RpcRequest::SimulateTransaction,
+        ))
+}
+
+/// Runs a simulation and returns esimated compute units
+pub async fn estimate_compute_unit_limit_nonblocking(
+    client: &NonblockingRpcClient,
+    tx: &impl SerializableTransaction,
+) -> Result<u64, ClientError> {
+    client
+        .simulate_transaction_with_config(
+            tx,
+            RpcSimulateTransactionConfig {
+                sig_verify: false,
+                ..Default::default()
+            },
+        )
+        .await?
         .value
         .units_consumed
         .ok_or(ClientError::new_with_request(
@@ -125,7 +149,7 @@ pub fn get_compute_budget_ixs_with_rpc_prio_fees(
 /// Fetches recent prioritization fees and generate compute budget ixs by taking
 /// slot weighted median prioritization fee
 pub fn get_slot_weighted_median_compute_budget_ixs(
-    client: RpcClient,
+    client: &RpcClient,
     addresses: &[Pubkey],
     unit_limit: u32,
     max_unit_price_micro_lamports: u64,
@@ -141,7 +165,7 @@ pub fn get_slot_weighted_median_compute_budget_ixs(
 /// Fetches recent prioritization fees and generate compute budget ixs by taking
 /// slot weighted median prioritization fee (nonblocking)
 pub async fn get_slot_weighted_median_compute_budget_ixs_nonblocking(
-    client: NonblockingRpcClient,
+    client: &NonblockingRpcClient,
     addresses: &[Pubkey],
     unit_limit: u32,
     max_unit_price_micro_lamports: u64,
@@ -165,7 +189,7 @@ mod tests {
             solana_sdk::commitment_config::CommitmentConfig::processed(),
         );
 
-        let res = get_slot_weighted_median_compute_budget_ixs(rpc, &[], 200_000, 4_200).unwrap();
+        let res = get_slot_weighted_median_compute_budget_ixs(&rpc, &[], 200_000, 4_200).unwrap();
         println!("priority ixs: {:?}", res);
     }
 }

@@ -15,35 +15,6 @@ use solana_sdk::{
 
 const WEIGHTED_MEDIAN_EPSILON: f64 = 0.0001;
 
-pub fn get_compute_budget_ixs(unit_limit: u32, unit_price_micro_lamports: u64) -> [Instruction; 2] {
-    [
-        ComputeBudgetInstruction::set_compute_unit_limit(unit_limit),
-        ComputeBudgetInstruction::set_compute_unit_price(unit_price_micro_lamports),
-    ]
-}
-
-pub fn get_writable_account_keys(ixs: &[Instruction]) -> Vec<Pubkey> {
-    let mut res = ixs
-        .iter()
-        .map(|ix| {
-            ix.accounts
-                .iter()
-                .filter_map(|acc_meta| {
-                    if acc_meta.is_writable {
-                        Some(acc_meta.pubkey)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>()
-        .concat();
-    res.sort();
-    res.dedup();
-    res
-}
-
 /// Calculate slot weighted median value of given sample of prioritization fees
 /// (see get_recent_prioritization_fees rpc call)
 ///
@@ -79,6 +50,36 @@ pub fn calc_slot_weighted_median_prioritization_fees(
     Some(median.floor() as u64)
 }
 
+pub fn get_slot_weighted_median_unit_price(
+    client: &RpcClient,
+    addresses: &[Pubkey],
+) -> Result<u64, ClientError> {
+    let rpc_prio_fees = client.get_recent_prioritization_fees(addresses)?;
+    calc_slot_weighted_median_prioritization_fees(&rpc_prio_fees).ok_or(
+        ClientError::new_with_request(
+            solana_rpc_client_api::client_error::ErrorKind::Custom(
+                "Could not retrieve samples for prioritization fees".to_owned(),
+            ),
+            solana_rpc_client_api::request::RpcRequest::GetRecentPrioritizationFees,
+        ),
+    )
+}
+
+pub async fn get_slot_weighted_median_unit_price_nonblocking(
+    client: &NonblockingRpcClient,
+    addresses: &[Pubkey],
+) -> Result<u64, ClientError> {
+    let rpc_prio_fees = client.get_recent_prioritization_fees(addresses).await?;
+    calc_slot_weighted_median_prioritization_fees(&rpc_prio_fees).ok_or(
+        ClientError::new_with_request(
+            solana_rpc_client_api::client_error::ErrorKind::Custom(
+                "Could not retrieve samples for prioritization fees".to_owned(),
+            ),
+            solana_rpc_client_api::request::RpcRequest::GetRecentPrioritizationFees,
+        ),
+    )
+}
+
 /// Runs a simulation and returns esimated compute units
 pub fn estimate_compute_unit_limit(
     client: &RpcClient,
@@ -89,6 +90,7 @@ pub fn estimate_compute_unit_limit(
             tx,
             RpcSimulateTransactionConfig {
                 sig_verify: false,
+                replace_recent_blockhash: true,
                 ..Default::default()
             },
         )?
@@ -140,56 +142,11 @@ pub fn get_compute_budget_ixs_with_rpc_prio_fees(
             ),
             solana_rpc_client_api::request::RpcRequest::GetRecentPrioritizationFees,
         ))?;
-    Ok(get_compute_budget_ixs(
-        unit_limit,
-        min(unit_price_micro_lamports, max_unit_price_micro_lamports),
-    ))
-}
-
-/// Fetches recent prioritization fees and generate compute budget ixs by taking
-/// slot weighted median prioritization fee
-pub fn get_slot_weighted_median_compute_budget_ixs(
-    client: &RpcClient,
-    addresses: &[Pubkey],
-    unit_limit: u32,
-    max_unit_price_micro_lamports: u64,
-) -> Result<[Instruction; 2], ClientError> {
-    let rpc_prio_fees = client.get_recent_prioritization_fees(addresses)?;
-    get_compute_budget_ixs_with_rpc_prio_fees(
-        &rpc_prio_fees,
-        unit_limit,
-        max_unit_price_micro_lamports,
-    )
-}
-
-/// Fetches recent prioritization fees and generate compute budget ixs by taking
-/// slot weighted median prioritization fee (nonblocking)
-pub async fn get_slot_weighted_median_compute_budget_ixs_nonblocking(
-    client: &NonblockingRpcClient,
-    addresses: &[Pubkey],
-    unit_limit: u32,
-    max_unit_price_micro_lamports: u64,
-) -> Result<[Instruction; 2], ClientError> {
-    let rpc_prio_fees = client.get_recent_prioritization_fees(addresses).await?;
-    get_compute_budget_ixs_with_rpc_prio_fees(
-        &rpc_prio_fees,
-        unit_limit,
-        max_unit_price_micro_lamports,
-    )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let rpc = RpcClient::new_with_commitment(
-            "https://api.mainnet-beta.solana.com".to_owned(),
-            solana_sdk::commitment_config::CommitmentConfig::processed(),
-        );
-
-        let res = get_slot_weighted_median_compute_budget_ixs(&rpc, &[], 200_000, 4_200).unwrap();
-        println!("priority ixs: {:?}", res);
-    }
+    Ok([
+        ComputeBudgetInstruction::set_compute_unit_limit(unit_limit),
+        ComputeBudgetInstruction::set_compute_unit_price(min(
+            unit_price_micro_lamports,
+            max_unit_price_micro_lamports,
+        )),
+    ])
 }

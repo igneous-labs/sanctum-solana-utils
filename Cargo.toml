@@ -7,6 +7,8 @@ members = [
     "sanctum-misc-utils",
     "sanctum-solana-cli-utils",
     "sanctum-solana-test-utils",
+    "sanctum-solana-client-utils",
+    "sanctum-solana-compute-budget-utils",
     "sanctum-stored-account",
     "sanctum-token-ratio",
 ]
@@ -25,6 +27,7 @@ http-body-util = "^0.1"
 hyper = "^1" # not compatible with reqwest version pulled in by solana
 hyper-util = "^0.1"
 log = "^0.4"
+medians = "3.0"
 num-derive = ">=0.1"
 num-traits = ">=0.1"
 proptest = "^1"

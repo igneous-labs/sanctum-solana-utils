@@ -92,6 +92,157 @@
           "desc": "Token program id. Optional deposit authority account follows. If omitted, anyone can deposit into the pool."
         }
       ]
+    },
+    {
+      "name": "AddValidatorToPool",
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      },
+      "args": [
+        {
+          "name": "optionalSeed",
+          "type": "u32"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Staker"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Reserve stake account"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "stakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake account to add to the pool"
+        },
+        {
+          "name": "validator",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Validator this stake account will be delegated to"
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Rent sysvar"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake config sysvar"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    },
+    {
+      "name": "removeValidatorFromPool",
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Staker"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "stakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake account to remove from the pool"
+        },
+        {
+          "name": "transientStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Transient stake account, to deactivate if necessary"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
     }
   ],
   "accounts": [

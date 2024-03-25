@@ -21,6 +21,8 @@ pub enum SplStakePoolProgramIx {
     SetFee(SetFeeIxArgs),
     SetStaker,
     SetFundingAuthority,
+    IncreaseAdditionalValidatorStake(IncreaseAdditionalValidatorStakeIxArgs),
+    DecreaseAdditionalValidatorStake(DecreaseAdditionalValidatorStakeIxArgs),
 }
 impl SplStakePoolProgramIx {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
@@ -45,6 +47,16 @@ impl SplStakePoolProgramIx {
             SET_FEE_IX_DISCM => Ok(Self::SetFee(SetFeeIxArgs::deserialize(&mut reader)?)),
             SET_STAKER_IX_DISCM => Ok(Self::SetStaker),
             SET_FUNDING_AUTHORITY_IX_DISCM => Ok(Self::SetFundingAuthority),
+            INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM => {
+                Ok(Self::IncreaseAdditionalValidatorStake(
+                    IncreaseAdditionalValidatorStakeIxArgs::deserialize(&mut reader)?,
+                ))
+            }
+            DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM => {
+                Ok(Self::DecreaseAdditionalValidatorStake(
+                    DecreaseAdditionalValidatorStakeIxArgs::deserialize(&mut reader)?,
+                ))
+            }
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("discm {:?} not found", maybe_discm),
@@ -79,6 +91,14 @@ impl SplStakePoolProgramIx {
             }
             Self::SetStaker => writer.write_all(&[SET_STAKER_IX_DISCM]),
             Self::SetFundingAuthority => writer.write_all(&[SET_FUNDING_AUTHORITY_IX_DISCM]),
+            Self::IncreaseAdditionalValidatorStake(args) => {
+                writer.write_all(&[INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
+            Self::DecreaseAdditionalValidatorStake(args) => {
+                writer.write_all(&[DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
         }
     }
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
@@ -2497,5 +2517,772 @@ pub fn set_funding_authority_verify_account_privileges<'me, 'info>(
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     set_funding_authority_verify_writable_privileges(accounts)?;
     set_funding_authority_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN: usize = 14;
+#[derive(Copy, Clone, Debug)]
+pub struct IncreaseAdditionalValidatorStakeAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Current staker
+    pub staker: &'me AccountInfo<'info>,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: &'me AccountInfo<'info>,
+    ///Validator list
+    pub validator_list: &'me AccountInfo<'info>,
+    ///Reserve stake account
+    pub reserve_stake: &'me AccountInfo<'info>,
+    ///Uninitialized ephemeral stake account to receive stake
+    pub ephemeral_stake_account: &'me AccountInfo<'info>,
+    ///Transient stake account
+    pub transient_stake_account: &'me AccountInfo<'info>,
+    ///Validator stake account
+    pub validator_stake_account: &'me AccountInfo<'info>,
+    ///Validator vote account to delegate to
+    pub vote_account: &'me AccountInfo<'info>,
+    ///Clock sysvar
+    pub clock: &'me AccountInfo<'info>,
+    ///Stake history sysvar
+    pub stake_history: &'me AccountInfo<'info>,
+    ///Stake config sysvar
+    pub stake_config: &'me AccountInfo<'info>,
+    ///System program
+    pub system_program: &'me AccountInfo<'info>,
+    ///Stake program
+    pub stake_program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct IncreaseAdditionalValidatorStakeKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Current staker
+    pub staker: Pubkey,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: Pubkey,
+    ///Validator list
+    pub validator_list: Pubkey,
+    ///Reserve stake account
+    pub reserve_stake: Pubkey,
+    ///Uninitialized ephemeral stake account to receive stake
+    pub ephemeral_stake_account: Pubkey,
+    ///Transient stake account
+    pub transient_stake_account: Pubkey,
+    ///Validator stake account
+    pub validator_stake_account: Pubkey,
+    ///Validator vote account to delegate to
+    pub vote_account: Pubkey,
+    ///Clock sysvar
+    pub clock: Pubkey,
+    ///Stake history sysvar
+    pub stake_history: Pubkey,
+    ///Stake config sysvar
+    pub stake_config: Pubkey,
+    ///System program
+    pub system_program: Pubkey,
+    ///Stake program
+    pub stake_program: Pubkey,
+}
+impl From<IncreaseAdditionalValidatorStakeAccounts<'_, '_>>
+    for IncreaseAdditionalValidatorStakeKeys
+{
+    fn from(accounts: IncreaseAdditionalValidatorStakeAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            staker: *accounts.staker.key,
+            withdraw_authority: *accounts.withdraw_authority.key,
+            validator_list: *accounts.validator_list.key,
+            reserve_stake: *accounts.reserve_stake.key,
+            ephemeral_stake_account: *accounts.ephemeral_stake_account.key,
+            transient_stake_account: *accounts.transient_stake_account.key,
+            validator_stake_account: *accounts.validator_stake_account.key,
+            vote_account: *accounts.vote_account.key,
+            clock: *accounts.clock.key,
+            stake_history: *accounts.stake_history.key,
+            stake_config: *accounts.stake_config.key,
+            system_program: *accounts.system_program.key,
+            stake_program: *accounts.stake_program.key,
+        }
+    }
+}
+impl From<IncreaseAdditionalValidatorStakeKeys>
+    for [AccountMeta; INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: IncreaseAdditionalValidatorStakeKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.staker,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.withdraw_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.validator_list,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.reserve_stake,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.ephemeral_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.transient_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.validator_stake_account,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.vote_account,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.clock,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_history,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]>
+    for IncreaseAdditionalValidatorStakeKeys
+{
+    fn from(pubkeys: [Pubkey; INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            staker: pubkeys[1],
+            withdraw_authority: pubkeys[2],
+            validator_list: pubkeys[3],
+            reserve_stake: pubkeys[4],
+            ephemeral_stake_account: pubkeys[5],
+            transient_stake_account: pubkeys[6],
+            validator_stake_account: pubkeys[7],
+            vote_account: pubkeys[8],
+            clock: pubkeys[9],
+            stake_history: pubkeys[10],
+            stake_config: pubkeys[11],
+            system_program: pubkeys[12],
+            stake_program: pubkeys[13],
+        }
+    }
+}
+impl<'info> From<IncreaseAdditionalValidatorStakeAccounts<'_, 'info>>
+    for [AccountInfo<'info>; INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: IncreaseAdditionalValidatorStakeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.staker.clone(),
+            accounts.withdraw_authority.clone(),
+            accounts.validator_list.clone(),
+            accounts.reserve_stake.clone(),
+            accounts.ephemeral_stake_account.clone(),
+            accounts.transient_stake_account.clone(),
+            accounts.validator_stake_account.clone(),
+            accounts.vote_account.clone(),
+            accounts.clock.clone(),
+            accounts.stake_history.clone(),
+            accounts.stake_config.clone(),
+            accounts.system_program.clone(),
+            accounts.stake_program.clone(),
+        ]
+    }
+}
+impl<'me, 'info>
+    From<&'me [AccountInfo<'info>; INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]>
+    for IncreaseAdditionalValidatorStakeAccounts<'me, 'info>
+{
+    fn from(
+        arr: &'me [AccountInfo<'info>; INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN],
+    ) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            staker: &arr[1],
+            withdraw_authority: &arr[2],
+            validator_list: &arr[3],
+            reserve_stake: &arr[4],
+            ephemeral_stake_account: &arr[5],
+            transient_stake_account: &arr[6],
+            validator_stake_account: &arr[7],
+            vote_account: &arr[8],
+            clock: &arr[9],
+            stake_history: &arr[10],
+            stake_config: &arr[11],
+            system_program: &arr[12],
+            stake_program: &arr[13],
+        }
+    }
+}
+pub const INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM: u8 = 19u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IncreaseAdditionalValidatorStakeIxArgs {
+    pub args: AdditionalValidatorStakeArgs,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct IncreaseAdditionalValidatorStakeIxData(pub IncreaseAdditionalValidatorStakeIxArgs);
+impl From<IncreaseAdditionalValidatorStakeIxArgs> for IncreaseAdditionalValidatorStakeIxData {
+    fn from(args: IncreaseAdditionalValidatorStakeIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl IncreaseAdditionalValidatorStakeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(IncreaseAdditionalValidatorStakeIxArgs::deserialize(
+            &mut reader,
+        )?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn increase_additional_validator_stake_ix_with_program_id(
+    program_id: Pubkey,
+    keys: IncreaseAdditionalValidatorStakeKeys,
+    args: IncreaseAdditionalValidatorStakeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: IncreaseAdditionalValidatorStakeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn increase_additional_validator_stake_ix(
+    keys: IncreaseAdditionalValidatorStakeKeys,
+    args: IncreaseAdditionalValidatorStakeIxArgs,
+) -> std::io::Result<Instruction> {
+    increase_additional_validator_stake_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn increase_additional_validator_stake_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: IncreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    args: IncreaseAdditionalValidatorStakeIxArgs,
+) -> ProgramResult {
+    let keys: IncreaseAdditionalValidatorStakeKeys = accounts.into();
+    let ix = increase_additional_validator_stake_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn increase_additional_validator_stake_invoke(
+    accounts: IncreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    args: IncreaseAdditionalValidatorStakeIxArgs,
+) -> ProgramResult {
+    increase_additional_validator_stake_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn increase_additional_validator_stake_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: IncreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    args: IncreaseAdditionalValidatorStakeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: IncreaseAdditionalValidatorStakeKeys = accounts.into();
+    let ix = increase_additional_validator_stake_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn increase_additional_validator_stake_invoke_signed(
+    accounts: IncreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    args: IncreaseAdditionalValidatorStakeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    increase_additional_validator_stake_invoke_signed_with_program_id(
+        crate::ID,
+        accounts,
+        args,
+        seeds,
+    )
+}
+pub fn increase_additional_validator_stake_verify_account_keys(
+    accounts: IncreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    keys: IncreaseAdditionalValidatorStakeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.staker.key, &keys.staker),
+        (accounts.withdraw_authority.key, &keys.withdraw_authority),
+        (accounts.validator_list.key, &keys.validator_list),
+        (accounts.reserve_stake.key, &keys.reserve_stake),
+        (
+            accounts.ephemeral_stake_account.key,
+            &keys.ephemeral_stake_account,
+        ),
+        (
+            accounts.transient_stake_account.key,
+            &keys.transient_stake_account,
+        ),
+        (
+            accounts.validator_stake_account.key,
+            &keys.validator_stake_account,
+        ),
+        (accounts.vote_account.key, &keys.vote_account),
+        (accounts.clock.key, &keys.clock),
+        (accounts.stake_history.key, &keys.stake_history),
+        (accounts.stake_config.key, &keys.stake_config),
+        (accounts.system_program.key, &keys.system_program),
+        (accounts.stake_program.key, &keys.stake_program),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn increase_additional_validator_stake_verify_writable_privileges<'me, 'info>(
+    accounts: IncreaseAdditionalValidatorStakeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.validator_list,
+        accounts.reserve_stake,
+        accounts.ephemeral_stake_account,
+        accounts.transient_stake_account,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn increase_additional_validator_stake_verify_signer_privileges<'me, 'info>(
+    accounts: IncreaseAdditionalValidatorStakeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.staker] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn increase_additional_validator_stake_verify_account_privileges<'me, 'info>(
+    accounts: IncreaseAdditionalValidatorStakeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    increase_additional_validator_stake_verify_writable_privileges(accounts)?;
+    increase_additional_validator_stake_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN: usize = 12;
+#[derive(Copy, Clone, Debug)]
+pub struct DecreaseAdditionalValidatorStakeAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Current staker
+    pub staker: &'me AccountInfo<'info>,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: &'me AccountInfo<'info>,
+    ///Validator list
+    pub validator_list: &'me AccountInfo<'info>,
+    ///Reserve stake account
+    pub reserve_stake: &'me AccountInfo<'info>,
+    ///Validator stake account to split stake from
+    pub validator_stake_account: &'me AccountInfo<'info>,
+    ///Uninitialized ephemeral stake account to receive stake
+    pub ephemeral_stake_account: &'me AccountInfo<'info>,
+    ///Transient stake account
+    pub transient_stake_account: &'me AccountInfo<'info>,
+    ///Clock sysvar
+    pub clock: &'me AccountInfo<'info>,
+    ///Stake history sysvar
+    pub stake_history: &'me AccountInfo<'info>,
+    ///System program
+    pub system_program: &'me AccountInfo<'info>,
+    ///Stake program
+    pub stake_program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct DecreaseAdditionalValidatorStakeKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Current staker
+    pub staker: Pubkey,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: Pubkey,
+    ///Validator list
+    pub validator_list: Pubkey,
+    ///Reserve stake account
+    pub reserve_stake: Pubkey,
+    ///Validator stake account to split stake from
+    pub validator_stake_account: Pubkey,
+    ///Uninitialized ephemeral stake account to receive stake
+    pub ephemeral_stake_account: Pubkey,
+    ///Transient stake account
+    pub transient_stake_account: Pubkey,
+    ///Clock sysvar
+    pub clock: Pubkey,
+    ///Stake history sysvar
+    pub stake_history: Pubkey,
+    ///System program
+    pub system_program: Pubkey,
+    ///Stake program
+    pub stake_program: Pubkey,
+}
+impl From<DecreaseAdditionalValidatorStakeAccounts<'_, '_>>
+    for DecreaseAdditionalValidatorStakeKeys
+{
+    fn from(accounts: DecreaseAdditionalValidatorStakeAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            staker: *accounts.staker.key,
+            withdraw_authority: *accounts.withdraw_authority.key,
+            validator_list: *accounts.validator_list.key,
+            reserve_stake: *accounts.reserve_stake.key,
+            validator_stake_account: *accounts.validator_stake_account.key,
+            ephemeral_stake_account: *accounts.ephemeral_stake_account.key,
+            transient_stake_account: *accounts.transient_stake_account.key,
+            clock: *accounts.clock.key,
+            stake_history: *accounts.stake_history.key,
+            system_program: *accounts.system_program.key,
+            stake_program: *accounts.stake_program.key,
+        }
+    }
+}
+impl From<DecreaseAdditionalValidatorStakeKeys>
+    for [AccountMeta; DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: DecreaseAdditionalValidatorStakeKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.staker,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.withdraw_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.validator_list,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.reserve_stake,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.validator_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.ephemeral_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.transient_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.clock,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_history,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]>
+    for DecreaseAdditionalValidatorStakeKeys
+{
+    fn from(pubkeys: [Pubkey; DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            staker: pubkeys[1],
+            withdraw_authority: pubkeys[2],
+            validator_list: pubkeys[3],
+            reserve_stake: pubkeys[4],
+            validator_stake_account: pubkeys[5],
+            ephemeral_stake_account: pubkeys[6],
+            transient_stake_account: pubkeys[7],
+            clock: pubkeys[8],
+            stake_history: pubkeys[9],
+            system_program: pubkeys[10],
+            stake_program: pubkeys[11],
+        }
+    }
+}
+impl<'info> From<DecreaseAdditionalValidatorStakeAccounts<'_, 'info>>
+    for [AccountInfo<'info>; DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: DecreaseAdditionalValidatorStakeAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.staker.clone(),
+            accounts.withdraw_authority.clone(),
+            accounts.validator_list.clone(),
+            accounts.reserve_stake.clone(),
+            accounts.validator_stake_account.clone(),
+            accounts.ephemeral_stake_account.clone(),
+            accounts.transient_stake_account.clone(),
+            accounts.clock.clone(),
+            accounts.stake_history.clone(),
+            accounts.system_program.clone(),
+            accounts.stake_program.clone(),
+        ]
+    }
+}
+impl<'me, 'info>
+    From<&'me [AccountInfo<'info>; DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN]>
+    for DecreaseAdditionalValidatorStakeAccounts<'me, 'info>
+{
+    fn from(
+        arr: &'me [AccountInfo<'info>; DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN],
+    ) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            staker: &arr[1],
+            withdraw_authority: &arr[2],
+            validator_list: &arr[3],
+            reserve_stake: &arr[4],
+            validator_stake_account: &arr[5],
+            ephemeral_stake_account: &arr[6],
+            transient_stake_account: &arr[7],
+            clock: &arr[8],
+            stake_history: &arr[9],
+            system_program: &arr[10],
+            stake_program: &arr[11],
+        }
+    }
+}
+pub const DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM: u8 = 20u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DecreaseAdditionalValidatorStakeIxArgs {
+    pub args: AdditionalValidatorStakeArgs,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct DecreaseAdditionalValidatorStakeIxData(pub DecreaseAdditionalValidatorStakeIxArgs);
+impl From<DecreaseAdditionalValidatorStakeIxArgs> for DecreaseAdditionalValidatorStakeIxData {
+    fn from(args: DecreaseAdditionalValidatorStakeIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl DecreaseAdditionalValidatorStakeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(DecreaseAdditionalValidatorStakeIxArgs::deserialize(
+            &mut reader,
+        )?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn decrease_additional_validator_stake_ix_with_program_id(
+    program_id: Pubkey,
+    keys: DecreaseAdditionalValidatorStakeKeys,
+    args: DecreaseAdditionalValidatorStakeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: DecreaseAdditionalValidatorStakeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn decrease_additional_validator_stake_ix(
+    keys: DecreaseAdditionalValidatorStakeKeys,
+    args: DecreaseAdditionalValidatorStakeIxArgs,
+) -> std::io::Result<Instruction> {
+    decrease_additional_validator_stake_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn decrease_additional_validator_stake_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: DecreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    args: DecreaseAdditionalValidatorStakeIxArgs,
+) -> ProgramResult {
+    let keys: DecreaseAdditionalValidatorStakeKeys = accounts.into();
+    let ix = decrease_additional_validator_stake_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn decrease_additional_validator_stake_invoke(
+    accounts: DecreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    args: DecreaseAdditionalValidatorStakeIxArgs,
+) -> ProgramResult {
+    decrease_additional_validator_stake_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn decrease_additional_validator_stake_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: DecreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    args: DecreaseAdditionalValidatorStakeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: DecreaseAdditionalValidatorStakeKeys = accounts.into();
+    let ix = decrease_additional_validator_stake_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn decrease_additional_validator_stake_invoke_signed(
+    accounts: DecreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    args: DecreaseAdditionalValidatorStakeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    decrease_additional_validator_stake_invoke_signed_with_program_id(
+        crate::ID,
+        accounts,
+        args,
+        seeds,
+    )
+}
+pub fn decrease_additional_validator_stake_verify_account_keys(
+    accounts: DecreaseAdditionalValidatorStakeAccounts<'_, '_>,
+    keys: DecreaseAdditionalValidatorStakeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.staker.key, &keys.staker),
+        (accounts.withdraw_authority.key, &keys.withdraw_authority),
+        (accounts.validator_list.key, &keys.validator_list),
+        (accounts.reserve_stake.key, &keys.reserve_stake),
+        (
+            accounts.validator_stake_account.key,
+            &keys.validator_stake_account,
+        ),
+        (
+            accounts.ephemeral_stake_account.key,
+            &keys.ephemeral_stake_account,
+        ),
+        (
+            accounts.transient_stake_account.key,
+            &keys.transient_stake_account,
+        ),
+        (accounts.clock.key, &keys.clock),
+        (accounts.stake_history.key, &keys.stake_history),
+        (accounts.system_program.key, &keys.system_program),
+        (accounts.stake_program.key, &keys.stake_program),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn decrease_additional_validator_stake_verify_writable_privileges<'me, 'info>(
+    accounts: DecreaseAdditionalValidatorStakeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.validator_list,
+        accounts.reserve_stake,
+        accounts.validator_stake_account,
+        accounts.ephemeral_stake_account,
+        accounts.transient_stake_account,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn decrease_additional_validator_stake_verify_signer_privileges<'me, 'info>(
+    accounts: DecreaseAdditionalValidatorStakeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.staker] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn decrease_additional_validator_stake_verify_account_privileges<'me, 'info>(
+    accounts: DecreaseAdditionalValidatorStakeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    decrease_additional_validator_stake_verify_writable_privileges(accounts)?;
+    decrease_additional_validator_stake_verify_signer_privileges(accounts)?;
     Ok(())
 }

@@ -495,6 +495,196 @@
           "desc": "New funding authority. If omitted, sets it to None"
         }
       ]
+    },
+    {
+      "name": "IncreaseAdditionalValidatorStake",
+      "discriminant": {
+        "type": "u8",
+        "value": 19
+      },
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "AdditionalValidatorStakeArgs"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current staker"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Reserve stake account"
+        },
+        {
+          "name": "ephemeralStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Uninitialized ephemeral stake account to receive stake"
+        },
+        {
+          "name": "transientStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Transient stake account"
+        },
+        {
+          "name": "validatorStakeAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Validator stake account"
+        },
+        {
+          "name": "voteAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Validator vote account to delegate to"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake config sysvar"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    },
+    {
+      "name": "DecreaseAdditionalValidatorStake",
+      "discriminant": {
+        "type": "u8",
+        "value": 20
+      },
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "AdditionalValidatorStakeArgs"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current staker"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Reserve stake account"
+        },
+        {
+          "name": "validatorStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator stake account to split stake from"
+        },
+        {
+          "name": "ephemeralStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Uninitialized ephemeral stake account to receive stake"
+        },
+        {
+          "name": "transientStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Transient stake account"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -931,6 +1121,26 @@
           },
           {
             "name": "SolWithdraw"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AdditionalValidatorStakeArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "transientStakeSeed",
+            "type": "u64"
+          },
+          {
+            "name": "ephemeralStakeSeed",
+            "type": "u64"
           }
         ]
       }

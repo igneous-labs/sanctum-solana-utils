@@ -467,6 +467,34 @@
           "desc": "New staker pubkey"
         }
       ]
+    },
+    {
+      "name": "SetFundingAuthority",
+      "discriminant": {
+        "type": "u8",
+        "value": 15
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "manager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current manager"
+        },
+        {
+          "name": "newFundingAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "New funding authority. If omitted, sets it to None"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -886,6 +914,23 @@
                 "type": { "defined": "Fee" }
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "FundingType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "StakeDeposit"
+          },
+          {
+            "name": "SolDeposit"
+          },
+          {
+            "name": "SolWithdraw"
           }
         ]
       }

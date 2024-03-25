@@ -20,6 +20,7 @@ pub enum SplStakePoolProgramIx {
     SetManager,
     SetFee(SetFeeIxArgs),
     SetStaker,
+    SetFundingAuthority,
 }
 impl SplStakePoolProgramIx {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
@@ -43,6 +44,7 @@ impl SplStakePoolProgramIx {
             SET_MANAGER_IX_DISCM => Ok(Self::SetManager),
             SET_FEE_IX_DISCM => Ok(Self::SetFee(SetFeeIxArgs::deserialize(&mut reader)?)),
             SET_STAKER_IX_DISCM => Ok(Self::SetStaker),
+            SET_FUNDING_AUTHORITY_IX_DISCM => Ok(Self::SetFundingAuthority),
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("discm {:?} not found", maybe_discm),
@@ -76,6 +78,7 @@ impl SplStakePoolProgramIx {
                 args.serialize(&mut writer)
             }
             Self::SetStaker => writer.write_all(&[SET_STAKER_IX_DISCM]),
+            Self::SetFundingAuthority => writer.write_all(&[SET_FUNDING_AUTHORITY_IX_DISCM]),
         }
     }
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
@@ -2298,5 +2301,201 @@ pub fn set_staker_verify_account_privileges<'me, 'info>(
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     set_staker_verify_writable_privileges(accounts)?;
     set_staker_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN: usize = 3;
+#[derive(Copy, Clone, Debug)]
+pub struct SetFundingAuthorityAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Current manager
+    pub manager: &'me AccountInfo<'info>,
+    ///New funding authority. If omitted, sets it to None
+    pub new_funding_authority: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct SetFundingAuthorityKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Current manager
+    pub manager: Pubkey,
+    ///New funding authority. If omitted, sets it to None
+    pub new_funding_authority: Pubkey,
+}
+impl From<SetFundingAuthorityAccounts<'_, '_>> for SetFundingAuthorityKeys {
+    fn from(accounts: SetFundingAuthorityAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            manager: *accounts.manager.key,
+            new_funding_authority: *accounts.new_funding_authority.key,
+        }
+    }
+}
+impl From<SetFundingAuthorityKeys> for [AccountMeta; SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetFundingAuthorityKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.manager,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.new_funding_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN]> for SetFundingAuthorityKeys {
+    fn from(pubkeys: [Pubkey; SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            manager: pubkeys[1],
+            new_funding_authority: pubkeys[2],
+        }
+    }
+}
+impl<'info> From<SetFundingAuthorityAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetFundingAuthorityAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.manager.clone(),
+            accounts.new_funding_authority.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN]>
+    for SetFundingAuthorityAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            manager: &arr[1],
+            new_funding_authority: &arr[2],
+        }
+    }
+}
+pub const SET_FUNDING_AUTHORITY_IX_DISCM: u8 = 15u8;
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetFundingAuthorityIxData;
+impl SetFundingAuthorityIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != SET_FUNDING_AUTHORITY_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_FUNDING_AUTHORITY_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[SET_FUNDING_AUTHORITY_IX_DISCM])
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn set_funding_authority_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetFundingAuthorityKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN] = keys.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: SetFundingAuthorityIxData.try_to_vec()?,
+    })
+}
+pub fn set_funding_authority_ix(keys: SetFundingAuthorityKeys) -> std::io::Result<Instruction> {
+    set_funding_authority_ix_with_program_id(crate::ID, keys)
+}
+pub fn set_funding_authority_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetFundingAuthorityAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: SetFundingAuthorityKeys = accounts.into();
+    let ix = set_funding_authority_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn set_funding_authority_invoke(
+    accounts: SetFundingAuthorityAccounts<'_, '_>,
+) -> ProgramResult {
+    set_funding_authority_invoke_with_program_id(crate::ID, accounts)
+}
+pub fn set_funding_authority_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetFundingAuthorityAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetFundingAuthorityKeys = accounts.into();
+    let ix = set_funding_authority_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn set_funding_authority_invoke_signed(
+    accounts: SetFundingAuthorityAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_funding_authority_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+pub fn set_funding_authority_verify_account_keys(
+    accounts: SetFundingAuthorityAccounts<'_, '_>,
+    keys: SetFundingAuthorityKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.manager.key, &keys.manager),
+        (
+            accounts.new_funding_authority.key,
+            &keys.new_funding_authority,
+        ),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn set_funding_authority_verify_writable_privileges<'me, 'info>(
+    accounts: SetFundingAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.stake_pool] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn set_funding_authority_verify_signer_privileges<'me, 'info>(
+    accounts: SetFundingAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.manager] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn set_funding_authority_verify_account_privileges<'me, 'info>(
+    accounts: SetFundingAuthorityAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_funding_authority_verify_writable_privileges(accounts)?;
+    set_funding_authority_verify_signer_privileges(accounts)?;
     Ok(())
 }

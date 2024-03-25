@@ -65,3 +65,10 @@ pub enum FeeType {
     StakeDeposit { fee: Fee },
     SolWithdrawal { fee: Fee },
 }
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum FundingType {
+    StakeDeposit,
+    SolDeposit,
+    SolWithdraw,
+}

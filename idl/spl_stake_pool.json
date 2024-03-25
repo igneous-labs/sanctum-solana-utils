@@ -378,6 +378,95 @@
           "desc": "Validator list"
         }
       ]
+    },
+    {
+      "name": "SetManager",
+      "discriminant": {
+        "type": "u8",
+        "value": 11
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "manager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current manager"
+        },
+        {
+          "name": "newManager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "New manager"
+        },
+        {
+          "name": "newManagerFeeAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "New manager fee account"
+        }
+      ]
+    },
+    {
+      "name": "SetFee",
+      "discriminant": {
+        "type": "u8",
+        "value": 12
+      },
+      "args": [
+        {
+          "name": "fee",
+          "type": { "defined": "FeeType" }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "manager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current manager"
+        }
+      ]
+    },
+    {
+      "name": "SetStaker",
+      "discriminant": {
+        "type": "u8",
+        "value": 13
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current manager or staker"
+        },
+        {
+          "name": "newStaker",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "New staker pubkey"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -726,6 +815,77 @@
           {
             "name": "voteAccountAddress",
             "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SolReferral",
+            "fields": [
+              {
+                "name": "fee",
+                "type": "u8"
+              }
+            ]
+          },
+          {
+            "name": "StakeReferral",
+            "fields": [
+              {
+                "name": "fee",
+                "type": "u8"
+              }
+            ]
+          },
+          {
+            "name": "Epoch",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          },
+          {
+            "name": "StakeWithdrawal",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          },
+          {
+            "name": "SolDeposit",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          },
+          {
+            "name": "StakeDeposit",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          },
+          {
+            "name": "SolWithdrawal",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
           }
         ]
       }

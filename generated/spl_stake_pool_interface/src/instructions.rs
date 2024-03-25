@@ -17,6 +17,9 @@ pub enum SplStakePoolProgramIx {
     UpdateValidatorListBalance(UpdateValidatorListBalanceIxArgs),
     UpdateStakePoolBalance,
     CleanupRemovedValidatorEntries,
+    SetManager,
+    SetFee(SetFeeIxArgs),
+    SetStaker,
 }
 impl SplStakePoolProgramIx {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
@@ -37,6 +40,9 @@ impl SplStakePoolProgramIx {
             )),
             UPDATE_STAKE_POOL_BALANCE_IX_DISCM => Ok(Self::UpdateStakePoolBalance),
             CLEANUP_REMOVED_VALIDATOR_ENTRIES_IX_DISCM => Ok(Self::CleanupRemovedValidatorEntries),
+            SET_MANAGER_IX_DISCM => Ok(Self::SetManager),
+            SET_FEE_IX_DISCM => Ok(Self::SetFee(SetFeeIxArgs::deserialize(&mut reader)?)),
+            SET_STAKER_IX_DISCM => Ok(Self::SetStaker),
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("discm {:?} not found", maybe_discm),
@@ -64,6 +70,12 @@ impl SplStakePoolProgramIx {
             Self::CleanupRemovedValidatorEntries => {
                 writer.write_all(&[CLEANUP_REMOVED_VALIDATOR_ENTRIES_IX_DISCM])
             }
+            Self::SetManager => writer.write_all(&[SET_MANAGER_IX_DISCM]),
+            Self::SetFee(args) => {
+                writer.write_all(&[SET_FEE_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
+            Self::SetStaker => writer.write_all(&[SET_STAKER_IX_DISCM]),
         }
     }
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
@@ -1699,5 +1711,592 @@ pub fn cleanup_removed_validator_entries_verify_account_privileges<'me, 'info>(
     accounts: CleanupRemovedValidatorEntriesAccounts<'me, 'info>,
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     cleanup_removed_validator_entries_verify_writable_privileges(accounts)?;
+    Ok(())
+}
+pub const SET_MANAGER_IX_ACCOUNTS_LEN: usize = 4;
+#[derive(Copy, Clone, Debug)]
+pub struct SetManagerAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Current manager
+    pub manager: &'me AccountInfo<'info>,
+    ///New manager
+    pub new_manager: &'me AccountInfo<'info>,
+    ///New manager fee account
+    pub new_manager_fee_account: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct SetManagerKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Current manager
+    pub manager: Pubkey,
+    ///New manager
+    pub new_manager: Pubkey,
+    ///New manager fee account
+    pub new_manager_fee_account: Pubkey,
+}
+impl From<SetManagerAccounts<'_, '_>> for SetManagerKeys {
+    fn from(accounts: SetManagerAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            manager: *accounts.manager.key,
+            new_manager: *accounts.new_manager.key,
+            new_manager_fee_account: *accounts.new_manager_fee_account.key,
+        }
+    }
+}
+impl From<SetManagerKeys> for [AccountMeta; SET_MANAGER_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetManagerKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.manager,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.new_manager,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.new_manager_fee_account,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; SET_MANAGER_IX_ACCOUNTS_LEN]> for SetManagerKeys {
+    fn from(pubkeys: [Pubkey; SET_MANAGER_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            manager: pubkeys[1],
+            new_manager: pubkeys[2],
+            new_manager_fee_account: pubkeys[3],
+        }
+    }
+}
+impl<'info> From<SetManagerAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_MANAGER_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetManagerAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.manager.clone(),
+            accounts.new_manager.clone(),
+            accounts.new_manager_fee_account.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_MANAGER_IX_ACCOUNTS_LEN]>
+    for SetManagerAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_MANAGER_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            manager: &arr[1],
+            new_manager: &arr[2],
+            new_manager_fee_account: &arr[3],
+        }
+    }
+}
+pub const SET_MANAGER_IX_DISCM: u8 = 11u8;
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetManagerIxData;
+impl SetManagerIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != SET_MANAGER_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_MANAGER_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[SET_MANAGER_IX_DISCM])
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn set_manager_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetManagerKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_MANAGER_IX_ACCOUNTS_LEN] = keys.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: SetManagerIxData.try_to_vec()?,
+    })
+}
+pub fn set_manager_ix(keys: SetManagerKeys) -> std::io::Result<Instruction> {
+    set_manager_ix_with_program_id(crate::ID, keys)
+}
+pub fn set_manager_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetManagerAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: SetManagerKeys = accounts.into();
+    let ix = set_manager_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn set_manager_invoke(accounts: SetManagerAccounts<'_, '_>) -> ProgramResult {
+    set_manager_invoke_with_program_id(crate::ID, accounts)
+}
+pub fn set_manager_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetManagerAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetManagerKeys = accounts.into();
+    let ix = set_manager_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn set_manager_invoke_signed(
+    accounts: SetManagerAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_manager_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+pub fn set_manager_verify_account_keys(
+    accounts: SetManagerAccounts<'_, '_>,
+    keys: SetManagerKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.manager.key, &keys.manager),
+        (accounts.new_manager.key, &keys.new_manager),
+        (
+            accounts.new_manager_fee_account.key,
+            &keys.new_manager_fee_account,
+        ),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn set_manager_verify_writable_privileges<'me, 'info>(
+    accounts: SetManagerAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.stake_pool] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn set_manager_verify_signer_privileges<'me, 'info>(
+    accounts: SetManagerAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.manager, accounts.new_manager] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn set_manager_verify_account_privileges<'me, 'info>(
+    accounts: SetManagerAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_manager_verify_writable_privileges(accounts)?;
+    set_manager_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const SET_FEE_IX_ACCOUNTS_LEN: usize = 2;
+#[derive(Copy, Clone, Debug)]
+pub struct SetFeeAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Current manager
+    pub manager: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct SetFeeKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Current manager
+    pub manager: Pubkey,
+}
+impl From<SetFeeAccounts<'_, '_>> for SetFeeKeys {
+    fn from(accounts: SetFeeAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            manager: *accounts.manager.key,
+        }
+    }
+}
+impl From<SetFeeKeys> for [AccountMeta; SET_FEE_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetFeeKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.manager,
+                is_signer: true,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; SET_FEE_IX_ACCOUNTS_LEN]> for SetFeeKeys {
+    fn from(pubkeys: [Pubkey; SET_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            manager: pubkeys[1],
+        }
+    }
+}
+impl<'info> From<SetFeeAccounts<'_, 'info>> for [AccountInfo<'info>; SET_FEE_IX_ACCOUNTS_LEN] {
+    fn from(accounts: SetFeeAccounts<'_, 'info>) -> Self {
+        [accounts.stake_pool.clone(), accounts.manager.clone()]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_FEE_IX_ACCOUNTS_LEN]>
+    for SetFeeAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_FEE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            manager: &arr[1],
+        }
+    }
+}
+pub const SET_FEE_IX_DISCM: u8 = 12u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetFeeIxArgs {
+    pub fee: FeeType,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetFeeIxData(pub SetFeeIxArgs);
+impl From<SetFeeIxArgs> for SetFeeIxData {
+    fn from(args: SetFeeIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl SetFeeIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != SET_FEE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_FEE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(SetFeeIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[SET_FEE_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn set_fee_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetFeeKeys,
+    args: SetFeeIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_FEE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SetFeeIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn set_fee_ix(keys: SetFeeKeys, args: SetFeeIxArgs) -> std::io::Result<Instruction> {
+    set_fee_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn set_fee_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetFeeAccounts<'_, '_>,
+    args: SetFeeIxArgs,
+) -> ProgramResult {
+    let keys: SetFeeKeys = accounts.into();
+    let ix = set_fee_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn set_fee_invoke(accounts: SetFeeAccounts<'_, '_>, args: SetFeeIxArgs) -> ProgramResult {
+    set_fee_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn set_fee_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetFeeAccounts<'_, '_>,
+    args: SetFeeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetFeeKeys = accounts.into();
+    let ix = set_fee_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn set_fee_invoke_signed(
+    accounts: SetFeeAccounts<'_, '_>,
+    args: SetFeeIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_fee_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn set_fee_verify_account_keys(
+    accounts: SetFeeAccounts<'_, '_>,
+    keys: SetFeeKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.manager.key, &keys.manager),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn set_fee_verify_writable_privileges<'me, 'info>(
+    accounts: SetFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.stake_pool] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn set_fee_verify_signer_privileges<'me, 'info>(
+    accounts: SetFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.manager] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn set_fee_verify_account_privileges<'me, 'info>(
+    accounts: SetFeeAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_fee_verify_writable_privileges(accounts)?;
+    set_fee_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const SET_STAKER_IX_ACCOUNTS_LEN: usize = 3;
+#[derive(Copy, Clone, Debug)]
+pub struct SetStakerAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Current manager or staker
+    pub signer: &'me AccountInfo<'info>,
+    ///New staker pubkey
+    pub new_staker: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct SetStakerKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Current manager or staker
+    pub signer: Pubkey,
+    ///New staker pubkey
+    pub new_staker: Pubkey,
+}
+impl From<SetStakerAccounts<'_, '_>> for SetStakerKeys {
+    fn from(accounts: SetStakerAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            signer: *accounts.signer.key,
+            new_staker: *accounts.new_staker.key,
+        }
+    }
+}
+impl From<SetStakerKeys> for [AccountMeta; SET_STAKER_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetStakerKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.signer,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.new_staker,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; SET_STAKER_IX_ACCOUNTS_LEN]> for SetStakerKeys {
+    fn from(pubkeys: [Pubkey; SET_STAKER_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            signer: pubkeys[1],
+            new_staker: pubkeys[2],
+        }
+    }
+}
+impl<'info> From<SetStakerAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_STAKER_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetStakerAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.signer.clone(),
+            accounts.new_staker.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_STAKER_IX_ACCOUNTS_LEN]>
+    for SetStakerAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_STAKER_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            signer: &arr[1],
+            new_staker: &arr[2],
+        }
+    }
+}
+pub const SET_STAKER_IX_DISCM: u8 = 13u8;
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetStakerIxData;
+impl SetStakerIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != SET_STAKER_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_STAKER_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self)
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[SET_STAKER_IX_DISCM])
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn set_staker_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetStakerKeys,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_STAKER_IX_ACCOUNTS_LEN] = keys.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: SetStakerIxData.try_to_vec()?,
+    })
+}
+pub fn set_staker_ix(keys: SetStakerKeys) -> std::io::Result<Instruction> {
+    set_staker_ix_with_program_id(crate::ID, keys)
+}
+pub fn set_staker_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetStakerAccounts<'_, '_>,
+) -> ProgramResult {
+    let keys: SetStakerKeys = accounts.into();
+    let ix = set_staker_ix_with_program_id(program_id, keys)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn set_staker_invoke(accounts: SetStakerAccounts<'_, '_>) -> ProgramResult {
+    set_staker_invoke_with_program_id(crate::ID, accounts)
+}
+pub fn set_staker_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetStakerAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetStakerKeys = accounts.into();
+    let ix = set_staker_ix_with_program_id(program_id, keys)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn set_staker_invoke_signed(
+    accounts: SetStakerAccounts<'_, '_>,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_staker_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+}
+pub fn set_staker_verify_account_keys(
+    accounts: SetStakerAccounts<'_, '_>,
+    keys: SetStakerKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.signer.key, &keys.signer),
+        (accounts.new_staker.key, &keys.new_staker),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn set_staker_verify_writable_privileges<'me, 'info>(
+    accounts: SetStakerAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.stake_pool] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn set_staker_verify_signer_privileges<'me, 'info>(
+    accounts: SetStakerAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.signer] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn set_staker_verify_account_privileges<'me, 'info>(
+    accounts: SetStakerAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_staker_verify_writable_privileges(accounts)?;
+    set_staker_verify_signer_privileges(accounts)?;
     Ok(())
 }

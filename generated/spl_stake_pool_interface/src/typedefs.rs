@@ -54,3 +54,14 @@ pub struct ValidatorStakeInfo {
     pub status: StakeStatus,
     pub vote_account_address: Pubkey,
 }
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum FeeType {
+    SolReferral { fee: u8 },
+    StakeReferral { fee: u8 },
+    Epoch { fee: Fee },
+    StakeWithdrawal { fee: Fee },
+    SolDeposit { fee: Fee },
+    StakeDeposit { fee: Fee },
+    SolWithdrawal { fee: Fee },
+}

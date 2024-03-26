@@ -433,10 +433,10 @@ pub struct AddValidatorToPoolAccounts<'me, 'info> {
     pub withdraw_authority: &'me AccountInfo<'info>,
     ///Validator list
     pub validator_list: &'me AccountInfo<'info>,
-    ///Stake account to add to the pool
-    pub stake_account: &'me AccountInfo<'info>,
-    ///Validator this stake account will be delegated to
-    pub validator: &'me AccountInfo<'info>,
+    ///Validator stake account to add to the pool
+    pub validator_stake_account: &'me AccountInfo<'info>,
+    ///Vote account of the validator this stake account will be delegated to
+    pub vote_account: &'me AccountInfo<'info>,
     ///Rent sysvar
     pub rent: &'me AccountInfo<'info>,
     ///Clock sysvar
@@ -462,10 +462,10 @@ pub struct AddValidatorToPoolKeys {
     pub withdraw_authority: Pubkey,
     ///Validator list
     pub validator_list: Pubkey,
-    ///Stake account to add to the pool
-    pub stake_account: Pubkey,
-    ///Validator this stake account will be delegated to
-    pub validator: Pubkey,
+    ///Validator stake account to add to the pool
+    pub validator_stake_account: Pubkey,
+    ///Vote account of the validator this stake account will be delegated to
+    pub vote_account: Pubkey,
     ///Rent sysvar
     pub rent: Pubkey,
     ///Clock sysvar
@@ -487,8 +487,8 @@ impl From<AddValidatorToPoolAccounts<'_, '_>> for AddValidatorToPoolKeys {
             reserve_stake: *accounts.reserve_stake.key,
             withdraw_authority: *accounts.withdraw_authority.key,
             validator_list: *accounts.validator_list.key,
-            stake_account: *accounts.stake_account.key,
-            validator: *accounts.validator.key,
+            validator_stake_account: *accounts.validator_stake_account.key,
+            vote_account: *accounts.vote_account.key,
             rent: *accounts.rent.key,
             clock: *accounts.clock.key,
             stake_history: *accounts.stake_history.key,
@@ -527,12 +527,12 @@ impl From<AddValidatorToPoolKeys> for [AccountMeta; ADD_VALIDATOR_TO_POOL_IX_ACC
                 is_writable: true,
             },
             AccountMeta {
-                pubkey: keys.stake_account,
+                pubkey: keys.validator_stake_account,
                 is_signer: false,
                 is_writable: true,
             },
             AccountMeta {
-                pubkey: keys.validator,
+                pubkey: keys.vote_account,
                 is_signer: false,
                 is_writable: false,
             },
@@ -577,8 +577,8 @@ impl From<[Pubkey; ADD_VALIDATOR_TO_POOL_IX_ACCOUNTS_LEN]> for AddValidatorToPoo
             reserve_stake: pubkeys[2],
             withdraw_authority: pubkeys[3],
             validator_list: pubkeys[4],
-            stake_account: pubkeys[5],
-            validator: pubkeys[6],
+            validator_stake_account: pubkeys[5],
+            vote_account: pubkeys[6],
             rent: pubkeys[7],
             clock: pubkeys[8],
             stake_history: pubkeys[9],
@@ -598,8 +598,8 @@ impl<'info> From<AddValidatorToPoolAccounts<'_, 'info>>
             accounts.reserve_stake.clone(),
             accounts.withdraw_authority.clone(),
             accounts.validator_list.clone(),
-            accounts.stake_account.clone(),
-            accounts.validator.clone(),
+            accounts.validator_stake_account.clone(),
+            accounts.vote_account.clone(),
             accounts.rent.clone(),
             accounts.clock.clone(),
             accounts.stake_history.clone(),
@@ -619,8 +619,8 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; ADD_VALIDATOR_TO_POOL_IX_ACCOUNT
             reserve_stake: &arr[2],
             withdraw_authority: &arr[3],
             validator_list: &arr[4],
-            stake_account: &arr[5],
-            validator: &arr[6],
+            validator_stake_account: &arr[5],
+            vote_account: &arr[6],
             rent: &arr[7],
             clock: &arr[8],
             stake_history: &arr[9],
@@ -731,8 +731,11 @@ pub fn add_validator_to_pool_verify_account_keys(
         (accounts.reserve_stake.key, &keys.reserve_stake),
         (accounts.withdraw_authority.key, &keys.withdraw_authority),
         (accounts.validator_list.key, &keys.validator_list),
-        (accounts.stake_account.key, &keys.stake_account),
-        (accounts.validator.key, &keys.validator),
+        (
+            accounts.validator_stake_account.key,
+            &keys.validator_stake_account,
+        ),
+        (accounts.vote_account.key, &keys.vote_account),
         (accounts.rent.key, &keys.rent),
         (accounts.clock.key, &keys.clock),
         (accounts.stake_history.key, &keys.stake_history),
@@ -753,7 +756,7 @@ pub fn add_validator_to_pool_verify_writable_privileges<'me, 'info>(
         accounts.stake_pool,
         accounts.reserve_stake,
         accounts.validator_list,
-        accounts.stake_account,
+        accounts.validator_stake_account,
     ] {
         if !should_be_writable.is_writable {
             return Err((should_be_writable, ProgramError::InvalidAccountData));

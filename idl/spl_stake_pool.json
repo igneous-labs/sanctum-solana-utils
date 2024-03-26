@@ -137,16 +137,16 @@
           "desc": "Validator list"
         },
         {
-          "name": "stakeAccount",
+          "name": "validatorStakeAccount",
           "isMut": true,
           "isSigner": false,
-          "desc": "Stake account to add to the pool"
+          "desc": "Validator stake account to add to the pool"
         },
         {
-          "name": "validator",
+          "name": "voteAccount",
           "isMut": false,
           "isSigner": false,
-          "desc": "Validator this stake account will be delegated to"
+          "desc": "Vote account of the validator this stake account will be delegated to"
         },
         {
           "name": "rent",

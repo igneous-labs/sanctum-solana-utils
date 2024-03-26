@@ -1,11 +1,13 @@
 use std::num::NonZeroU32;
 
-use borsh::BorshDeserialize;
 use solana_program::{program_error::ProgramError, pubkey::Pubkey, stake, system_program, sysvar};
 use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
-use spl_stake_pool_interface::{AccountType, AddValidatorToPoolKeys, StakePool};
+use spl_stake_pool_interface::{AddValidatorToPoolKeys, StakePool};
 
-use crate::{FindValidatorStakeAccount, FindValidatorStakeAccountArgs, FindWithdrawAuthority};
+use crate::{
+    deserialize_stake_pool_checked, FindValidatorStakeAccount, FindValidatorStakeAccountArgs,
+    FindWithdrawAuthority,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AddValidatorToPoolFreeArgs<P> {
@@ -28,15 +30,11 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> AddValidatorToPoolFreeArgs<
         }: AddValidatorToPoolPdas,
     ) -> Result<AddValidatorToPoolKeys, ProgramError> {
         let StakePool {
-            account_type,
             staker,
             validator_list,
             reserve_stake,
             ..
-        } = StakePool::deserialize(&mut self.stake_pool.data().as_ref())?;
-        if account_type != AccountType::StakePool {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        } = deserialize_stake_pool_checked(self.stake_pool.data().as_ref())?;
         Ok(AddValidatorToPoolKeys {
             stake_pool: *self.stake_pool.pubkey(),
             staker,

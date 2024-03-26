@@ -1,6 +1,5 @@
 use std::{cmp::min, num::NonZeroU32};
 
-use borsh::BorshDeserialize;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
@@ -15,8 +14,8 @@ use spl_stake_pool_interface::{
 };
 
 use crate::{
-    FindTransientStakeAccount, FindTransientStakeAccountArgs, FindValidatorStakeAccount,
-    FindValidatorStakeAccountArgs, FindWithdrawAuthority,
+    deserialize_stake_pool_checked, FindTransientStakeAccount, FindTransientStakeAccountArgs,
+    FindValidatorStakeAccount, FindValidatorStakeAccountArgs, FindWithdrawAuthority,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -40,7 +39,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateValidatorListBalanceF
             validator_list,
             reserve_stake,
             ..
-        } = StakePool::deserialize(&mut self.stake_pool.data().as_ref())?;
+        } = deserialize_stake_pool_checked(self.stake_pool.data().as_ref())?;
         Ok(UpdateValidatorListBalanceKeys {
             stake_pool: *self.stake_pool.pubkey(),
             withdraw_authority,

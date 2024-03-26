@@ -20,7 +20,7 @@ pub enum SplStakePoolProgramIx {
     SetManager,
     SetFee(SetFeeIxArgs),
     SetStaker,
-    SetFundingAuthority,
+    SetFundingAuthority(SetFundingAuthorityIxArgs),
     IncreaseAdditionalValidatorStake(IncreaseAdditionalValidatorStakeIxArgs),
     DecreaseAdditionalValidatorStake(DecreaseAdditionalValidatorStakeIxArgs),
 }
@@ -46,7 +46,9 @@ impl SplStakePoolProgramIx {
             SET_MANAGER_IX_DISCM => Ok(Self::SetManager),
             SET_FEE_IX_DISCM => Ok(Self::SetFee(SetFeeIxArgs::deserialize(&mut reader)?)),
             SET_STAKER_IX_DISCM => Ok(Self::SetStaker),
-            SET_FUNDING_AUTHORITY_IX_DISCM => Ok(Self::SetFundingAuthority),
+            SET_FUNDING_AUTHORITY_IX_DISCM => Ok(Self::SetFundingAuthority(
+                SetFundingAuthorityIxArgs::deserialize(&mut reader)?,
+            )),
             INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM => {
                 Ok(Self::IncreaseAdditionalValidatorStake(
                     IncreaseAdditionalValidatorStakeIxArgs::deserialize(&mut reader)?,
@@ -90,7 +92,10 @@ impl SplStakePoolProgramIx {
                 args.serialize(&mut writer)
             }
             Self::SetStaker => writer.write_all(&[SET_STAKER_IX_DISCM]),
-            Self::SetFundingAuthority => writer.write_all(&[SET_FUNDING_AUTHORITY_IX_DISCM]),
+            Self::SetFundingAuthority(args) => {
+                writer.write_all(&[SET_FUNDING_AUTHORITY_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
             Self::IncreaseAdditionalValidatorStake(args) => {
                 writer.write_all(&[INCREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM])?;
                 args.serialize(&mut writer)
@@ -2410,8 +2415,18 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_FUNDING_AUTHORITY_IX_ACCOUNT
     }
 }
 pub const SET_FUNDING_AUTHORITY_IX_DISCM: u8 = 15u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetFundingAuthorityIxArgs {
+    pub auth: FundingType,
+}
 #[derive(Clone, Debug, PartialEq)]
-pub struct SetFundingAuthorityIxData;
+pub struct SetFundingAuthorityIxData(pub SetFundingAuthorityIxArgs);
+impl From<SetFundingAuthorityIxArgs> for SetFundingAuthorityIxData {
+    fn from(args: SetFundingAuthorityIxArgs) -> Self {
+        Self(args)
+    }
+}
 impl SetFundingAuthorityIxData {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
         let mut reader = buf;
@@ -2427,10 +2442,11 @@ impl SetFundingAuthorityIxData {
                 ),
             ));
         }
-        Ok(Self)
+        Ok(Self(SetFundingAuthorityIxArgs::deserialize(&mut reader)?))
     }
     pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
-        writer.write_all(&[SET_FUNDING_AUTHORITY_IX_DISCM])
+        writer.write_all(&[SET_FUNDING_AUTHORITY_IX_DISCM])?;
+        self.0.serialize(&mut writer)
     }
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
         let mut data = Vec::new();
@@ -2441,44 +2457,53 @@ impl SetFundingAuthorityIxData {
 pub fn set_funding_authority_ix_with_program_id(
     program_id: Pubkey,
     keys: SetFundingAuthorityKeys,
+    args: SetFundingAuthorityIxArgs,
 ) -> std::io::Result<Instruction> {
     let metas: [AccountMeta; SET_FUNDING_AUTHORITY_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SetFundingAuthorityIxData = args.into();
     Ok(Instruction {
         program_id,
         accounts: Vec::from(metas),
-        data: SetFundingAuthorityIxData.try_to_vec()?,
+        data: data.try_to_vec()?,
     })
 }
-pub fn set_funding_authority_ix(keys: SetFundingAuthorityKeys) -> std::io::Result<Instruction> {
-    set_funding_authority_ix_with_program_id(crate::ID, keys)
+pub fn set_funding_authority_ix(
+    keys: SetFundingAuthorityKeys,
+    args: SetFundingAuthorityIxArgs,
+) -> std::io::Result<Instruction> {
+    set_funding_authority_ix_with_program_id(crate::ID, keys, args)
 }
 pub fn set_funding_authority_invoke_with_program_id(
     program_id: Pubkey,
     accounts: SetFundingAuthorityAccounts<'_, '_>,
+    args: SetFundingAuthorityIxArgs,
 ) -> ProgramResult {
     let keys: SetFundingAuthorityKeys = accounts.into();
-    let ix = set_funding_authority_ix_with_program_id(program_id, keys)?;
+    let ix = set_funding_authority_ix_with_program_id(program_id, keys, args)?;
     invoke_instruction(&ix, accounts)
 }
 pub fn set_funding_authority_invoke(
     accounts: SetFundingAuthorityAccounts<'_, '_>,
+    args: SetFundingAuthorityIxArgs,
 ) -> ProgramResult {
-    set_funding_authority_invoke_with_program_id(crate::ID, accounts)
+    set_funding_authority_invoke_with_program_id(crate::ID, accounts, args)
 }
 pub fn set_funding_authority_invoke_signed_with_program_id(
     program_id: Pubkey,
     accounts: SetFundingAuthorityAccounts<'_, '_>,
+    args: SetFundingAuthorityIxArgs,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let keys: SetFundingAuthorityKeys = accounts.into();
-    let ix = set_funding_authority_ix_with_program_id(program_id, keys)?;
+    let ix = set_funding_authority_ix_with_program_id(program_id, keys, args)?;
     invoke_instruction_signed(&ix, accounts, seeds)
 }
 pub fn set_funding_authority_invoke_signed(
     accounts: SetFundingAuthorityAccounts<'_, '_>,
+    args: SetFundingAuthorityIxArgs,
     seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    set_funding_authority_invoke_signed_with_program_id(crate::ID, accounts, seeds)
+    set_funding_authority_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
 }
 pub fn set_funding_authority_verify_account_keys(
     accounts: SetFundingAuthorityAccounts<'_, '_>,

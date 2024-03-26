@@ -474,7 +474,12 @@
         "type": "u8",
         "value": 15
       },
-      "args": [],
+      "args": [
+        {
+          "name": "auth",
+          "type": { "defined": "FundingType" }
+        }
+      ],
       "accounts": [
         {
           "name": "stakePool",

@@ -1,4 +1,5 @@
 pub mod add_validator_to_pool;
+pub mod additional_validator_stake;
 pub mod cleanup_removed_validator_entries;
 pub mod initialize;
 pub mod remove_validator_from_pool;
@@ -10,6 +11,7 @@ pub mod update_stake_pool_balance;
 pub mod update_validator_list_balance;
 
 pub use add_validator_to_pool::*;
+pub use additional_validator_stake::*;
 pub use cleanup_removed_validator_entries::*;
 pub use initialize::*;
 pub use remove_validator_from_pool::*;

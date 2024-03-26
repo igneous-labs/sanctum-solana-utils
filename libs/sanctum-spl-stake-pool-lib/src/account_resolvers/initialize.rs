@@ -1,6 +1,11 @@
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+};
 use solana_readonly_account::{ReadonlyAccountOwner, ReadonlyAccountPubkey};
-use spl_stake_pool_interface::{InitializeKeys, INITIALIZE_IX_ACCOUNTS_LEN};
+use spl_stake_pool_interface::{
+    InitializeIxArgs, InitializeKeys, SplStakePoolProgramIx, INITIALIZE_IX_ACCOUNTS_LEN,
+};
 
 use crate::FindWithdrawAuthority;
 
@@ -73,5 +78,19 @@ impl<M: ReadonlyAccountOwner + ReadonlyAccountPubkey> InitializeFreeArgs<M> {
                 is_writable: false,
             },
         ]
+    }
+
+    pub fn full_ix_with_deposit_auth(
+        &self,
+        with_deposit_auth: InitializeWithDepositAuthArgs,
+        ix_args: InitializeIxArgs,
+    ) -> Instruction {
+        Instruction {
+            accounts: Vec::from(self.resolve_with_deposit_auth(with_deposit_auth)),
+            data: SplStakePoolProgramIx::Initialize(ix_args)
+                .try_to_vec()
+                .unwrap(),
+            program_id: with_deposit_auth.program_id,
+        }
     }
 }

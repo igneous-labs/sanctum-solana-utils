@@ -3377,6 +3377,7 @@ name = "sanctum-spl-stake-pool-lib"
 version = "0.1.0"
 dependencies = [
  "solana-program",
+ "solana-readonly-account",
  "spl_stake_pool_interface",
 ]
 

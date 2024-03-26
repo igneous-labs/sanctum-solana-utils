@@ -6,4 +6,5 @@ license.workspace = true
 
 [dependencies]
 solana-program = { workspace = true }
+solana-readonly-account = { workspace = true }
 spl_stake_pool_interface = { workspace = true }

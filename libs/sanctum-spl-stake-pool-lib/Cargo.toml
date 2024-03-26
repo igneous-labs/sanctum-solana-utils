@@ -1,0 +1,9 @@
+[package]
+name = "sanctum-spl-stake-pool-lib"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+solana-program = { workspace = true }
+spl_stake_pool_interface = { workspace = true }

@@ -3373,6 +3373,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sanctum-spl-stake-pool-lib"
+version = "0.1.0"
+dependencies = [
+ "solana-program",
+ "spl_stake_pool_interface",
+]
+
+[[package]]
 name = "sanctum-stake-lib"
 version = "0.1.0"
 dependencies = [

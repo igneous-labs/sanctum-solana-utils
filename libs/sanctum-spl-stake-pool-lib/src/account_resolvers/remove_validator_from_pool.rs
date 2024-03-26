@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RemoveValidatorFromPoolFreeArgs<P> {
+pub struct RemoveValidatorFromPool<P> {
     pub stake_pool: P,
     pub vote_account: Pubkey,
 }
@@ -22,7 +22,7 @@ pub struct RemoveValidatorFromPoolPdas {
     pub transient_stake_account: Pubkey,
 }
 
-impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> RemoveValidatorFromPoolFreeArgs<P> {
+impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> RemoveValidatorFromPool<P> {
     pub fn resolve_with_pdas(
         &self,
         RemoveValidatorFromPoolPdas {

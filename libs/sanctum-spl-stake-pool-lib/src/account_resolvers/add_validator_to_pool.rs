@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct AddValidatorToPoolFreeArgs<P> {
+pub struct AddValidatorToPool<P> {
     pub stake_pool: P,
     pub vote_account: Pubkey,
 }
@@ -21,7 +21,7 @@ pub struct AddValidatorToPoolPdas {
     pub validator_stake_account: Pubkey,
 }
 
-impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> AddValidatorToPoolFreeArgs<P> {
+impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> AddValidatorToPool<P> {
     pub fn resolve_with_pdas(
         &self,
         AddValidatorToPoolPdas {

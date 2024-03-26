@@ -5,11 +5,11 @@ use spl_stake_pool_interface::{StakePool, UpdateStakePoolBalanceKeys};
 use crate::{deserialize_stake_pool_checked, FindWithdrawAuthority};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct UpdateStakePoolBalanceFreeArgs<P> {
+pub struct UpdateStakePoolBalance<P> {
     pub stake_pool: P,
 }
 
-impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateStakePoolBalanceFreeArgs<P> {
+impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateStakePoolBalance<P> {
     pub fn resolve_with_withdraw_auth(
         &self,
         withdraw_authority: Pubkey,

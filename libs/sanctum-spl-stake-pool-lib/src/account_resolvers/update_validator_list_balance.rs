@@ -19,7 +19,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct UpdateValidatorListBalanceFreeArgs<P> {
+pub struct UpdateValidatorListBalance<P> {
     pub stake_pool: P,
 }
 
@@ -30,7 +30,7 @@ pub struct UpdateValidatorListBalanceFromSubsliceArgs {
     pub no_merge: bool,
 }
 
-impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateValidatorListBalanceFreeArgs<P> {
+impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateValidatorListBalance<P> {
     pub fn resolve_with_withdraw_auth(
         &self,
         withdraw_authority: Pubkey,

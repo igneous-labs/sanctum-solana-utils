@@ -12,7 +12,7 @@ use crate::FindWithdrawAuthority;
 pub const INITIALIZE_WITH_DEPOSIT_AUTH_IX_ACCOUNTS_LEN: usize = INITIALIZE_IX_ACCOUNTS_LEN + 1;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InitializeFreeArgs<M> {
+pub struct Initialize<M> {
     pub pool_token_mint: M,
     pub stake_pool: Pubkey,
     pub manager: Pubkey,
@@ -28,7 +28,7 @@ pub struct InitializeWithDepositAuthArgs {
     pub program_id: Pubkey,
 }
 
-impl<M: ReadonlyAccountOwner + ReadonlyAccountPubkey> InitializeFreeArgs<M> {
+impl<M: ReadonlyAccountOwner + ReadonlyAccountPubkey> Initialize<M> {
     pub fn resolve_with_withdraw_auth(&self, withdraw_authority: Pubkey) -> InitializeKeys {
         InitializeKeys {
             stake_pool: self.stake_pool,

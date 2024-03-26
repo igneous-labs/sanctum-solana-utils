@@ -5,6 +5,7 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
+borsh = { workspace = true }
 solana-program = { workspace = true }
 solana-readonly-account = { workspace = true }
 spl_stake_pool_interface = { workspace = true }

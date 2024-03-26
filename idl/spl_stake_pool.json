@@ -219,10 +219,10 @@
           "desc": "Validator list"
         },
         {
-          "name": "stakeAccount",
+          "name": "validatorStakeAccount",
           "isMut": true,
           "isSigner": false,
-          "desc": "Stake account to remove from the pool"
+          "desc": "Validator stake account to remove from the pool"
         },
         {
           "name": "transientStakeAccount",

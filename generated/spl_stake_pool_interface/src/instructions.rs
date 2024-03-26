@@ -792,8 +792,8 @@ pub struct RemoveValidatorFromPoolAccounts<'me, 'info> {
     pub withdraw_authority: &'me AccountInfo<'info>,
     ///Validator list
     pub validator_list: &'me AccountInfo<'info>,
-    ///Stake account to remove from the pool
-    pub stake_account: &'me AccountInfo<'info>,
+    ///Validator stake account to remove from the pool
+    pub validator_stake_account: &'me AccountInfo<'info>,
     ///Transient stake account, to deactivate if necessary
     pub transient_stake_account: &'me AccountInfo<'info>,
     ///Clock sysvar
@@ -811,8 +811,8 @@ pub struct RemoveValidatorFromPoolKeys {
     pub withdraw_authority: Pubkey,
     ///Validator list
     pub validator_list: Pubkey,
-    ///Stake account to remove from the pool
-    pub stake_account: Pubkey,
+    ///Validator stake account to remove from the pool
+    pub validator_stake_account: Pubkey,
     ///Transient stake account, to deactivate if necessary
     pub transient_stake_account: Pubkey,
     ///Clock sysvar
@@ -827,7 +827,7 @@ impl From<RemoveValidatorFromPoolAccounts<'_, '_>> for RemoveValidatorFromPoolKe
             staker: *accounts.staker.key,
             withdraw_authority: *accounts.withdraw_authority.key,
             validator_list: *accounts.validator_list.key,
-            stake_account: *accounts.stake_account.key,
+            validator_stake_account: *accounts.validator_stake_account.key,
             transient_stake_account: *accounts.transient_stake_account.key,
             clock: *accounts.clock.key,
             stake_program: *accounts.stake_program.key,
@@ -860,7 +860,7 @@ impl From<RemoveValidatorFromPoolKeys>
                 is_writable: true,
             },
             AccountMeta {
-                pubkey: keys.stake_account,
+                pubkey: keys.validator_stake_account,
                 is_signer: false,
                 is_writable: true,
             },
@@ -889,7 +889,7 @@ impl From<[Pubkey; REMOVE_VALIDATOR_FROM_POOL_IX_ACCOUNTS_LEN]> for RemoveValida
             staker: pubkeys[1],
             withdraw_authority: pubkeys[2],
             validator_list: pubkeys[3],
-            stake_account: pubkeys[4],
+            validator_stake_account: pubkeys[4],
             transient_stake_account: pubkeys[5],
             clock: pubkeys[6],
             stake_program: pubkeys[7],
@@ -905,7 +905,7 @@ impl<'info> From<RemoveValidatorFromPoolAccounts<'_, 'info>>
             accounts.staker.clone(),
             accounts.withdraw_authority.clone(),
             accounts.validator_list.clone(),
-            accounts.stake_account.clone(),
+            accounts.validator_stake_account.clone(),
             accounts.transient_stake_account.clone(),
             accounts.clock.clone(),
             accounts.stake_program.clone(),
@@ -921,7 +921,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; REMOVE_VALIDATOR_FROM_POOL_IX_AC
             staker: &arr[1],
             withdraw_authority: &arr[2],
             validator_list: &arr[3],
-            stake_account: &arr[4],
+            validator_stake_account: &arr[4],
             transient_stake_account: &arr[5],
             clock: &arr[6],
             stake_program: &arr[7],
@@ -1010,7 +1010,10 @@ pub fn remove_validator_from_pool_verify_account_keys(
         (accounts.staker.key, &keys.staker),
         (accounts.withdraw_authority.key, &keys.withdraw_authority),
         (accounts.validator_list.key, &keys.validator_list),
-        (accounts.stake_account.key, &keys.stake_account),
+        (
+            accounts.validator_stake_account.key,
+            &keys.validator_stake_account,
+        ),
         (
             accounts.transient_stake_account.key,
             &keys.transient_stake_account,
@@ -1030,7 +1033,7 @@ pub fn remove_validator_from_pool_verify_writable_privileges<'me, 'info>(
     for should_be_writable in [
         accounts.stake_pool,
         accounts.validator_list,
-        accounts.stake_account,
+        accounts.validator_stake_account,
         accounts.transient_stake_account,
     ] {
         if !should_be_writable.is_writable {

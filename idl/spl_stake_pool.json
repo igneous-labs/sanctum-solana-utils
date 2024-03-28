@@ -75,13 +75,13 @@
         },
         {
           "name": "poolTokenMint",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false,
           "desc": "Pool token mint. Must have zero supply, owned by withdraw authority."
         },
         {
           "name": "managerFeeAccount",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false,
           "desc": "Pool account to deposit the generated fee for manager."
         },

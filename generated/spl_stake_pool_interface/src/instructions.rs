@@ -229,12 +229,12 @@ impl From<InitializeKeys> for [AccountMeta; INITIALIZE_IX_ACCOUNTS_LEN] {
             AccountMeta {
                 pubkey: keys.pool_token_mint,
                 is_signer: false,
-                is_writable: false,
+                is_writable: true,
             },
             AccountMeta {
                 pubkey: keys.manager_fee_account,
                 is_signer: false,
-                is_writable: false,
+                is_writable: true,
             },
             AccountMeta {
                 pubkey: keys.token_program,
@@ -409,7 +409,12 @@ pub fn initialize_verify_account_keys(
 pub fn initialize_verify_writable_privileges<'me, 'info>(
     accounts: InitializeAccounts<'me, 'info>,
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
-    for should_be_writable in [accounts.stake_pool, accounts.validator_list] {
+    for should_be_writable in [
+        accounts.stake_pool,
+        accounts.validator_list,
+        accounts.pool_token_mint,
+        accounts.manager_fee_account,
+    ] {
         if !should_be_writable.is_writable {
             return Err((should_be_writable, ProgramError::InvalidAccountData));
         }

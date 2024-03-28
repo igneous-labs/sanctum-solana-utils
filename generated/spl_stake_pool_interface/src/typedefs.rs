@@ -79,3 +79,9 @@ pub struct AdditionalValidatorStakeArgs {
     pub transient_stake_seed: u64,
     pub ephemeral_stake_seed: u64,
 }
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum PreferredValidatorType {
+    Deposit,
+    Withdraw,
+}

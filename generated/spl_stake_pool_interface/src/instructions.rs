@@ -14,6 +14,7 @@ pub enum SplStakePoolProgramIx {
     Initialize(InitializeIxArgs),
     AddValidatorToPool(AddValidatorToPoolIxArgs),
     RemoveValidatorFromPool,
+    SetPreferredValidator(SetPreferredValidatorIxArgs),
     UpdateValidatorListBalance(UpdateValidatorListBalanceIxArgs),
     UpdateStakePoolBalance,
     CleanupRemovedValidatorEntries,
@@ -38,6 +39,9 @@ impl SplStakePoolProgramIx {
                 AddValidatorToPoolIxArgs::deserialize(&mut reader)?,
             )),
             REMOVE_VALIDATOR_FROM_POOL_IX_DISCM => Ok(Self::RemoveValidatorFromPool),
+            SET_PREFERRED_VALIDATOR_IX_DISCM => Ok(Self::SetPreferredValidator(
+                SetPreferredValidatorIxArgs::deserialize(&mut reader)?,
+            )),
             UPDATE_VALIDATOR_LIST_BALANCE_IX_DISCM => Ok(Self::UpdateValidatorListBalance(
                 UpdateValidatorListBalanceIxArgs::deserialize(&mut reader)?,
             )),
@@ -77,6 +81,10 @@ impl SplStakePoolProgramIx {
             }
             Self::RemoveValidatorFromPool => {
                 writer.write_all(&[REMOVE_VALIDATOR_FROM_POOL_IX_DISCM])
+            }
+            Self::SetPreferredValidator(args) => {
+                writer.write_all(&[SET_PREFERRED_VALIDATOR_IX_DISCM])?;
+                args.serialize(&mut writer)
             }
             Self::UpdateValidatorListBalance(args) => {
                 writer.write_all(&[UPDATE_VALIDATOR_LIST_BALANCE_IX_DISCM])?;
@@ -1062,6 +1070,220 @@ pub fn remove_validator_from_pool_verify_account_privileges<'me, 'info>(
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     remove_validator_from_pool_verify_writable_privileges(accounts)?;
     remove_validator_from_pool_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const SET_PREFERRED_VALIDATOR_IX_ACCOUNTS_LEN: usize = 3;
+#[derive(Copy, Clone, Debug)]
+pub struct SetPreferredValidatorAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Staker
+    pub staker: &'me AccountInfo<'info>,
+    ///Validator list
+    pub validator_list: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct SetPreferredValidatorKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Staker
+    pub staker: Pubkey,
+    ///Validator list
+    pub validator_list: Pubkey,
+}
+impl From<SetPreferredValidatorAccounts<'_, '_>> for SetPreferredValidatorKeys {
+    fn from(accounts: SetPreferredValidatorAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            staker: *accounts.staker.key,
+            validator_list: *accounts.validator_list.key,
+        }
+    }
+}
+impl From<SetPreferredValidatorKeys> for [AccountMeta; SET_PREFERRED_VALIDATOR_IX_ACCOUNTS_LEN] {
+    fn from(keys: SetPreferredValidatorKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.staker,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.validator_list,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; SET_PREFERRED_VALIDATOR_IX_ACCOUNTS_LEN]> for SetPreferredValidatorKeys {
+    fn from(pubkeys: [Pubkey; SET_PREFERRED_VALIDATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            staker: pubkeys[1],
+            validator_list: pubkeys[2],
+        }
+    }
+}
+impl<'info> From<SetPreferredValidatorAccounts<'_, 'info>>
+    for [AccountInfo<'info>; SET_PREFERRED_VALIDATOR_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: SetPreferredValidatorAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.staker.clone(),
+            accounts.validator_list.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; SET_PREFERRED_VALIDATOR_IX_ACCOUNTS_LEN]>
+    for SetPreferredValidatorAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; SET_PREFERRED_VALIDATOR_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            staker: &arr[1],
+            validator_list: &arr[2],
+        }
+    }
+}
+pub const SET_PREFERRED_VALIDATOR_IX_DISCM: u8 = 5u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SetPreferredValidatorIxArgs {
+    pub validator_type: PreferredValidatorType,
+    pub validator_vote_address: Option<Pubkey>,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct SetPreferredValidatorIxData(pub SetPreferredValidatorIxArgs);
+impl From<SetPreferredValidatorIxArgs> for SetPreferredValidatorIxData {
+    fn from(args: SetPreferredValidatorIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl SetPreferredValidatorIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != SET_PREFERRED_VALIDATOR_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    SET_PREFERRED_VALIDATOR_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(SetPreferredValidatorIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[SET_PREFERRED_VALIDATOR_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn set_preferred_validator_ix_with_program_id(
+    program_id: Pubkey,
+    keys: SetPreferredValidatorKeys,
+    args: SetPreferredValidatorIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; SET_PREFERRED_VALIDATOR_IX_ACCOUNTS_LEN] = keys.into();
+    let data: SetPreferredValidatorIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn set_preferred_validator_ix(
+    keys: SetPreferredValidatorKeys,
+    args: SetPreferredValidatorIxArgs,
+) -> std::io::Result<Instruction> {
+    set_preferred_validator_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn set_preferred_validator_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: SetPreferredValidatorAccounts<'_, '_>,
+    args: SetPreferredValidatorIxArgs,
+) -> ProgramResult {
+    let keys: SetPreferredValidatorKeys = accounts.into();
+    let ix = set_preferred_validator_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn set_preferred_validator_invoke(
+    accounts: SetPreferredValidatorAccounts<'_, '_>,
+    args: SetPreferredValidatorIxArgs,
+) -> ProgramResult {
+    set_preferred_validator_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn set_preferred_validator_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: SetPreferredValidatorAccounts<'_, '_>,
+    args: SetPreferredValidatorIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: SetPreferredValidatorKeys = accounts.into();
+    let ix = set_preferred_validator_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn set_preferred_validator_invoke_signed(
+    accounts: SetPreferredValidatorAccounts<'_, '_>,
+    args: SetPreferredValidatorIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    set_preferred_validator_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn set_preferred_validator_verify_account_keys(
+    accounts: SetPreferredValidatorAccounts<'_, '_>,
+    keys: SetPreferredValidatorKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.staker.key, &keys.staker),
+        (accounts.validator_list.key, &keys.validator_list),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn set_preferred_validator_verify_writable_privileges<'me, 'info>(
+    accounts: SetPreferredValidatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [accounts.stake_pool] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn set_preferred_validator_verify_signer_privileges<'me, 'info>(
+    accounts: SetPreferredValidatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.staker] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn set_preferred_validator_verify_account_privileges<'me, 'info>(
+    accounts: SetPreferredValidatorAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    set_preferred_validator_verify_writable_privileges(accounts)?;
+    set_preferred_validator_verify_signer_privileges(accounts)?;
     Ok(())
 }
 pub const UPDATE_VALIDATOR_LIST_BALANCE_IX_ACCOUNTS_LEN: usize = 7;

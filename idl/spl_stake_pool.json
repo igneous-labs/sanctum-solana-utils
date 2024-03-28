@@ -245,6 +245,43 @@
       ]
     },
     {
+      "name": "SetPreferredValidator",
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      },
+      "args": [
+        {
+          "name": "validatorType",
+          "type": { "defined": "PreferredValidatorType" }
+        },
+        {
+          "name": "validatorVoteAddress",
+          "type": { "option": "publicKey" }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Staker"
+        },
+        {
+          "name": "validatorList",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Validator list"
+        }
+      ]
+    },
+    {
       "name": "UpdateValidatorListBalance",
       "discriminant": {
         "type": "u8",
@@ -1146,6 +1183,20 @@
           {
             "name": "ephemeralStakeSeed",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PreferredValidatorType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Withdraw"
           }
         ]
       }

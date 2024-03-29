@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use spl_stake_pool_interface::Fee;
+use spl_stake_pool_interface::{Fee, FeeType};
 
 /// Newtype used to perform fraction comparisons between [`Fee`]s
 #[derive(Debug, Clone, Copy)]
@@ -86,3 +86,36 @@ impl Ord for CmpFeeOwned {
         CmpFee(&self.0).cmp(&CmpFee(&other.0))
     }
 }
+
+/// Newtype used to perform fraction comparisons between [`FeeType`]s
+#[derive(Debug, Clone, Copy)]
+pub struct EqFeeType<'a>(pub &'a FeeType);
+
+impl<'a> PartialEq for EqFeeType<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.0, other.0) {
+            (FeeType::SolDeposit { fee: s }, FeeType::SolDeposit { fee: o })
+            | (FeeType::StakeDeposit { fee: s }, FeeType::StakeDeposit { fee: o })
+            | (FeeType::SolWithdrawal { fee: s }, FeeType::SolWithdrawal { fee: o })
+            | (FeeType::StakeWithdrawal { fee: s }, FeeType::StakeWithdrawal { fee: o })
+            | (FeeType::Epoch { fee: s }, FeeType::Epoch { fee: o }) => CmpFee(s).eq(&CmpFee(o)),
+            (FeeType::SolReferral { fee: s }, FeeType::SolReferral { fee: o })
+            | (FeeType::StakeReferral { fee: s }, FeeType::StakeReferral { fee: o }) => s.eq(o),
+            _ => false,
+        }
+    }
+}
+
+impl<'a> Eq for EqFeeType<'a> {}
+
+/// Owned version of [`EqFeeType`]
+#[derive(Debug, Clone)]
+pub struct EqFeeTypeOwned(pub FeeType);
+
+impl PartialEq for EqFeeTypeOwned {
+    fn eq(&self, other: &Self) -> bool {
+        EqFeeType(&self.0).eq(&EqFeeType(&other.0))
+    }
+}
+
+impl Eq for EqFeeTypeOwned {}

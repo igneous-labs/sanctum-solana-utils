@@ -1,0 +1,1209 @@
+{
+  "version": "1.0.0",
+  "name": "spl_stake_pool",
+  "instructions": [
+    {
+      "name": "Initialize",
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      },
+      "args": [
+        {
+          "name": "fee",
+          "type": {
+            "defined": "Fee"
+          }
+        },
+        {
+          "name": "withdrawalFee",
+          "type": {
+            "defined": "Fee"
+          }
+        },
+        {
+          "name": "depositFee",
+          "type": {
+            "defined": "Fee"
+          }
+        },
+        {
+          "name": "referralFee",
+          "type": "u8"
+        },
+        {
+          "name": "maxValidators",
+          "type": "u32"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "New StakePool to create"
+        },
+        {
+          "name": "manager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Manager"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Staker"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Uninitialized validator stake list storage account"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Reserve stake account must be initialized, have zero balance, and staker / withdrawer authority set to pool withdraw authority"
+        },
+        {
+          "name": "poolTokenMint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Pool token mint. Must have zero supply, owned by withdraw authority."
+        },
+        {
+          "name": "managerFeeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Pool account to deposit the generated fee for manager."
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Pool token's token program. Optional deposit authority account follows; if omitted, anyone can deposit into the pool."
+        }
+      ]
+    },
+    {
+      "name": "AddValidatorToPool",
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      },
+      "args": [
+        {
+          "name": "optionalSeed",
+          "type": "u32"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Staker"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Reserve stake account"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "validatorStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator stake account to add to the pool"
+        },
+        {
+          "name": "voteAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Vote account of the validator this stake account will be delegated to"
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Rent sysvar"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake config sysvar"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    },
+    {
+      "name": "RemoveValidatorFromPool",
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Staker"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "validatorStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator stake account to remove from the pool"
+        },
+        {
+          "name": "transientStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Transient stake account, to deactivate if necessary"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    },
+    {
+      "name": "SetPreferredValidator",
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      },
+      "args": [
+        {
+          "name": "validatorType",
+          "type": { "defined": "PreferredValidatorType" }
+        },
+        {
+          "name": "validatorVoteAddress",
+          "type": { "option": "publicKey" }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Staker"
+        },
+        {
+          "name": "validatorList",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Validator list"
+        }
+      ]
+    },
+    {
+      "name": "UpdateValidatorListBalance",
+      "discriminant": {
+        "type": "u8",
+        "value": 6
+      },
+      "args": [
+        {
+          "name": "startIndex",
+          "type": "u32"
+        },
+        {
+          "name": "noMerge",
+          "type": "bool"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Reserve stake account"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program. N pairs of validator and transient stake accounts follow."
+        }
+      ]
+    },
+    {
+      "name": "UpdateStakePoolBalance",
+      "discriminant": {
+        "type": "u8",
+        "value": 7
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Reserve stake account"
+        },
+        {
+          "name": "managerFeeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Account to receive pool fee tokens"
+        },
+        {
+          "name": "poolMint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Pool token mint."
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Pool token's token program."
+        }
+      ]
+    },
+    {
+      "name": "CleanupRemovedValidatorEntries",
+      "discriminant": {
+        "type": "u8",
+        "value": 8
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        }
+      ]
+    },
+    {
+      "name": "SetManager",
+      "discriminant": {
+        "type": "u8",
+        "value": 11
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "manager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current manager"
+        },
+        {
+          "name": "newManager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "New manager"
+        },
+        {
+          "name": "newManagerFeeAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "New manager fee account"
+        }
+      ]
+    },
+    {
+      "name": "SetFee",
+      "discriminant": {
+        "type": "u8",
+        "value": 12
+      },
+      "args": [
+        {
+          "name": "fee",
+          "type": { "defined": "FeeType" }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "manager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current manager"
+        }
+      ]
+    },
+    {
+      "name": "SetStaker",
+      "discriminant": {
+        "type": "u8",
+        "value": 13
+      },
+      "args": [],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current manager or staker"
+        },
+        {
+          "name": "newStaker",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "New staker pubkey"
+        }
+      ]
+    },
+    {
+      "name": "SetFundingAuthority",
+      "discriminant": {
+        "type": "u8",
+        "value": 15
+      },
+      "args": [
+        {
+          "name": "auth",
+          "type": { "defined": "FundingType" }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "manager",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current manager"
+        },
+        {
+          "name": "newFundingAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "New funding authority. If omitted, sets it to None"
+        }
+      ]
+    },
+    {
+      "name": "IncreaseAdditionalValidatorStake",
+      "discriminant": {
+        "type": "u8",
+        "value": 19
+      },
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "AdditionalValidatorStakeArgs"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current staker"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Reserve stake account"
+        },
+        {
+          "name": "ephemeralStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Uninitialized ephemeral stake account to receive stake"
+        },
+        {
+          "name": "transientStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Transient stake account"
+        },
+        {
+          "name": "validatorStakeAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Validator stake account"
+        },
+        {
+          "name": "voteAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Validator vote account to delegate to"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake config sysvar"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    },
+    {
+      "name": "DecreaseAdditionalValidatorStake",
+      "discriminant": {
+        "type": "u8",
+        "value": 20
+      },
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "AdditionalValidatorStakeArgs"
+          }
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current staker"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Reserve stake account"
+        },
+        {
+          "name": "validatorStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator stake account to split stake from"
+        },
+        {
+          "name": "ephemeralStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Uninitialized ephemeral stake account to receive stake"
+        },
+        {
+          "name": "transientStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Transient stake account"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "StakePool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "accountType",
+            "type": {
+              "defined": "AccountType"
+            }
+          },
+          {
+            "name": "manager",
+            "type": "publicKey"
+          },
+          {
+            "name": "staker",
+            "type": "publicKey"
+          },
+          {
+            "name": "stakeDepositAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "stakeWithdrawBumpSeed",
+            "type": "u8"
+          },
+          {
+            "name": "validatorList",
+            "type": "publicKey"
+          },
+          {
+            "name": "reserveStake",
+            "type": "publicKey"
+          },
+          {
+            "name": "poolMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "managerFeeAccount",
+            "type": "publicKey"
+          },
+          {
+            "name": "tokenProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalLamports",
+            "type": "u64"
+          },
+          {
+            "name": "poolTokenSupply",
+            "type": "u64"
+          },
+          {
+            "name": "lastUpdateEpoch",
+            "type": "u64"
+          },
+          {
+            "name": "lockup",
+            "type": {
+              "defined": "Lockup"
+            }
+          },
+          {
+            "name": "epochFee",
+            "type": {
+              "defined": "Fee"
+            }
+          },
+          {
+            "name": "nextEpochFee",
+            "type": {
+              "defined": "FutureEpochFee"
+            }
+          },
+          {
+            "name": "preferredDepositValidatorVoteAddress",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "preferredWithdrawValidatorVoteAddress",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "stakeDepositFee",
+            "type": {
+              "defined": "Fee"
+            }
+          },
+          {
+            "name": "stakeWithdrawalFee",
+            "type": {
+              "defined": "Fee"
+            }
+          },
+          {
+            "name": "nextStakeWithdrawalFee",
+            "type": {
+              "defined": "FutureEpochFee"
+            }
+          },
+          {
+            "name": "stakeReferralFee",
+            "type": "u8"
+          },
+          {
+            "name": "solDepositAuthority",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "solDepositFee",
+            "type": {
+              "defined": "Fee"
+            }
+          },
+          {
+            "name": "solReferralFee",
+            "type": "u8"
+          },
+          {
+            "name": "solWithdrawAuthority",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "solWithdrawalFee",
+            "type": {
+              "defined": "Fee"
+            }
+          },
+          {
+            "name": "nextSolWithdrawalFee",
+            "type": {
+              "defined": "FutureEpochFee"
+            }
+          },
+          {
+            "name": "lastEpochPoolTokenSupply",
+            "type": "u64"
+          },
+          {
+            "name": "lastEpochTotalLamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ValidatorList",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "header",
+            "type": {
+              "defined": "ValidatorListHeader"
+            }
+          },
+          {
+            "name": "validators",
+            "type": {
+              "vec": {
+                "defined": "ValidatorStakeInfo"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "AccountType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Uninitialized"
+          },
+          {
+            "name": "StakePool"
+          },
+          {
+            "name": "ValidatorList"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Lockup",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "unixTimestamp",
+            "type": "i64"
+          },
+          {
+            "name": "epoch",
+            "type": "u64"
+          },
+          {
+            "name": "custodian",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Fee",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "denominator",
+            "type": "u64"
+          },
+          {
+            "name": "numerator",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FutureEpochFee",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "One",
+            "fields": [
+              {
+                "name": "fee",
+                "type": {
+                  "defined": "Fee"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Two",
+            "fields": [
+              {
+                "name": "fee",
+                "type": {
+                  "defined": "Fee"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "StakeStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "DeactivatingTransient"
+          },
+          {
+            "name": "ReadyForRemoval"
+          },
+          {
+            "name": "DeactivatingValidator"
+          },
+          {
+            "name": "DeactivatingAll"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ValidatorListHeader",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "accountType",
+            "type": {
+              "defined": "AccountType"
+            }
+          },
+          {
+            "name": "maxValidators",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ValidatorStakeInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "activeStakeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "transientStakeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "lastUpdateEpoch",
+            "type": "u64"
+          },
+          {
+            "name": "transientSeedSuffix",
+            "type": "u64"
+          },
+          {
+            "name": "unused",
+            "type": "u32"
+          },
+          {
+            "name": "validatorSeedSuffix",
+            "type": "u32"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "StakeStatus"
+            }
+          },
+          {
+            "name": "voteAccountAddress",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SolReferral",
+            "fields": [
+              {
+                "name": "fee",
+                "type": "u8"
+              }
+            ]
+          },
+          {
+            "name": "StakeReferral",
+            "fields": [
+              {
+                "name": "fee",
+                "type": "u8"
+              }
+            ]
+          },
+          {
+            "name": "Epoch",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          },
+          {
+            "name": "StakeWithdrawal",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          },
+          {
+            "name": "SolDeposit",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          },
+          {
+            "name": "StakeDeposit",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          },
+          {
+            "name": "SolWithdrawal",
+            "fields": [
+              {
+                "name": "fee",
+                "type": { "defined": "Fee" }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "FundingType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "StakeDeposit"
+          },
+          {
+            "name": "SolDeposit"
+          },
+          {
+            "name": "SolWithdraw"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AdditionalValidatorStakeArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "transientStakeSeed",
+            "type": "u64"
+          },
+          {
+            "name": "ephemeralStakeSeed",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PreferredValidatorType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Withdraw"
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy"
+  }
+}

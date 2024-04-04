@@ -40,6 +40,19 @@ fn cmp_inner<
     lhs: &U64Ratio<LN, LD>,
     rhs: &U64Ratio<RN, RD>,
 ) -> Ordering {
+    // zero-edge cases
+    if lhs.is_zero() {
+        return if rhs.is_zero() {
+            Ordering::Equal
+        } else {
+            Ordering::Less
+        };
+    }
+    // lhs != 0
+    if rhs.is_zero() {
+        return Ordering::Greater;
+    }
+
     let ln: u128 = lhs.num.into();
     let ld: u128 = lhs.denom.into();
     let rn: u128 = rhs.num.into();
@@ -161,6 +174,28 @@ mod tests {
             let s = U64Ratio { num: common, denom: larger };
             let l = U64Ratio { num: common, denom: smaller };
             prop_assert!(s < l);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn zero_eq(a: u64, b: u64) {
+            prop_assert_eq!(
+                U64Ratio { num: a, denom: 0u64 },
+                U64Ratio { num: b, denom: 0u64 }
+            );
+            prop_assert_eq!(
+                U64Ratio { num: 0u64, denom: a},
+                U64Ratio { num: b, denom: 0u64 }
+            );
+            prop_assert_eq!(
+                U64Ratio { num: a, denom: 0u64 },
+                U64Ratio { num: 0u64, denom: b }
+            );
+            prop_assert_eq!(
+                U64Ratio { num: 0u64, denom: a },
+                U64Ratio { num: 0u64, denom: b }
+            );
         }
     }
 }

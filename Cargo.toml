@@ -60,6 +60,7 @@ solana-version = "^1"
 sanctum-solana-cli-utils = { path = "./sanctum-solana-cli-utils" }
 sanctum-solana-test-utils = { path = "./sanctum-solana-test-utils" }
 spl_associated_token_account_interface = { path = "./generated/spl_associated_token_account_interface" }
+spl_stake_pool_interface = { path = "./generated/spl_stake_pool_interface" }
 spl_token_interface = { path = "./generated/spl_token_interface" }
 stake_program_interface = { path = "./generated/stake_program_interface" }
 system_program_interface = { path = "./generated/system_program_interface" }

@@ -17,6 +17,7 @@ members = [
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+assert_cmd = "^2"
 async-trait = ">=0.1"
 bincode = "^1"
 borsh = { version = ">=0.9", default-features = false } # no default-features for no_std support

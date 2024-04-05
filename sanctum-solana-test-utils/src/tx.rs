@@ -3,7 +3,19 @@ use std::fmt::Display;
 use num_traits::ToPrimitive;
 use solana_program::{instruction::InstructionError, program_error::ProgramError};
 use solana_program_test::BanksClientError;
-use solana_sdk::transaction::TransactionError;
+use solana_sdk::{
+    address_lookup_table::AddressLookupTableAccount,
+    compute_budget::ComputeBudgetInstruction,
+    hash::Hash,
+    instruction::Instruction,
+    message::{v0::Message, VersionedMessage},
+    pubkey::Pubkey,
+    signature::Signature,
+    transaction::{TransactionError, VersionedTransaction},
+};
+
+/// `assert!(tx_ser_size(payer, ixs, luts) <= TX_SIZE_LIMIT)`
+pub const TX_SIZE_LIMIT: usize = 1232;
 
 /// Extremely fucked up: TransactionReturnData truncates all rightmost zero bytes:
 /// https://solana.stackexchange.com/questions/7141/program-return-data-to-client-error
@@ -86,4 +98,49 @@ pub fn assert_transaction_error(
         actual_err, expected_err,
         "Expected: {expected_err}. Actual: {actual_err}"
     );
+}
+
+pub fn tx_ser_size_with_cu_ixs(
+    payer: &Pubkey,
+    ixs: impl Iterator<Item = Instruction>,
+    luts: &[AddressLookupTableAccount],
+) -> usize {
+    let mut final_ixs = vec![
+        ComputeBudgetInstruction::set_compute_unit_limit(0),
+        ComputeBudgetInstruction::set_compute_unit_price(0),
+    ];
+    final_ixs.extend(ixs);
+    tx_ser_size(payer, &final_ixs, luts)
+}
+
+pub fn tx_ser_size(
+    payer: &Pubkey,
+    ixs: &[Instruction],
+    luts: &[AddressLookupTableAccount],
+) -> usize {
+    let message =
+        VersionedMessage::V0(Message::try_compile(payer, ixs, luts, Hash::default()).unwrap());
+    let n_signers = message.header().num_required_signatures;
+
+    let tx = VersionedTransaction {
+        signatures: vec![Signature::default(); n_signers.into()],
+        message,
+    };
+    bincode::serialize(&tx).unwrap().len()
+}
+
+pub fn assert_tx_within_size_limits(
+    payer: &Pubkey,
+    ixs: &[Instruction],
+    luts: &[AddressLookupTableAccount],
+) {
+    assert!(tx_ser_size(payer, ixs, luts) <= TX_SIZE_LIMIT);
+}
+
+pub fn assert_tx_with_cu_ixs_within_size_limits(
+    payer: &Pubkey,
+    ixs: impl Iterator<Item = Instruction>,
+    luts: &[AddressLookupTableAccount],
+) {
+    assert!(tx_ser_size_with_cu_ixs(payer, ixs, luts) <= TX_SIZE_LIMIT);
 }

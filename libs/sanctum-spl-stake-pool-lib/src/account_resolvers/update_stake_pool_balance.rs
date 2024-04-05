@@ -19,7 +19,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateStakePoolBalance<P> {
             reserve_stake,
             pool_mint,
             manager_fee_account,
-            token_program_id,
+            token_program,
             ..
         } = deserialize_stake_pool_checked(self.stake_pool.data().as_ref())?;
         Ok(UpdateStakePoolBalanceKeys {
@@ -29,7 +29,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateStakePoolBalance<P> {
             reserve_stake,
             manager_fee_account,
             pool_mint,
-            token_program: token_program_id,
+            token_program,
         })
     }
 

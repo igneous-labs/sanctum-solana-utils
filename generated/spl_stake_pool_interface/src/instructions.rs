@@ -24,6 +24,10 @@ pub enum SplStakePoolProgramIx {
     SetFundingAuthority(SetFundingAuthorityIxArgs),
     IncreaseAdditionalValidatorStake(IncreaseAdditionalValidatorStakeIxArgs),
     DecreaseAdditionalValidatorStake(DecreaseAdditionalValidatorStakeIxArgs),
+    DepositStakeWithSlippage(DepositStakeWithSlippageIxArgs),
+    WithdrawStakeWithSlippage(WithdrawStakeWithSlippageIxArgs),
+    DepositSolWithSlippage(DepositSolWithSlippageIxArgs),
+    WithdrawSolWithSlippage(WithdrawSolWithSlippageIxArgs),
 }
 impl SplStakePoolProgramIx {
     pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
@@ -63,6 +67,18 @@ impl SplStakePoolProgramIx {
                     DecreaseAdditionalValidatorStakeIxArgs::deserialize(&mut reader)?,
                 ))
             }
+            DEPOSIT_STAKE_WITH_SLIPPAGE_IX_DISCM => Ok(Self::DepositStakeWithSlippage(
+                DepositStakeWithSlippageIxArgs::deserialize(&mut reader)?,
+            )),
+            WITHDRAW_STAKE_WITH_SLIPPAGE_IX_DISCM => Ok(Self::WithdrawStakeWithSlippage(
+                WithdrawStakeWithSlippageIxArgs::deserialize(&mut reader)?,
+            )),
+            DEPOSIT_SOL_WITH_SLIPPAGE_IX_DISCM => Ok(Self::DepositSolWithSlippage(
+                DepositSolWithSlippageIxArgs::deserialize(&mut reader)?,
+            )),
+            WITHDRAW_SOL_WITH_SLIPPAGE_IX_DISCM => Ok(Self::WithdrawSolWithSlippage(
+                WithdrawSolWithSlippageIxArgs::deserialize(&mut reader)?,
+            )),
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("discm {:?} not found", maybe_discm),
@@ -112,6 +128,22 @@ impl SplStakePoolProgramIx {
                 writer.write_all(&[DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM])?;
                 args.serialize(&mut writer)
             }
+            Self::DepositStakeWithSlippage(args) => {
+                writer.write_all(&[DEPOSIT_STAKE_WITH_SLIPPAGE_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
+            Self::WithdrawStakeWithSlippage(args) => {
+                writer.write_all(&[WITHDRAW_STAKE_WITH_SLIPPAGE_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
+            Self::DepositSolWithSlippage(args) => {
+                writer.write_all(&[DEPOSIT_SOL_WITH_SLIPPAGE_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
+            Self::WithdrawSolWithSlippage(args) => {
+                writer.write_all(&[WITHDRAW_SOL_WITH_SLIPPAGE_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
         }
     }
     pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
@@ -151,7 +183,7 @@ pub struct InitializeAccounts<'me, 'info> {
     ///Reserve stake account must be initialized, have zero balance, and staker / withdrawer authority set to pool withdraw authority
     pub reserve_stake: &'me AccountInfo<'info>,
     ///Pool token mint. Must have zero supply, owned by withdraw authority.
-    pub pool_token_mint: &'me AccountInfo<'info>,
+    pub pool_mint: &'me AccountInfo<'info>,
     ///Pool account to deposit the generated fee for manager.
     pub manager_fee_account: &'me AccountInfo<'info>,
     ///Pool token's token program. Optional deposit authority account follows; if omitted, anyone can deposit into the pool.
@@ -172,7 +204,7 @@ pub struct InitializeKeys {
     ///Reserve stake account must be initialized, have zero balance, and staker / withdrawer authority set to pool withdraw authority
     pub reserve_stake: Pubkey,
     ///Pool token mint. Must have zero supply, owned by withdraw authority.
-    pub pool_token_mint: Pubkey,
+    pub pool_mint: Pubkey,
     ///Pool account to deposit the generated fee for manager.
     pub manager_fee_account: Pubkey,
     ///Pool token's token program. Optional deposit authority account follows; if omitted, anyone can deposit into the pool.
@@ -187,7 +219,7 @@ impl From<InitializeAccounts<'_, '_>> for InitializeKeys {
             withdraw_authority: *accounts.withdraw_authority.key,
             validator_list: *accounts.validator_list.key,
             reserve_stake: *accounts.reserve_stake.key,
-            pool_token_mint: *accounts.pool_token_mint.key,
+            pool_mint: *accounts.pool_mint.key,
             manager_fee_account: *accounts.manager_fee_account.key,
             token_program: *accounts.token_program.key,
         }
@@ -227,7 +259,7 @@ impl From<InitializeKeys> for [AccountMeta; INITIALIZE_IX_ACCOUNTS_LEN] {
                 is_writable: false,
             },
             AccountMeta {
-                pubkey: keys.pool_token_mint,
+                pubkey: keys.pool_mint,
                 is_signer: false,
                 is_writable: true,
             },
@@ -253,7 +285,7 @@ impl From<[Pubkey; INITIALIZE_IX_ACCOUNTS_LEN]> for InitializeKeys {
             withdraw_authority: pubkeys[3],
             validator_list: pubkeys[4],
             reserve_stake: pubkeys[5],
-            pool_token_mint: pubkeys[6],
+            pool_mint: pubkeys[6],
             manager_fee_account: pubkeys[7],
             token_program: pubkeys[8],
         }
@@ -270,7 +302,7 @@ impl<'info> From<InitializeAccounts<'_, 'info>>
             accounts.withdraw_authority.clone(),
             accounts.validator_list.clone(),
             accounts.reserve_stake.clone(),
-            accounts.pool_token_mint.clone(),
+            accounts.pool_mint.clone(),
             accounts.manager_fee_account.clone(),
             accounts.token_program.clone(),
         ]
@@ -287,7 +319,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; INITIALIZE_IX_ACCOUNTS_LEN]>
             withdraw_authority: &arr[3],
             validator_list: &arr[4],
             reserve_stake: &arr[5],
-            pool_token_mint: &arr[6],
+            pool_mint: &arr[6],
             manager_fee_account: &arr[7],
             token_program: &arr[8],
         }
@@ -396,7 +428,7 @@ pub fn initialize_verify_account_keys(
         (accounts.withdraw_authority.key, &keys.withdraw_authority),
         (accounts.validator_list.key, &keys.validator_list),
         (accounts.reserve_stake.key, &keys.reserve_stake),
-        (accounts.pool_token_mint.key, &keys.pool_token_mint),
+        (accounts.pool_mint.key, &keys.pool_mint),
         (accounts.manager_fee_account.key, &keys.manager_fee_account),
         (accounts.token_program.key, &keys.token_program),
     ] {
@@ -412,7 +444,7 @@ pub fn initialize_verify_writable_privileges<'me, 'info>(
     for should_be_writable in [
         accounts.stake_pool,
         accounts.validator_list,
-        accounts.pool_token_mint,
+        accounts.pool_mint,
         accounts.manager_fee_account,
     ] {
         if !should_be_writable.is_writable {
@@ -3542,5 +3574,1421 @@ pub fn decrease_additional_validator_stake_verify_account_privileges<'me, 'info>
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     decrease_additional_validator_stake_verify_writable_privileges(accounts)?;
     decrease_additional_validator_stake_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN: usize = 15;
+#[derive(Copy, Clone, Debug)]
+pub struct DepositStakeWithSlippageAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Validator list
+    pub validator_list: &'me AccountInfo<'info>,
+    ///Stake pool deposit authority. Must be a signer if not default PDA.
+    pub stake_deposit_authority: &'me AccountInfo<'info>,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: &'me AccountInfo<'info>,
+    ///Stake account to deposit
+    pub stake_depositing: &'me AccountInfo<'info>,
+    ///Validator stake account to merge into
+    pub validator_stake_account: &'me AccountInfo<'info>,
+    ///Stake pool reserve stake
+    pub reserve_stake: &'me AccountInfo<'info>,
+    ///LST token account to mint the new LSTs to
+    pub mint_to: &'me AccountInfo<'info>,
+    ///Manager fee account
+    pub manager_fee_account: &'me AccountInfo<'info>,
+    ///LST token account ro receive referral fees
+    pub referral_fee_dest: &'me AccountInfo<'info>,
+    ///Pool token mint
+    pub pool_mint: &'me AccountInfo<'info>,
+    ///Clock sysvar
+    pub clock: &'me AccountInfo<'info>,
+    ///Stake history sysvar
+    pub stake_history: &'me AccountInfo<'info>,
+    ///Pool token program
+    pub token_program: &'me AccountInfo<'info>,
+    ///Stake program
+    pub stake_program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct DepositStakeWithSlippageKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Validator list
+    pub validator_list: Pubkey,
+    ///Stake pool deposit authority. Must be a signer if not default PDA.
+    pub stake_deposit_authority: Pubkey,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: Pubkey,
+    ///Stake account to deposit
+    pub stake_depositing: Pubkey,
+    ///Validator stake account to merge into
+    pub validator_stake_account: Pubkey,
+    ///Stake pool reserve stake
+    pub reserve_stake: Pubkey,
+    ///LST token account to mint the new LSTs to
+    pub mint_to: Pubkey,
+    ///Manager fee account
+    pub manager_fee_account: Pubkey,
+    ///LST token account ro receive referral fees
+    pub referral_fee_dest: Pubkey,
+    ///Pool token mint
+    pub pool_mint: Pubkey,
+    ///Clock sysvar
+    pub clock: Pubkey,
+    ///Stake history sysvar
+    pub stake_history: Pubkey,
+    ///Pool token program
+    pub token_program: Pubkey,
+    ///Stake program
+    pub stake_program: Pubkey,
+}
+impl From<DepositStakeWithSlippageAccounts<'_, '_>> for DepositStakeWithSlippageKeys {
+    fn from(accounts: DepositStakeWithSlippageAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            validator_list: *accounts.validator_list.key,
+            stake_deposit_authority: *accounts.stake_deposit_authority.key,
+            withdraw_authority: *accounts.withdraw_authority.key,
+            stake_depositing: *accounts.stake_depositing.key,
+            validator_stake_account: *accounts.validator_stake_account.key,
+            reserve_stake: *accounts.reserve_stake.key,
+            mint_to: *accounts.mint_to.key,
+            manager_fee_account: *accounts.manager_fee_account.key,
+            referral_fee_dest: *accounts.referral_fee_dest.key,
+            pool_mint: *accounts.pool_mint.key,
+            clock: *accounts.clock.key,
+            stake_history: *accounts.stake_history.key,
+            token_program: *accounts.token_program.key,
+            stake_program: *accounts.stake_program.key,
+        }
+    }
+}
+impl From<DepositStakeWithSlippageKeys>
+    for [AccountMeta; DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: DepositStakeWithSlippageKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.validator_list,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.stake_deposit_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.withdraw_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_depositing,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.validator_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.reserve_stake,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.mint_to,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.manager_fee_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.referral_fee_dest,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.pool_mint,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.clock,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_history,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]> for DepositStakeWithSlippageKeys {
+    fn from(pubkeys: [Pubkey; DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            validator_list: pubkeys[1],
+            stake_deposit_authority: pubkeys[2],
+            withdraw_authority: pubkeys[3],
+            stake_depositing: pubkeys[4],
+            validator_stake_account: pubkeys[5],
+            reserve_stake: pubkeys[6],
+            mint_to: pubkeys[7],
+            manager_fee_account: pubkeys[8],
+            referral_fee_dest: pubkeys[9],
+            pool_mint: pubkeys[10],
+            clock: pubkeys[11],
+            stake_history: pubkeys[12],
+            token_program: pubkeys[13],
+            stake_program: pubkeys[14],
+        }
+    }
+}
+impl<'info> From<DepositStakeWithSlippageAccounts<'_, 'info>>
+    for [AccountInfo<'info>; DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: DepositStakeWithSlippageAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.validator_list.clone(),
+            accounts.stake_deposit_authority.clone(),
+            accounts.withdraw_authority.clone(),
+            accounts.stake_depositing.clone(),
+            accounts.validator_stake_account.clone(),
+            accounts.reserve_stake.clone(),
+            accounts.mint_to.clone(),
+            accounts.manager_fee_account.clone(),
+            accounts.referral_fee_dest.clone(),
+            accounts.pool_mint.clone(),
+            accounts.clock.clone(),
+            accounts.stake_history.clone(),
+            accounts.token_program.clone(),
+            accounts.stake_program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]>
+    for DepositStakeWithSlippageAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            validator_list: &arr[1],
+            stake_deposit_authority: &arr[2],
+            withdraw_authority: &arr[3],
+            stake_depositing: &arr[4],
+            validator_stake_account: &arr[5],
+            reserve_stake: &arr[6],
+            mint_to: &arr[7],
+            manager_fee_account: &arr[8],
+            referral_fee_dest: &arr[9],
+            pool_mint: &arr[10],
+            clock: &arr[11],
+            stake_history: &arr[12],
+            token_program: &arr[13],
+            stake_program: &arr[14],
+        }
+    }
+}
+pub const DEPOSIT_STAKE_WITH_SLIPPAGE_IX_DISCM: u8 = 23u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DepositStakeWithSlippageIxArgs {
+    pub min_tokens_out: u64,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct DepositStakeWithSlippageIxData(pub DepositStakeWithSlippageIxArgs);
+impl From<DepositStakeWithSlippageIxArgs> for DepositStakeWithSlippageIxData {
+    fn from(args: DepositStakeWithSlippageIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl DepositStakeWithSlippageIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != DEPOSIT_STAKE_WITH_SLIPPAGE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    DEPOSIT_STAKE_WITH_SLIPPAGE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(DepositStakeWithSlippageIxArgs::deserialize(
+            &mut reader,
+        )?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[DEPOSIT_STAKE_WITH_SLIPPAGE_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn deposit_stake_with_slippage_ix_with_program_id(
+    program_id: Pubkey,
+    keys: DepositStakeWithSlippageKeys,
+    args: DepositStakeWithSlippageIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: DepositStakeWithSlippageIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn deposit_stake_with_slippage_ix(
+    keys: DepositStakeWithSlippageKeys,
+    args: DepositStakeWithSlippageIxArgs,
+) -> std::io::Result<Instruction> {
+    deposit_stake_with_slippage_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn deposit_stake_with_slippage_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: DepositStakeWithSlippageAccounts<'_, '_>,
+    args: DepositStakeWithSlippageIxArgs,
+) -> ProgramResult {
+    let keys: DepositStakeWithSlippageKeys = accounts.into();
+    let ix = deposit_stake_with_slippage_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn deposit_stake_with_slippage_invoke(
+    accounts: DepositStakeWithSlippageAccounts<'_, '_>,
+    args: DepositStakeWithSlippageIxArgs,
+) -> ProgramResult {
+    deposit_stake_with_slippage_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn deposit_stake_with_slippage_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: DepositStakeWithSlippageAccounts<'_, '_>,
+    args: DepositStakeWithSlippageIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: DepositStakeWithSlippageKeys = accounts.into();
+    let ix = deposit_stake_with_slippage_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn deposit_stake_with_slippage_invoke_signed(
+    accounts: DepositStakeWithSlippageAccounts<'_, '_>,
+    args: DepositStakeWithSlippageIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    deposit_stake_with_slippage_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn deposit_stake_with_slippage_verify_account_keys(
+    accounts: DepositStakeWithSlippageAccounts<'_, '_>,
+    keys: DepositStakeWithSlippageKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.validator_list.key, &keys.validator_list),
+        (
+            accounts.stake_deposit_authority.key,
+            &keys.stake_deposit_authority,
+        ),
+        (accounts.withdraw_authority.key, &keys.withdraw_authority),
+        (accounts.stake_depositing.key, &keys.stake_depositing),
+        (
+            accounts.validator_stake_account.key,
+            &keys.validator_stake_account,
+        ),
+        (accounts.reserve_stake.key, &keys.reserve_stake),
+        (accounts.mint_to.key, &keys.mint_to),
+        (accounts.manager_fee_account.key, &keys.manager_fee_account),
+        (accounts.referral_fee_dest.key, &keys.referral_fee_dest),
+        (accounts.pool_mint.key, &keys.pool_mint),
+        (accounts.clock.key, &keys.clock),
+        (accounts.stake_history.key, &keys.stake_history),
+        (accounts.token_program.key, &keys.token_program),
+        (accounts.stake_program.key, &keys.stake_program),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn deposit_stake_with_slippage_verify_writable_privileges<'me, 'info>(
+    accounts: DepositStakeWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.stake_pool,
+        accounts.validator_list,
+        accounts.stake_depositing,
+        accounts.validator_stake_account,
+        accounts.reserve_stake,
+        accounts.mint_to,
+        accounts.manager_fee_account,
+        accounts.referral_fee_dest,
+        accounts.pool_mint,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn deposit_stake_with_slippage_verify_account_privileges<'me, 'info>(
+    accounts: DepositStakeWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    deposit_stake_with_slippage_verify_writable_privileges(accounts)?;
+    Ok(())
+}
+pub const WITHDRAW_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN: usize = 13;
+#[derive(Copy, Clone, Debug)]
+pub struct WithdrawStakeWithSlippageAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Validator list
+    pub validator_list: &'me AccountInfo<'info>,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: &'me AccountInfo<'info>,
+    ///Validator or reserve stake account to split from
+    pub split_from: &'me AccountInfo<'info>,
+    ///Uninitialized stake account to split the withdrawn stake to. Must be rent-exempt.
+    pub split_to: &'me AccountInfo<'info>,
+    ///User account that is given authority over the withdrawn stake
+    pub beneficiary: &'me AccountInfo<'info>,
+    ///LST transfer authority
+    pub transfer_authority: &'me AccountInfo<'info>,
+    ///LST token account to burn the LST from
+    pub burn_from: &'me AccountInfo<'info>,
+    ///Manager fee account
+    pub manager_fee_account: &'me AccountInfo<'info>,
+    ///Pool token mint
+    pub pool_mint: &'me AccountInfo<'info>,
+    ///Clock sysvar
+    pub clock: &'me AccountInfo<'info>,
+    ///Pool token program
+    pub token_program: &'me AccountInfo<'info>,
+    ///Stake program
+    pub stake_program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct WithdrawStakeWithSlippageKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Validator list
+    pub validator_list: Pubkey,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: Pubkey,
+    ///Validator or reserve stake account to split from
+    pub split_from: Pubkey,
+    ///Uninitialized stake account to split the withdrawn stake to. Must be rent-exempt.
+    pub split_to: Pubkey,
+    ///User account that is given authority over the withdrawn stake
+    pub beneficiary: Pubkey,
+    ///LST transfer authority
+    pub transfer_authority: Pubkey,
+    ///LST token account to burn the LST from
+    pub burn_from: Pubkey,
+    ///Manager fee account
+    pub manager_fee_account: Pubkey,
+    ///Pool token mint
+    pub pool_mint: Pubkey,
+    ///Clock sysvar
+    pub clock: Pubkey,
+    ///Pool token program
+    pub token_program: Pubkey,
+    ///Stake program
+    pub stake_program: Pubkey,
+}
+impl From<WithdrawStakeWithSlippageAccounts<'_, '_>> for WithdrawStakeWithSlippageKeys {
+    fn from(accounts: WithdrawStakeWithSlippageAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            validator_list: *accounts.validator_list.key,
+            withdraw_authority: *accounts.withdraw_authority.key,
+            split_from: *accounts.split_from.key,
+            split_to: *accounts.split_to.key,
+            beneficiary: *accounts.beneficiary.key,
+            transfer_authority: *accounts.transfer_authority.key,
+            burn_from: *accounts.burn_from.key,
+            manager_fee_account: *accounts.manager_fee_account.key,
+            pool_mint: *accounts.pool_mint.key,
+            clock: *accounts.clock.key,
+            token_program: *accounts.token_program.key,
+            stake_program: *accounts.stake_program.key,
+        }
+    }
+}
+impl From<WithdrawStakeWithSlippageKeys>
+    for [AccountMeta; WITHDRAW_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: WithdrawStakeWithSlippageKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.validator_list,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.withdraw_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.split_from,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.split_to,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.beneficiary,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.transfer_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.burn_from,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.manager_fee_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.pool_mint,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.clock,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; WITHDRAW_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]>
+    for WithdrawStakeWithSlippageKeys
+{
+    fn from(pubkeys: [Pubkey; WITHDRAW_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            validator_list: pubkeys[1],
+            withdraw_authority: pubkeys[2],
+            split_from: pubkeys[3],
+            split_to: pubkeys[4],
+            beneficiary: pubkeys[5],
+            transfer_authority: pubkeys[6],
+            burn_from: pubkeys[7],
+            manager_fee_account: pubkeys[8],
+            pool_mint: pubkeys[9],
+            clock: pubkeys[10],
+            token_program: pubkeys[11],
+            stake_program: pubkeys[12],
+        }
+    }
+}
+impl<'info> From<WithdrawStakeWithSlippageAccounts<'_, 'info>>
+    for [AccountInfo<'info>; WITHDRAW_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: WithdrawStakeWithSlippageAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.validator_list.clone(),
+            accounts.withdraw_authority.clone(),
+            accounts.split_from.clone(),
+            accounts.split_to.clone(),
+            accounts.beneficiary.clone(),
+            accounts.transfer_authority.clone(),
+            accounts.burn_from.clone(),
+            accounts.manager_fee_account.clone(),
+            accounts.pool_mint.clone(),
+            accounts.clock.clone(),
+            accounts.token_program.clone(),
+            accounts.stake_program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; WITHDRAW_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]>
+    for WithdrawStakeWithSlippageAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; WITHDRAW_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            validator_list: &arr[1],
+            withdraw_authority: &arr[2],
+            split_from: &arr[3],
+            split_to: &arr[4],
+            beneficiary: &arr[5],
+            transfer_authority: &arr[6],
+            burn_from: &arr[7],
+            manager_fee_account: &arr[8],
+            pool_mint: &arr[9],
+            clock: &arr[10],
+            token_program: &arr[11],
+            stake_program: &arr[12],
+        }
+    }
+}
+pub const WITHDRAW_STAKE_WITH_SLIPPAGE_IX_DISCM: u8 = 24u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct WithdrawStakeWithSlippageIxArgs {
+    pub pool_tokens_in: u64,
+    pub min_lamports_out: u64,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct WithdrawStakeWithSlippageIxData(pub WithdrawStakeWithSlippageIxArgs);
+impl From<WithdrawStakeWithSlippageIxArgs> for WithdrawStakeWithSlippageIxData {
+    fn from(args: WithdrawStakeWithSlippageIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl WithdrawStakeWithSlippageIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != WITHDRAW_STAKE_WITH_SLIPPAGE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    WITHDRAW_STAKE_WITH_SLIPPAGE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(WithdrawStakeWithSlippageIxArgs::deserialize(
+            &mut reader,
+        )?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[WITHDRAW_STAKE_WITH_SLIPPAGE_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn withdraw_stake_with_slippage_ix_with_program_id(
+    program_id: Pubkey,
+    keys: WithdrawStakeWithSlippageKeys,
+    args: WithdrawStakeWithSlippageIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; WITHDRAW_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: WithdrawStakeWithSlippageIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn withdraw_stake_with_slippage_ix(
+    keys: WithdrawStakeWithSlippageKeys,
+    args: WithdrawStakeWithSlippageIxArgs,
+) -> std::io::Result<Instruction> {
+    withdraw_stake_with_slippage_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn withdraw_stake_with_slippage_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: WithdrawStakeWithSlippageAccounts<'_, '_>,
+    args: WithdrawStakeWithSlippageIxArgs,
+) -> ProgramResult {
+    let keys: WithdrawStakeWithSlippageKeys = accounts.into();
+    let ix = withdraw_stake_with_slippage_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn withdraw_stake_with_slippage_invoke(
+    accounts: WithdrawStakeWithSlippageAccounts<'_, '_>,
+    args: WithdrawStakeWithSlippageIxArgs,
+) -> ProgramResult {
+    withdraw_stake_with_slippage_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn withdraw_stake_with_slippage_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: WithdrawStakeWithSlippageAccounts<'_, '_>,
+    args: WithdrawStakeWithSlippageIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: WithdrawStakeWithSlippageKeys = accounts.into();
+    let ix = withdraw_stake_with_slippage_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn withdraw_stake_with_slippage_invoke_signed(
+    accounts: WithdrawStakeWithSlippageAccounts<'_, '_>,
+    args: WithdrawStakeWithSlippageIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    withdraw_stake_with_slippage_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn withdraw_stake_with_slippage_verify_account_keys(
+    accounts: WithdrawStakeWithSlippageAccounts<'_, '_>,
+    keys: WithdrawStakeWithSlippageKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.validator_list.key, &keys.validator_list),
+        (accounts.withdraw_authority.key, &keys.withdraw_authority),
+        (accounts.split_from.key, &keys.split_from),
+        (accounts.split_to.key, &keys.split_to),
+        (accounts.beneficiary.key, &keys.beneficiary),
+        (accounts.transfer_authority.key, &keys.transfer_authority),
+        (accounts.burn_from.key, &keys.burn_from),
+        (accounts.manager_fee_account.key, &keys.manager_fee_account),
+        (accounts.pool_mint.key, &keys.pool_mint),
+        (accounts.clock.key, &keys.clock),
+        (accounts.token_program.key, &keys.token_program),
+        (accounts.stake_program.key, &keys.stake_program),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn withdraw_stake_with_slippage_verify_writable_privileges<'me, 'info>(
+    accounts: WithdrawStakeWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.stake_pool,
+        accounts.validator_list,
+        accounts.split_from,
+        accounts.split_to,
+        accounts.burn_from,
+        accounts.manager_fee_account,
+        accounts.pool_mint,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn withdraw_stake_with_slippage_verify_signer_privileges<'me, 'info>(
+    accounts: WithdrawStakeWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.transfer_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn withdraw_stake_with_slippage_verify_account_privileges<'me, 'info>(
+    accounts: WithdrawStakeWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    withdraw_stake_with_slippage_verify_writable_privileges(accounts)?;
+    withdraw_stake_with_slippage_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN: usize = 9;
+#[derive(Copy, Clone, Debug)]
+pub struct DepositSolWithSlippageAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: &'me AccountInfo<'info>,
+    ///Stake pool reserve stake
+    pub reserve_stake: &'me AccountInfo<'info>,
+    ///System account depositing the SOL
+    pub deposit_from: &'me AccountInfo<'info>,
+    ///LST token account to mint the new LSTs to
+    pub mint_to: &'me AccountInfo<'info>,
+    ///Manager fee account
+    pub manager_fee_account: &'me AccountInfo<'info>,
+    ///Pool token mint
+    pub pool_mint: &'me AccountInfo<'info>,
+    ///System program
+    pub system_program: &'me AccountInfo<'info>,
+    ///Pool token program. The signing SOL deposit authority follows if the pool has one.
+    pub token_program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct DepositSolWithSlippageKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: Pubkey,
+    ///Stake pool reserve stake
+    pub reserve_stake: Pubkey,
+    ///System account depositing the SOL
+    pub deposit_from: Pubkey,
+    ///LST token account to mint the new LSTs to
+    pub mint_to: Pubkey,
+    ///Manager fee account
+    pub manager_fee_account: Pubkey,
+    ///Pool token mint
+    pub pool_mint: Pubkey,
+    ///System program
+    pub system_program: Pubkey,
+    ///Pool token program. The signing SOL deposit authority follows if the pool has one.
+    pub token_program: Pubkey,
+}
+impl From<DepositSolWithSlippageAccounts<'_, '_>> for DepositSolWithSlippageKeys {
+    fn from(accounts: DepositSolWithSlippageAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            withdraw_authority: *accounts.withdraw_authority.key,
+            reserve_stake: *accounts.reserve_stake.key,
+            deposit_from: *accounts.deposit_from.key,
+            mint_to: *accounts.mint_to.key,
+            manager_fee_account: *accounts.manager_fee_account.key,
+            pool_mint: *accounts.pool_mint.key,
+            system_program: *accounts.system_program.key,
+            token_program: *accounts.token_program.key,
+        }
+    }
+}
+impl From<DepositSolWithSlippageKeys> for [AccountMeta; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN] {
+    fn from(keys: DepositSolWithSlippageKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.withdraw_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.reserve_stake,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.deposit_from,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.mint_to,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.manager_fee_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.pool_mint,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]> for DepositSolWithSlippageKeys {
+    fn from(pubkeys: [Pubkey; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            withdraw_authority: pubkeys[1],
+            reserve_stake: pubkeys[2],
+            deposit_from: pubkeys[3],
+            mint_to: pubkeys[4],
+            manager_fee_account: pubkeys[5],
+            pool_mint: pubkeys[6],
+            system_program: pubkeys[7],
+            token_program: pubkeys[8],
+        }
+    }
+}
+impl<'info> From<DepositSolWithSlippageAccounts<'_, 'info>>
+    for [AccountInfo<'info>; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: DepositSolWithSlippageAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.withdraw_authority.clone(),
+            accounts.reserve_stake.clone(),
+            accounts.deposit_from.clone(),
+            accounts.mint_to.clone(),
+            accounts.manager_fee_account.clone(),
+            accounts.pool_mint.clone(),
+            accounts.system_program.clone(),
+            accounts.token_program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]>
+    for DepositSolWithSlippageAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            withdraw_authority: &arr[1],
+            reserve_stake: &arr[2],
+            deposit_from: &arr[3],
+            mint_to: &arr[4],
+            manager_fee_account: &arr[5],
+            pool_mint: &arr[6],
+            system_program: &arr[7],
+            token_program: &arr[8],
+        }
+    }
+}
+pub const DEPOSIT_SOL_WITH_SLIPPAGE_IX_DISCM: u8 = 25u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DepositSolWithSlippageIxArgs {
+    pub lamports_in: u64,
+    pub min_tokens_out: u64,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct DepositSolWithSlippageIxData(pub DepositSolWithSlippageIxArgs);
+impl From<DepositSolWithSlippageIxArgs> for DepositSolWithSlippageIxData {
+    fn from(args: DepositSolWithSlippageIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl DepositSolWithSlippageIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != DEPOSIT_SOL_WITH_SLIPPAGE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    DEPOSIT_SOL_WITH_SLIPPAGE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(DepositSolWithSlippageIxArgs::deserialize(
+            &mut reader,
+        )?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[DEPOSIT_SOL_WITH_SLIPPAGE_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn deposit_sol_with_slippage_ix_with_program_id(
+    program_id: Pubkey,
+    keys: DepositSolWithSlippageKeys,
+    args: DepositSolWithSlippageIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: DepositSolWithSlippageIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn deposit_sol_with_slippage_ix(
+    keys: DepositSolWithSlippageKeys,
+    args: DepositSolWithSlippageIxArgs,
+) -> std::io::Result<Instruction> {
+    deposit_sol_with_slippage_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn deposit_sol_with_slippage_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: DepositSolWithSlippageAccounts<'_, '_>,
+    args: DepositSolWithSlippageIxArgs,
+) -> ProgramResult {
+    let keys: DepositSolWithSlippageKeys = accounts.into();
+    let ix = deposit_sol_with_slippage_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn deposit_sol_with_slippage_invoke(
+    accounts: DepositSolWithSlippageAccounts<'_, '_>,
+    args: DepositSolWithSlippageIxArgs,
+) -> ProgramResult {
+    deposit_sol_with_slippage_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn deposit_sol_with_slippage_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: DepositSolWithSlippageAccounts<'_, '_>,
+    args: DepositSolWithSlippageIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: DepositSolWithSlippageKeys = accounts.into();
+    let ix = deposit_sol_with_slippage_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn deposit_sol_with_slippage_invoke_signed(
+    accounts: DepositSolWithSlippageAccounts<'_, '_>,
+    args: DepositSolWithSlippageIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    deposit_sol_with_slippage_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn deposit_sol_with_slippage_verify_account_keys(
+    accounts: DepositSolWithSlippageAccounts<'_, '_>,
+    keys: DepositSolWithSlippageKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.withdraw_authority.key, &keys.withdraw_authority),
+        (accounts.reserve_stake.key, &keys.reserve_stake),
+        (accounts.deposit_from.key, &keys.deposit_from),
+        (accounts.mint_to.key, &keys.mint_to),
+        (accounts.manager_fee_account.key, &keys.manager_fee_account),
+        (accounts.pool_mint.key, &keys.pool_mint),
+        (accounts.system_program.key, &keys.system_program),
+        (accounts.token_program.key, &keys.token_program),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn deposit_sol_with_slippage_verify_writable_privileges<'me, 'info>(
+    accounts: DepositSolWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.stake_pool,
+        accounts.reserve_stake,
+        accounts.deposit_from,
+        accounts.mint_to,
+        accounts.manager_fee_account,
+        accounts.pool_mint,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn deposit_sol_with_slippage_verify_signer_privileges<'me, 'info>(
+    accounts: DepositSolWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.deposit_from] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn deposit_sol_with_slippage_verify_account_privileges<'me, 'info>(
+    accounts: DepositSolWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    deposit_sol_with_slippage_verify_writable_privileges(accounts)?;
+    deposit_sol_with_slippage_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const WITHDRAW_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN: usize = 12;
+#[derive(Copy, Clone, Debug)]
+pub struct WithdrawSolWithSlippageAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: &'me AccountInfo<'info>,
+    ///LST transfer authority
+    pub transfer_authority: &'me AccountInfo<'info>,
+    ///LST token account to burn the LST from
+    pub burn_from: &'me AccountInfo<'info>,
+    ///Stake pool reserve stake
+    pub reserve_stake: &'me AccountInfo<'info>,
+    ///System account to receive the withdrawn SOL
+    pub withdraw_to: &'me AccountInfo<'info>,
+    ///Manager fee account
+    pub manager_fee_account: &'me AccountInfo<'info>,
+    ///Pool token mint
+    pub pool_mint: &'me AccountInfo<'info>,
+    ///Clock sysvar
+    pub clock: &'me AccountInfo<'info>,
+    ///Stake history sysvar
+    pub stake_history: &'me AccountInfo<'info>,
+    ///Stake program
+    pub stake_program: &'me AccountInfo<'info>,
+    ///Pool token program. The signing SOL withdraw authority follows if the pool has one.
+    pub token_program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct WithdrawSolWithSlippageKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: Pubkey,
+    ///LST transfer authority
+    pub transfer_authority: Pubkey,
+    ///LST token account to burn the LST from
+    pub burn_from: Pubkey,
+    ///Stake pool reserve stake
+    pub reserve_stake: Pubkey,
+    ///System account to receive the withdrawn SOL
+    pub withdraw_to: Pubkey,
+    ///Manager fee account
+    pub manager_fee_account: Pubkey,
+    ///Pool token mint
+    pub pool_mint: Pubkey,
+    ///Clock sysvar
+    pub clock: Pubkey,
+    ///Stake history sysvar
+    pub stake_history: Pubkey,
+    ///Stake program
+    pub stake_program: Pubkey,
+    ///Pool token program. The signing SOL withdraw authority follows if the pool has one.
+    pub token_program: Pubkey,
+}
+impl From<WithdrawSolWithSlippageAccounts<'_, '_>> for WithdrawSolWithSlippageKeys {
+    fn from(accounts: WithdrawSolWithSlippageAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            withdraw_authority: *accounts.withdraw_authority.key,
+            transfer_authority: *accounts.transfer_authority.key,
+            burn_from: *accounts.burn_from.key,
+            reserve_stake: *accounts.reserve_stake.key,
+            withdraw_to: *accounts.withdraw_to.key,
+            manager_fee_account: *accounts.manager_fee_account.key,
+            pool_mint: *accounts.pool_mint.key,
+            clock: *accounts.clock.key,
+            stake_history: *accounts.stake_history.key,
+            stake_program: *accounts.stake_program.key,
+            token_program: *accounts.token_program.key,
+        }
+    }
+}
+impl From<WithdrawSolWithSlippageKeys>
+    for [AccountMeta; WITHDRAW_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]
+{
+    fn from(keys: WithdrawSolWithSlippageKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.withdraw_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.transfer_authority,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.burn_from,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.reserve_stake,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.withdraw_to,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.manager_fee_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.pool_mint,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.clock,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_history,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.token_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; WITHDRAW_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]> for WithdrawSolWithSlippageKeys {
+    fn from(pubkeys: [Pubkey; WITHDRAW_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            withdraw_authority: pubkeys[1],
+            transfer_authority: pubkeys[2],
+            burn_from: pubkeys[3],
+            reserve_stake: pubkeys[4],
+            withdraw_to: pubkeys[5],
+            manager_fee_account: pubkeys[6],
+            pool_mint: pubkeys[7],
+            clock: pubkeys[8],
+            stake_history: pubkeys[9],
+            stake_program: pubkeys[10],
+            token_program: pubkeys[11],
+        }
+    }
+}
+impl<'info> From<WithdrawSolWithSlippageAccounts<'_, 'info>>
+    for [AccountInfo<'info>; WITHDRAW_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: WithdrawSolWithSlippageAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.withdraw_authority.clone(),
+            accounts.transfer_authority.clone(),
+            accounts.burn_from.clone(),
+            accounts.reserve_stake.clone(),
+            accounts.withdraw_to.clone(),
+            accounts.manager_fee_account.clone(),
+            accounts.pool_mint.clone(),
+            accounts.clock.clone(),
+            accounts.stake_history.clone(),
+            accounts.stake_program.clone(),
+            accounts.token_program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; WITHDRAW_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]>
+    for WithdrawSolWithSlippageAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; WITHDRAW_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            withdraw_authority: &arr[1],
+            transfer_authority: &arr[2],
+            burn_from: &arr[3],
+            reserve_stake: &arr[4],
+            withdraw_to: &arr[5],
+            manager_fee_account: &arr[6],
+            pool_mint: &arr[7],
+            clock: &arr[8],
+            stake_history: &arr[9],
+            stake_program: &arr[10],
+            token_program: &arr[11],
+        }
+    }
+}
+pub const WITHDRAW_SOL_WITH_SLIPPAGE_IX_DISCM: u8 = 26u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct WithdrawSolWithSlippageIxArgs {
+    pub tokens_in: u64,
+    pub min_lamports_out: u64,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct WithdrawSolWithSlippageIxData(pub WithdrawSolWithSlippageIxArgs);
+impl From<WithdrawSolWithSlippageIxArgs> for WithdrawSolWithSlippageIxData {
+    fn from(args: WithdrawSolWithSlippageIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl WithdrawSolWithSlippageIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != WITHDRAW_SOL_WITH_SLIPPAGE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    WITHDRAW_SOL_WITH_SLIPPAGE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(WithdrawSolWithSlippageIxArgs::deserialize(
+            &mut reader,
+        )?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[WITHDRAW_SOL_WITH_SLIPPAGE_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn withdraw_sol_with_slippage_ix_with_program_id(
+    program_id: Pubkey,
+    keys: WithdrawSolWithSlippageKeys,
+    args: WithdrawSolWithSlippageIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; WITHDRAW_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: WithdrawSolWithSlippageIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn withdraw_sol_with_slippage_ix(
+    keys: WithdrawSolWithSlippageKeys,
+    args: WithdrawSolWithSlippageIxArgs,
+) -> std::io::Result<Instruction> {
+    withdraw_sol_with_slippage_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn withdraw_sol_with_slippage_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: WithdrawSolWithSlippageAccounts<'_, '_>,
+    args: WithdrawSolWithSlippageIxArgs,
+) -> ProgramResult {
+    let keys: WithdrawSolWithSlippageKeys = accounts.into();
+    let ix = withdraw_sol_with_slippage_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn withdraw_sol_with_slippage_invoke(
+    accounts: WithdrawSolWithSlippageAccounts<'_, '_>,
+    args: WithdrawSolWithSlippageIxArgs,
+) -> ProgramResult {
+    withdraw_sol_with_slippage_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn withdraw_sol_with_slippage_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: WithdrawSolWithSlippageAccounts<'_, '_>,
+    args: WithdrawSolWithSlippageIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: WithdrawSolWithSlippageKeys = accounts.into();
+    let ix = withdraw_sol_with_slippage_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn withdraw_sol_with_slippage_invoke_signed(
+    accounts: WithdrawSolWithSlippageAccounts<'_, '_>,
+    args: WithdrawSolWithSlippageIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    withdraw_sol_with_slippage_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn withdraw_sol_with_slippage_verify_account_keys(
+    accounts: WithdrawSolWithSlippageAccounts<'_, '_>,
+    keys: WithdrawSolWithSlippageKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.withdraw_authority.key, &keys.withdraw_authority),
+        (accounts.transfer_authority.key, &keys.transfer_authority),
+        (accounts.burn_from.key, &keys.burn_from),
+        (accounts.reserve_stake.key, &keys.reserve_stake),
+        (accounts.withdraw_to.key, &keys.withdraw_to),
+        (accounts.manager_fee_account.key, &keys.manager_fee_account),
+        (accounts.pool_mint.key, &keys.pool_mint),
+        (accounts.clock.key, &keys.clock),
+        (accounts.stake_history.key, &keys.stake_history),
+        (accounts.stake_program.key, &keys.stake_program),
+        (accounts.token_program.key, &keys.token_program),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn withdraw_sol_with_slippage_verify_writable_privileges<'me, 'info>(
+    accounts: WithdrawSolWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.stake_pool,
+        accounts.burn_from,
+        accounts.reserve_stake,
+        accounts.withdraw_to,
+        accounts.manager_fee_account,
+        accounts.pool_mint,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn withdraw_sol_with_slippage_verify_signer_privileges<'me, 'info>(
+    accounts: WithdrawSolWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.transfer_authority] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn withdraw_sol_with_slippage_verify_account_privileges<'me, 'info>(
+    accounts: WithdrawSolWithSlippageAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    withdraw_sol_with_slippage_verify_writable_privileges(accounts)?;
+    withdraw_sol_with_slippage_verify_signer_privileges(accounts)?;
     Ok(())
 }

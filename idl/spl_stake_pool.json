@@ -74,7 +74,7 @@
           "desc": "Reserve stake account must be initialized, have zero balance, and staker / withdrawer authority set to pool withdraw authority"
         },
         {
-          "name": "poolTokenMint",
+          "name": "poolMint",
           "isMut": true,
           "isSigner": false,
           "desc": "Pool token mint. Must have zero supply, owned by withdraw authority."
@@ -727,6 +727,372 @@
           "desc": "Stake program"
         }
       ]
+    },
+    {
+      "name": "DepositStakeWithSlippage",
+      "discriminant": {
+        "type": "u8",
+        "value": 23
+      },
+      "args": [
+        {
+          "name": "minTokensOut",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "stakeDepositAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool deposit authority. Must be a signer if not default PDA."
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "stakeDepositing",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake account to deposit"
+        },
+        {
+          "name": "validatorStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator stake account to merge into"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool reserve stake"
+        },
+        {
+          "name": "mintTo",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "LST token account to mint the new LSTs to"
+        },
+        {
+          "name": "managerFeeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Manager fee account"
+        },
+        {
+          "name": "referralFeeDest",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "LST token account ro receive referral fees"
+        },
+        {
+          "name": "poolMint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Pool token mint"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Pool token program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    },
+    {
+      "name": "WithdrawStakeWithSlippage",
+      "discriminant": {
+        "type": "u8",
+        "value": 24
+      },
+      "args": [
+        {
+          "name": "poolTokensIn",
+          "type": "u64"
+        },
+        {
+          "name": "minLamportsOut",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "splitFrom",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator or reserve stake account to split from"
+        },
+        {
+          "name": "splitTo",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Uninitialized stake account to split the withdrawn stake to. Must be rent-exempt."
+        },
+        {
+          "name": "beneficiary",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "User account that is given authority over the withdrawn stake"
+        },
+        {
+          "name": "transferAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "LST transfer authority"
+        },
+        {
+          "name": "burnFrom",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "LST token account to burn the LST from"
+        },
+        {
+          "name": "managerFeeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Manager fee account"
+        },
+        {
+          "name": "poolMint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Pool token mint"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Pool token program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    },
+    {
+      "name": "DepositSolWithSlippage",
+      "discriminant": {
+        "type": "u8",
+        "value": 25
+      },
+      "args": [
+        {
+          "name": "lamportsIn",
+          "type": "u64"
+        },
+        {
+          "name": "minTokensOut",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool reserve stake"
+        },
+        {
+          "name": "depositFrom",
+          "isMut": true,
+          "isSigner": true,
+          "desc": "System account depositing the SOL"
+        },
+        {
+          "name": "mintTo",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "LST token account to mint the new LSTs to"
+        },
+        {
+          "name": "managerFeeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Manager fee account"
+        },
+        {
+          "name": "poolMint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Pool token mint"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Pool token program. The signing SOL deposit authority follows if the pool has one."
+        }
+      ]
+    },
+    {
+      "name": "WithdrawSolWithSlippage",
+      "discriminant": {
+        "type": "u8",
+        "value": 26
+      },
+      "args": [
+        {
+          "name": "tokensIn",
+          "type": "u64"
+        },
+        {
+          "name": "minLamportsOut",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "transferAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "LST transfer authority"
+        },
+        {
+          "name": "burnFrom",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "LST token account to burn the LST from"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Stake pool reserve stake"
+        },
+        {
+          "name": "withdrawTo",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "System account to receive the withdrawn SOL"
+        },
+        {
+          "name": "managerFeeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Manager fee account"
+        },
+        {
+          "name": "poolMint",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Pool token mint"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Pool token program. The signing SOL withdraw authority follows if the pool has one."
+        }
+      ]
     }
   ],
   "accounts": [
@@ -774,7 +1140,7 @@
             "type": "publicKey"
           },
           {
-            "name": "tokenProgramId",
+            "name": "tokenProgram",
             "type": "publicKey"
           },
           {

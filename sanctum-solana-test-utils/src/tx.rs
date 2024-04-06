@@ -14,9 +14,6 @@ use solana_sdk::{
     transaction::{TransactionError, VersionedTransaction},
 };
 
-/// `assert!(tx_ser_size(payer, ixs, luts) <= TX_SIZE_LIMIT)`
-pub const TX_SIZE_LIMIT: usize = 1232;
-
 /// Extremely fucked up: TransactionReturnData truncates all rightmost zero bytes:
 /// https://solana.stackexchange.com/questions/7141/program-return-data-to-client-error
 pub fn zero_padded_return_data<const N: usize>(return_data: &[u8]) -> [u8; N] {
@@ -129,18 +126,20 @@ pub fn tx_ser_size(
     bincode::serialize(&tx).unwrap().len()
 }
 
+/// Asserts size of tx < [`solana_sdk::packet::PACKET_DATA_SIZE`]
 pub fn assert_tx_within_size_limits(
     payer: &Pubkey,
     ixs: &[Instruction],
     luts: &[AddressLookupTableAccount],
 ) {
-    assert!(tx_ser_size(payer, ixs, luts) <= TX_SIZE_LIMIT);
+    assert!(tx_ser_size(payer, ixs, luts) <= solana_sdk::packet::PACKET_DATA_SIZE);
 }
 
+/// Asserts size of tx < [`solana_sdk::packet::PACKET_DATA_SIZE`]
 pub fn assert_tx_with_cb_ixs_within_size_limits(
     payer: &Pubkey,
     ixs: impl Iterator<Item = Instruction>,
     luts: &[AddressLookupTableAccount],
 ) {
-    assert!(tx_ser_size_with_cb_ixs(payer, ixs, luts) <= TX_SIZE_LIMIT);
+    assert!(tx_ser_size_with_cb_ixs(payer, ixs, luts) <= solana_sdk::packet::PACKET_DATA_SIZE);
 }

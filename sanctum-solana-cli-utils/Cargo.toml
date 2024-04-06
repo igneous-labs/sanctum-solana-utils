@@ -1,10 +1,11 @@
 [package]
 name = "sanctum-solana-cli-utils"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license.workspace = true
 
-# features: ["clap"]
+[features]
+clap = ["dep:clap"]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -20,5 +21,5 @@ solana-sdk = { workspace = true }
 clap = { workspace = true, features = ["derive"], optional = true }
 
 [dev-dependencies]
-clap = { version = "^4.0", features = ["derive"] }
+clap = { workspace = true, features = ["derive"] }
 tokio = { workspace = true }

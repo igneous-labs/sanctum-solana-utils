@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::min;
 
 use medians::Medianf64;
 use solana_client::{
@@ -41,6 +41,49 @@ pub const EST_CU_SIM_TX_CONFIG: RpcSimulateTransactionConfig = RpcSimulateTransa
     accounts: None,
     min_context_slot: None,
 };
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ComputeBudgetIxs {
+    pub set_limit: Instruction,
+    pub set_price: Instruction,
+}
+
+impl ComputeBudgetIxs {
+    pub fn new(cu_limit: u32, micro_lamports_per_cu: u64) -> Self {
+        Self {
+            set_limit: ComputeBudgetInstruction::set_compute_unit_limit(cu_limit),
+            set_price: ComputeBudgetInstruction::set_compute_unit_price(micro_lamports_per_cu),
+        }
+    }
+
+    pub const fn as_ref_arr(&self) -> [&Instruction; 2] {
+        [&self.set_limit, &self.set_limit]
+    }
+
+    pub fn to_arr(self) -> [Instruction; 2] {
+        [self.set_limit, self.set_price]
+    }
+}
+
+impl IntoIterator for ComputeBudgetIxs {
+    type Item = Instruction;
+
+    type IntoIter = std::array::IntoIter<Instruction, 2>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.to_arr().into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a ComputeBudgetIxs {
+    type Item = &'a Instruction;
+
+    type IntoIter = std::array::IntoIter<&'a Instruction, 2>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.as_ref_arr().into_iter()
+    }
+}
 
 pub fn writable_addresses(ixs: &[Instruction]) -> impl Iterator<Item = Pubkey> + '_ {
     ixs.iter().flat_map(|ix| {
@@ -170,13 +213,45 @@ pub async fn estimate_compute_unit_limit_nonblocking(
         ))
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ComputeBudgetFeeLimit {
+    TotalLamports(u64),
+    MicroLamportsPerCu(u64),
+}
+
+impl ComputeBudgetFeeLimit {
+    pub fn to_micro_lamports_per_cu(self, cu_limit: u32) -> u64 {
+        match self {
+            Self::MicroLamportsPerCu(micro_lamports) => micro_lamports,
+            Self::TotalLamports(lamports) => calc_compute_unit_price(cu_limit, lamports),
+        }
+    }
+}
+
+/// Given a compute unit limit and number of lamports
+/// the user is willing to pay for the tx, return the micro_lamports_per_cu
+/// that should be used with [`ComputeBudgetInstruction::set_compute_unit_price()`].
+pub fn calc_compute_unit_price(cus: u32, lamports: u64) -> u64 {
+    let lamports_per_cu = (lamports as f64) / (cus as f64);
+    let micro_lamports_per_cu = (lamports_per_cu * 1_000_000.0).floor();
+    micro_lamports_per_cu as u64
+}
+
+/// Returns `cus * cu_buffer_ratio`.
+///
+/// `cu_buffer_ratio` should be >= 1.0
+pub fn buffer_compute_units(cus: u64, cu_buffer_ratio: f64) -> u32 {
+    let cus = ((cus as f64) * cu_buffer_ratio).ceil();
+    cus as u32
+}
+
 /// Calculates slot weighted median prioritiziation fee and generate compute
-/// budget ixs
+/// budget ixs, picking the smaller value
 pub fn get_compute_budget_ixs_with_rpc_prio_fees(
     rpc_prio_fees: &[RpcPrioritizationFee],
-    unit_limit: u32,
-    max_unit_price_micro_lamports: u64,
-) -> Result<[Instruction; 2], ClientError> {
+    cu_limit: u32,
+    fee_limit: &ComputeBudgetFeeLimit,
+) -> Result<ComputeBudgetIxs, ClientError> {
     let unit_price_micro_lamports = calc_slot_weighted_median_prioritization_fees(rpc_prio_fees)
         .ok_or(ClientError::new_with_request(
             solana_rpc_client_api::client_error::ErrorKind::Custom(
@@ -184,31 +259,20 @@ pub fn get_compute_budget_ixs_with_rpc_prio_fees(
             ),
             solana_rpc_client_api::request::RpcRequest::GetRecentPrioritizationFees,
         ))?;
-    Ok([
-        ComputeBudgetInstruction::set_compute_unit_limit(unit_limit),
-        ComputeBudgetInstruction::set_compute_unit_price(min(
-            unit_price_micro_lamports,
-            max_unit_price_micro_lamports,
-        )),
-    ])
+    let limit_micro_lamports_per_cu = fee_limit.to_micro_lamports_per_cu(cu_limit);
+    Ok(ComputeBudgetIxs::new(
+        cu_limit,
+        min(unit_price_micro_lamports, limit_micro_lamports_per_cu),
+    ))
 }
 
-/// Given a compute unit limit and a maximum number of lamports
-/// the user is willing to pay for the tx, return the microlamports_per_cu
-/// that should be used with [`ComputeBudgetInstruction::set_compute_unit_price()`].
-///
-/// Returns a minimum of 1
-pub fn calc_compute_unit_price(cu_limit: u32, max_lamports: u64) -> u64 {
-    let lamport_per_cu = (max_lamports as f64) / (cu_limit as f64);
-    let microlamports_per_cu = (lamport_per_cu * 1_000_000.0).floor();
-    max(1, microlamports_per_cu as u64)
-}
-
-/// Simulates a tx, requests median priority fees,
+/// Simulates a tx, calculates median priority fees,
 /// and return the corresponding ComputeBudget instructions.
 ///
+/// NB: this fn makes 2 RPC requests - simulateTransaction and getRecentPriorityFees
+///
 /// ## Args
-/// - `fee_limit_lamports`: total amount of lamports the user is willing to pay for this transaction
+/// - `fee_limit`: total amount of lamports the user is willing to pay for this transaction
 /// - `cu_buffer_ratio`: multiple to multiply simulation CU result by to give some room for error.
 ///    Should be >= 1.0
 pub fn get_compute_budget_ixs_auto(
@@ -216,9 +280,9 @@ pub fn get_compute_budget_ixs_auto(
     payer_pk: &Pubkey,
     ixs: &[Instruction],
     luts: &[AddressLookupTableAccount],
-    fee_limit_lamports: u64,
+    fee_limit: &ComputeBudgetFeeLimit,
     cu_buffer_ratio: f64,
-) -> Result<[Instruction; 2], ClientError> {
+) -> Result<ComputeBudgetIxs, ClientError> {
     let tx_to_sim = to_est_cu_sim_tx(payer_pk, ixs, luts).map_err(|e| {
         ClientError::new_with_request(
             solana_rpc_client_api::client_error::ErrorKind::Custom(format!("{e}")),
@@ -226,22 +290,16 @@ pub fn get_compute_budget_ixs_auto(
         )
     })?;
     let cus = estimate_compute_unit_limit(client, &tx_to_sim)?;
-    let cu_limit = ((cus as f64) * cu_buffer_ratio).ceil();
-    let limit_lamport_per_cu = (fee_limit_lamports as f64) / cu_limit;
-    let cu_limit = cu_limit as u32;
-    let limit_microlamports_per_cu = (limit_lamport_per_cu * 1_000_000.0).floor();
-
+    let cu_limit = buffer_compute_units(cus, cu_buffer_ratio);
+    let limit_micro_lamports_per_cu = fee_limit.to_micro_lamports_per_cu(cu_limit);
     let writable: Vec<Pubkey> = writable_addresses(ixs).collect();
     let slot_weighted_micro_lamports_per_cu =
         get_slot_weighted_median_unit_price(client, &writable)?;
-    let microlamports_per_cu = min(
+    let micro_lamports_per_cu = min(
         slot_weighted_micro_lamports_per_cu,
-        limit_microlamports_per_cu as u64,
+        limit_micro_lamports_per_cu as u64,
     );
-    Ok([
-        ComputeBudgetInstruction::set_compute_unit_limit(cu_limit),
-        ComputeBudgetInstruction::set_compute_unit_price(microlamports_per_cu),
-    ])
+    Ok(ComputeBudgetIxs::new(cu_limit, micro_lamports_per_cu))
 }
 
 /// async version of [`get_compute_budget_ixs_auto`]
@@ -250,9 +308,9 @@ pub async fn get_compute_budget_ixs_auto_nonblocking(
     payer_pk: &Pubkey,
     ixs: &[Instruction],
     luts: &[AddressLookupTableAccount],
-    fee_limit_lamports: u64,
+    fee_limit: &ComputeBudgetFeeLimit,
     cu_buffer_ratio: f64,
-) -> Result<[Instruction; 2], ClientError> {
+) -> Result<ComputeBudgetIxs, ClientError> {
     let tx_to_sim = to_est_cu_sim_tx(payer_pk, ixs, luts).map_err(|e| {
         ClientError::new_with_request(
             solana_rpc_client_api::client_error::ErrorKind::Custom(format!("{e}")),
@@ -260,20 +318,14 @@ pub async fn get_compute_budget_ixs_auto_nonblocking(
         )
     })?;
     let cus = estimate_compute_unit_limit_nonblocking(client, &tx_to_sim).await?;
-    let cu_limit = ((cus as f64) * cu_buffer_ratio).ceil();
-    let limit_lamport_per_cu = (fee_limit_lamports as f64) / cu_limit;
-    let cu_limit = cu_limit as u32;
-    let limit_microlamports_per_cu = (limit_lamport_per_cu * 1_000_000.0).floor();
-
+    let cu_limit = buffer_compute_units(cus, cu_buffer_ratio);
+    let limit_micro_lamports_per_cu = fee_limit.to_micro_lamports_per_cu(cu_limit);
     let writable: Vec<Pubkey> = writable_addresses(ixs).collect();
     let slot_weighted_micro_lamports_per_cu =
         get_slot_weighted_median_unit_price_nonblocking(client, &writable).await?;
-    let microlamports_per_cu = min(
+    let micro_lamports_per_cu = min(
         slot_weighted_micro_lamports_per_cu,
-        limit_microlamports_per_cu as u64,
+        limit_micro_lamports_per_cu as u64,
     );
-    Ok([
-        ComputeBudgetInstruction::set_compute_unit_limit(cu_limit),
-        ComputeBudgetInstruction::set_compute_unit_price(microlamports_per_cu),
-    ])
+    Ok(ComputeBudgetIxs::new(cu_limit, micro_lamports_per_cu))
 }

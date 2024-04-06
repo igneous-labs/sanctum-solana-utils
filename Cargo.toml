@@ -55,6 +55,7 @@ solana-program-test = "^1"
 solana-readonly-account = "^1"
 solana-rpc-client-api = "^1"
 solana-sdk = "^1"
+solana-transaction-status = "^1"
 solana-version = "^1"
 
 # workspace members

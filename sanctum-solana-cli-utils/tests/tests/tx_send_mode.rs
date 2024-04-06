@@ -63,7 +63,7 @@ fn parse_tx_send_mode_from_dry_run() {
 async fn base64_tx_encode() {
     use clap::builder::ValueParser;
     use sanctum_solana_cli_utils::{
-        ConfigWrapper, TxSendingNonblockingRpcClient, TxSendingRpcClient,
+        ConfigWrapper, HandleTxArgs, TxSendingNonblockingRpcClient, TxSendingRpcClient,
     };
     use solana_sdk::{
         message::{v0, VersionedMessage},
@@ -101,18 +101,30 @@ async fn base64_tx_encode() {
 
     // set `-- --nocapture` and paste stdout outputs into inspector
     // to make sure they work properly
-    config
-        .rpc_client()
-        .handle_tx(&test_legacy_tx, TxSendMode::DumpMsg);
+    config.rpc_client().handle_tx(
+        &test_legacy_tx,
+        TxSendMode::DumpMsg,
+        HandleTxArgs::cli_default(),
+    );
     config
         .nonblocking_rpc_client()
-        .handle_tx(&test_legacy_tx, TxSendMode::DumpMsg)
+        .handle_tx(
+            &test_legacy_tx,
+            TxSendMode::DumpMsg,
+            HandleTxArgs::cli_default(),
+        )
         .await;
-    config
-        .rpc_client()
-        .handle_tx(&test_versioned_tx, TxSendMode::DumpMsg);
+    config.rpc_client().handle_tx(
+        &test_versioned_tx,
+        TxSendMode::DumpMsg,
+        HandleTxArgs::cli_default(),
+    );
     config
         .nonblocking_rpc_client()
-        .handle_tx(&test_versioned_tx, TxSendMode::DumpMsg)
+        .handle_tx(
+            &test_versioned_tx,
+            TxSendMode::DumpMsg,
+            HandleTxArgs::cli_default(),
+        )
         .await;
 }

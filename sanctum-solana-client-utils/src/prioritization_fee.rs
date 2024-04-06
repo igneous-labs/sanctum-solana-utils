@@ -219,6 +219,15 @@ pub enum ComputeBudgetFeeLimit {
     MicroLamportsPerCu(u64),
 }
 
+impl ComputeBudgetFeeLimit {
+    pub fn to_micro_lamports_per_cu(self, cu_limit: u32) -> u64 {
+        match self {
+            Self::MicroLamportsPerCu(micro_lamports) => micro_lamports,
+            Self::TotalLamports(lamports) => calc_compute_unit_price(cu_limit, lamports),
+        }
+    }
+}
+
 /// Given a compute unit limit and number of lamports
 /// the user is willing to pay for the tx, return the micro_lamports_per_cu
 /// that should be used with [`ComputeBudgetInstruction::set_compute_unit_price()`].
@@ -226,6 +235,14 @@ pub fn calc_compute_unit_price(cus: u32, lamports: u64) -> u64 {
     let lamports_per_cu = (lamports as f64) / (cus as f64);
     let micro_lamports_per_cu = (lamports_per_cu * 1_000_000.0).floor();
     micro_lamports_per_cu as u64
+}
+
+/// Returns `cus * cu_buffer_ratio`.
+///
+/// `cu_buffer_ratio` should be >= 1.0
+pub fn buffer_compute_units(cus: u64, cu_buffer_ratio: f64) -> u32 {
+    let cus = ((cus as f64) * cu_buffer_ratio).ceil();
+    cus as u32
 }
 
 /// Calculates slot weighted median prioritiziation fee and generate compute
@@ -242,12 +259,7 @@ pub fn get_compute_budget_ixs_with_rpc_prio_fees(
             ),
             solana_rpc_client_api::request::RpcRequest::GetRecentPrioritizationFees,
         ))?;
-    let limit_micro_lamports_per_cu = match fee_limit {
-        ComputeBudgetFeeLimit::MicroLamportsPerCu(micro_lamports) => *micro_lamports,
-        ComputeBudgetFeeLimit::TotalLamports(lamports) => {
-            calc_compute_unit_price(cu_limit, *lamports)
-        }
-    };
+    let limit_micro_lamports_per_cu = fee_limit.to_micro_lamports_per_cu(cu_limit);
     Ok(ComputeBudgetIxs::new(
         cu_limit,
         min(unit_price_micro_lamports, limit_micro_lamports_per_cu),
@@ -278,15 +290,8 @@ pub fn get_compute_budget_ixs_auto(
         )
     })?;
     let cus = estimate_compute_unit_limit(client, &tx_to_sim)?;
-    let cu_limit = ((cus as f64) * cu_buffer_ratio).ceil();
-    let cu_limit = cu_limit as u32;
-    let limit_micro_lamports_per_cu = match fee_limit {
-        ComputeBudgetFeeLimit::MicroLamportsPerCu(micro_lamports) => *micro_lamports,
-        ComputeBudgetFeeLimit::TotalLamports(lamports) => {
-            calc_compute_unit_price(cu_limit, *lamports)
-        }
-    };
-
+    let cu_limit = buffer_compute_units(cus, cu_buffer_ratio);
+    let limit_micro_lamports_per_cu = fee_limit.to_micro_lamports_per_cu(cu_limit);
     let writable: Vec<Pubkey> = writable_addresses(ixs).collect();
     let slot_weighted_micro_lamports_per_cu =
         get_slot_weighted_median_unit_price(client, &writable)?;
@@ -313,14 +318,8 @@ pub async fn get_compute_budget_ixs_auto_nonblocking(
         )
     })?;
     let cus = estimate_compute_unit_limit_nonblocking(client, &tx_to_sim).await?;
-    let cu_limit = ((cus as f64) * cu_buffer_ratio).ceil();
-    let cu_limit = cu_limit as u32;
-    let limit_micro_lamports_per_cu = match fee_limit {
-        ComputeBudgetFeeLimit::MicroLamportsPerCu(micro_lamports) => *micro_lamports,
-        ComputeBudgetFeeLimit::TotalLamports(lamports) => {
-            calc_compute_unit_price(cu_limit, *lamports)
-        }
-    };
+    let cu_limit = buffer_compute_units(cus, cu_buffer_ratio);
+    let limit_micro_lamports_per_cu = fee_limit.to_micro_lamports_per_cu(cu_limit);
     let writable: Vec<Pubkey> = writable_addresses(ixs).collect();
     let slot_weighted_micro_lamports_per_cu =
         get_slot_weighted_median_unit_price_nonblocking(client, &writable).await?;

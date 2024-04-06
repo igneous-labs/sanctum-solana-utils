@@ -100,7 +100,7 @@ pub fn assert_transaction_error(
     );
 }
 
-pub fn tx_ser_size_with_cu_ixs(
+pub fn tx_ser_size_with_cb_ixs(
     payer: &Pubkey,
     ixs: impl Iterator<Item = Instruction>,
     luts: &[AddressLookupTableAccount],
@@ -137,10 +137,10 @@ pub fn assert_tx_within_size_limits(
     assert!(tx_ser_size(payer, ixs, luts) <= TX_SIZE_LIMIT);
 }
 
-pub fn assert_tx_with_cu_ixs_within_size_limits(
+pub fn assert_tx_with_cb_ixs_within_size_limits(
     payer: &Pubkey,
     ixs: impl Iterator<Item = Instruction>,
     luts: &[AddressLookupTableAccount],
 ) {
-    assert!(tx_ser_size_with_cu_ixs(payer, ixs, luts) <= TX_SIZE_LIMIT);
+    assert!(tx_ser_size_with_cb_ixs(payer, ixs, luts) <= TX_SIZE_LIMIT);
 }

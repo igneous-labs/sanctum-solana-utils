@@ -317,7 +317,7 @@ impl TxSendingNonblockingRpcClient for solana_client::nonblocking::rpc_client::R
                     .simulate_transaction_with_config(tx, args.into())
                     .await
                     .unwrap();
-                eprintln!("Simulate result: {:?}", result);
+                eprintln!("Simulate result: {:#?}", result);
             }
             TxSendMode::DumpMsg => {
                 // somehow `BASE64.encode(&tx.message_data())` as suggested by all the explorers

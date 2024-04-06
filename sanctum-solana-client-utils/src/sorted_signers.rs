@@ -75,11 +75,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn check_types_vec_of_refs() {
-        let [a, b] = [(), ()].map(|_| NullSigner::new(&Pubkey::new_unique()));
-        let mut signer_vec: [&dyn Signer; 2] = [&a, &b];
+    fn check_types_slice_of_refs() {
+        let repeated_pk = Pubkey::new_unique();
+        let [a, b, c] =
+            [repeated_pk, Pubkey::new_unique(), repeated_pk].map(|pk| NullSigner::new(&pk));
+        let mut signer_vec: [&dyn Signer; 3] = [&a, &b, &c];
         signer_vec.sort_by_key(|s| s.pubkey());
         let ss = SortedSigners(&signer_vec);
-        assert!(!ss.is_interactive());
+        assert_eq!(ss.pubkeys().len(), 2);
     }
 }

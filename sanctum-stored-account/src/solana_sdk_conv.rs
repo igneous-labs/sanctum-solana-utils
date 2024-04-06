@@ -128,8 +128,7 @@ mod tests {
         ) {
             let account = Account { lamports, data, owner, executable, rent_epoch };
             let stored: StoredAccount = account.clone().into();
-            let sd = stored.data();
-            prop_assert_eq!(*account.data(), (*sd).as_ref());
+            prop_assert_eq!(&**account.data(), &**stored.data());
             prop_assert_eq!(account.executable(), stored.executable());
             prop_assert_eq!(account.owner(), stored.owner());
             prop_assert_eq!(account.lamports(), stored.lamports());

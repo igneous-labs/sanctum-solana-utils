@@ -79,7 +79,7 @@ mod tests {
                 executable
             };
 
-            prop_assert_eq!((**acc.data()).as_ref(), data.as_slice());
+            prop_assert_eq!(acc.data().as_ref(), data.as_slice());
             prop_assert_eq!(acc.executable(), executable);
             prop_assert_eq!(*acc.owner(), owner);
             prop_assert_eq!(acc.lamports(), lamports);

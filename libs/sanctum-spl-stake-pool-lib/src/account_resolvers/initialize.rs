@@ -37,7 +37,7 @@ impl<M: ReadonlyAccountOwner + ReadonlyAccountPubkey> Initialize<M> {
             withdraw_authority,
             validator_list: self.validator_list,
             reserve_stake: self.reserve_stake,
-            pool_token_mint: *self.pool_token_mint.pubkey(),
+            pool_mint: *self.pool_token_mint.pubkey(),
             manager_fee_account: self.manager_fee_account,
             token_program: *self.pool_token_mint.owner(),
         }

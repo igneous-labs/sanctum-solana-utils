@@ -8,7 +8,7 @@ repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
 [features]
 default = []
 banks-rpc-server = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:serde_with", "dep:solana-rpc-client-api", "dep:solana-version", "dep:tokio"]
-cli = ["dep:serde_yaml", "dep:solana-cli-config", "dep:tempfile"]
+cli = ["dep:assert_cmd", "dep:serde_yaml", "dep:solana-cli-config", "dep:tempfile"]
 proptest = ["dep:proptest"]
 stake = []
 token = ["spl-token"]
@@ -31,6 +31,7 @@ solana-readonly-account = { workspace = true, features = ["solana-sdk"] }
 solana-sdk = { workspace = true }
 
 # optional
+assert_cmd = { workspace = true, optional = true }
 http-body-util = { workspace = true, optional = true }
 hyper = { workspace = true, features = ["http1", "server"], optional = true }
 hyper-util = { workspace = true, features = ["tokio"], optional = true }

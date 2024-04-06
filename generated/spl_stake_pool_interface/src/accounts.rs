@@ -13,7 +13,7 @@ pub struct StakePool {
     pub reserve_stake: Pubkey,
     pub pool_mint: Pubkey,
     pub manager_fee_account: Pubkey,
-    pub token_program_id: Pubkey,
+    pub token_program: Pubkey,
     pub total_lamports: u64,
     pub pool_token_supply: u64,
     pub last_update_epoch: u64,

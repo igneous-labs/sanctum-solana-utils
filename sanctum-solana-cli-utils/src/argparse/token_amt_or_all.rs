@@ -21,11 +21,12 @@ impl TokenAmtOrAllParser {
     }
 
     pub fn parse(&self, arg: &str) -> Result<TokenAmtOrAll, TokenAmtOrAllParseError> {
-        Ok(match arg.to_lowercase().as_str() {
-            "all" => TokenAmtOrAll::All {
+        Ok(if arg.to_lowercase() == "all" {
+            TokenAmtOrAll::All {
                 decimals: self.0.decimals,
-            },
-            s => self.0.parse(s)?.into(),
+            }
+        } else {
+            self.0.parse(arg)?.into()
         })
     }
 }

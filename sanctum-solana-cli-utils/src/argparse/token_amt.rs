@@ -204,5 +204,6 @@ mod tests {
         assert!(parser.parse("1..2").is_err());
         assert!(parser.parse("1.2.3").is_err());
         assert!(parser.parse("123,").is_err());
+        assert!(parser.parse("1.2345").is_err());
     }
 }

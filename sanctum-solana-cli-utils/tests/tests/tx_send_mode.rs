@@ -101,11 +101,14 @@ async fn base64_tx_encode() {
 
     // set `-- --nocapture` and paste stdout outputs into inspector
     // to make sure they work properly
-    config.rpc_client().handle_tx(
-        &test_legacy_tx,
-        TxSendMode::DumpMsg,
-        HandleTxArgs::cli_default(),
-    );
+    config
+        .rpc_client()
+        .handle_tx(
+            &test_legacy_tx,
+            TxSendMode::DumpMsg,
+            HandleTxArgs::cli_default(),
+        )
+        .unwrap();
     config
         .nonblocking_rpc_client()
         .handle_tx(
@@ -113,12 +116,16 @@ async fn base64_tx_encode() {
             TxSendMode::DumpMsg,
             HandleTxArgs::cli_default(),
         )
-        .await;
-    config.rpc_client().handle_tx(
-        &test_versioned_tx,
-        TxSendMode::DumpMsg,
-        HandleTxArgs::cli_default(),
-    );
+        .await
+        .unwrap();
+    config
+        .rpc_client()
+        .handle_tx(
+            &test_versioned_tx,
+            TxSendMode::DumpMsg,
+            HandleTxArgs::cli_default(),
+        )
+        .unwrap();
     config
         .nonblocking_rpc_client()
         .handle_tx(
@@ -126,5 +133,6 @@ async fn base64_tx_encode() {
             TxSendMode::DumpMsg,
             HandleTxArgs::cli_default(),
         )
-        .await;
+        .await
+        .unwrap();
 }

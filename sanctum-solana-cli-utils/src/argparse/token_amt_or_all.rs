@@ -37,7 +37,7 @@ pub struct TokenAmtOrAllParseError;
 impl Display for TokenAmtOrAllParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
-            "Expecting either case-insensitive 'all', or a decimal number with atomics within u64::MAX range and decimals not exceeding token's decimal preicison. Examples for decimals=3: 234.123, 234",
+            "Expecting either case-insensitive 'all', or a decimal number with atomics within u64::MAX range and decimals not exceeding token's decimal precision. Examples for decimals=3: 234.123, 234",
         )
     }
 }

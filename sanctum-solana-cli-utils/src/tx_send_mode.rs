@@ -188,7 +188,7 @@ pub trait TxSendingRpcClient {
         tx: &T,
         send_mode: TxSendMode,
         args: HandleTxArgs,
-    );
+    ) -> Result<(), ClientError>;
 }
 
 impl TxSendingRpcClient for solana_client::rpc_client::RpcClient {
@@ -208,7 +208,7 @@ impl TxSendingRpcClient for solana_client::rpc_client::RpcClient {
         tx: &T,
         send_mode: TxSendMode,
         mut args: HandleTxArgs,
-    ) {
+    ) -> Result<(), ClientError> {
         let [tx_cfm_commitment, _sim_against_commitment] = [
             &mut args.tx_cfm_commitment,
             &mut args.sim_against_commitment,
@@ -223,21 +223,17 @@ impl TxSendingRpcClient for solana_client::rpc_client::RpcClient {
         });
         match send_mode {
             TxSendMode::SendActual => {
-                let signature = self
-                    .send_and_confirm_transaction_with_spinner_and_config(
-                        tx,
-                        CommitmentConfig {
-                            commitment: tx_cfm_commitment,
-                        },
-                        args.into(),
-                    )
-                    .unwrap();
+                let signature = self.send_and_confirm_transaction_with_spinner_and_config(
+                    tx,
+                    CommitmentConfig {
+                        commitment: tx_cfm_commitment,
+                    },
+                    args.into(),
+                )?;
                 eprintln!("Signature: {}", signature);
             }
             TxSendMode::SimOnly => {
-                let result = self
-                    .simulate_transaction_with_config(tx, args.into())
-                    .unwrap();
+                let result = self.simulate_transaction_with_config(tx, args.into())?;
                 eprintln!("Simulate result: {:#?}", result);
             }
             TxSendMode::DumpMsg => {
@@ -245,7 +241,8 @@ impl TxSendingRpcClient for solana_client::rpc_client::RpcClient {
                 // results in a different output that cannot be handled by their inspectors lmao
                 println!("{}", BASE64.encode(&bincode::serialize(&tx).unwrap()))
             }
-        }
+        };
+        Ok(())
     }
 }
 
@@ -263,7 +260,7 @@ pub trait TxSendingNonblockingRpcClient {
         tx: &T,
         send_mode: TxSendMode,
         args: HandleTxArgs,
-    );
+    ) -> Result<(), ClientError>;
 }
 
 #[async_trait]
@@ -285,7 +282,7 @@ impl TxSendingNonblockingRpcClient for solana_client::nonblocking::rpc_client::R
         tx: &T,
         send_mode: TxSendMode,
         mut args: HandleTxArgs,
-    ) {
+    ) -> Result<(), ClientError> {
         let [tx_cfm_commitment, _sim_against_commitment] = [
             &mut args.tx_cfm_commitment,
             &mut args.sim_against_commitment,
@@ -308,15 +305,13 @@ impl TxSendingNonblockingRpcClient for solana_client::nonblocking::rpc_client::R
                         },
                         args.into(),
                     )
-                    .await
-                    .unwrap();
+                    .await?;
                 eprintln!("Signature: {}", signature);
             }
             TxSendMode::SimOnly => {
                 let result = self
                     .simulate_transaction_with_config(tx, args.into())
-                    .await
-                    .unwrap();
+                    .await?;
                 eprintln!("Simulate result: {:#?}", result);
             }
             TxSendMode::DumpMsg => {
@@ -324,6 +319,7 @@ impl TxSendingNonblockingRpcClient for solana_client::nonblocking::rpc_client::R
                 // results in a different output that cannot be handled by their inspectors lmao
                 println!("{}", BASE64.encode(&bincode::serialize(&tx).unwrap()))
             }
-        }
+        };
+        Ok(())
     }
 }

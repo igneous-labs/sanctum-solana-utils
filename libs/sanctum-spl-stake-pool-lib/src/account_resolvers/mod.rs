@@ -1,3 +1,4 @@
+// The resolvers here use the old style solana-readonly-account generics as input
 pub mod add_validator_to_pool;
 pub mod additional_validator_stake;
 pub mod cleanup_removed_validator_entries;
@@ -21,3 +22,10 @@ pub use set_manager::*;
 pub use set_staker::*;
 pub use update_stake_pool_balance::*;
 pub use update_validator_list_balance::*;
+
+// The resolvers here use the new experimental style of taking &DeserializedAccount as input
+pub mod deposit_stake_with_slippage;
+pub mod withdraw_stake_with_slippage;
+
+pub use deposit_stake_with_slippage::*;
+pub use withdraw_stake_with_slippage::*;

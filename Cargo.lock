@@ -4520,9 +4520,9 @@ dependencies = [
 
 [[package]]
 name = "solana-readonly-account"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b42e679d84c59cfe18f19959522bbf8f180be8b138ea26dd4cade77087d05a"
+checksum = "a8cf9c7fb090625aa0be1c81845712cebcbfeadf771146b0829b0f03569e1c4c"
 dependencies = [
  "derive_more",
  "solana-program",

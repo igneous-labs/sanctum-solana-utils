@@ -11,7 +11,10 @@ use solana_program::{
     sysvar,
 };
 use solana_readonly_account::keyed::Keyed;
-use spl_stake_pool_interface::{DepositStakeWithSlippageKeys, StakePool};
+use spl_stake_pool_interface::{
+    deposit_stake_with_slippage_ix_with_program_id, DepositStakeWithSlippageIxArgs,
+    DepositStakeWithSlippageKeys, StakePool,
+};
 
 use crate::{FindValidatorStakeAccount, FindValidatorStakeAccountArgs, FindWithdrawAuthority};
 
@@ -19,7 +22,8 @@ use crate::{FindValidatorStakeAccount, FindValidatorStakeAccountArgs, FindWithdr
 pub struct DepositStakeWithSlippage<'a> {
     pub pool: Keyed<&'a StakePool>,
     /// The stake account to deposit. Must have authorities transferred to the pool's
-    /// withdraw authority beforehand
+    /// stake deposit authority beforehand. This can be done using [`Self::stake_authorize_prefix_ixs`]
+    /// or just use [`Self::full_ix_seq`] to get the fully formed instruction sequence
     pub stake_depositing: Keyed<&'a StakeStateV2>,
     pub mint_to: Pubkey,
     pub referral_fee_dest: Pubkey,
@@ -61,17 +65,34 @@ impl<'a> DepositStakeWithSlippage<'a> {
         program_id: &Pubkey,
         vote: Pubkey,
         validator_seed_suffix: u32, // obtained from ValidatorStakeInfo
-    ) -> Result<DepositStakeComputedKeys, ProgramError> {
-        Ok(DepositStakeComputedKeys {
-            withdraw_authority_pda: self.compute_withdraw_auth(program_id),
+    ) -> DepositStakeComputedKeys {
+        DepositStakeComputedKeys {
+            withdraw_authority_pda: self.pool.account.stake_deposit_authority,
             validator_stake_account: self.compute_vsa(program_id, vote, validator_seed_suffix),
-        })
+        }
     }
 
-    pub fn stake_authorize_prefix_ixs(
+    pub fn full_ix_seq(
         &self,
-        withdraw_authority_pda: Pubkey,
-    ) -> Result<[Instruction; 2], ProgramError> {
+        program_id: &Pubkey,
+        vote: Pubkey,
+        validator_seed_suffix: u32,
+        min_tokens_out: u64,
+    ) -> Result<[Instruction; 3], ProgramError> {
+        let computed_keys = self.compute_keys(program_id, vote, validator_seed_suffix);
+        let [stake_auth_staker, stake_auth_withdrawer] = self.stake_authorize_prefix_ixs()?;
+        Ok([
+            stake_auth_staker,
+            stake_auth_withdrawer,
+            deposit_stake_with_slippage_ix_with_program_id(
+                *program_id,
+                self.resolve_with_computed_keys(computed_keys),
+                DepositStakeWithSlippageIxArgs { min_tokens_out },
+            )?,
+        ])
+    }
+
+    pub fn stake_authorize_prefix_ixs(&self) -> Result<[Instruction; 2], ProgramError> {
         let Authorized { staker, withdrawer } = self
             .stake_depositing
             .account
@@ -87,14 +108,14 @@ impl<'a> DepositStakeWithSlippage<'a> {
             stake::instruction::authorize(
                 &self.stake_depositing.pubkey,
                 &staker,
-                &withdraw_authority_pda,
+                &self.pool.account.stake_deposit_authority,
                 StakeAuthorize::Staker,
                 custodian,
             ),
             stake::instruction::authorize(
                 &self.stake_depositing.pubkey,
                 &withdrawer,
-                &withdraw_authority_pda,
+                &self.pool.account.stake_deposit_authority,
                 StakeAuthorize::Withdrawer,
                 custodian,
             ),

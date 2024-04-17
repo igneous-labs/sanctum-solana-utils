@@ -67,7 +67,7 @@ impl<'a> DepositStakeWithSlippage<'a> {
         validator_seed_suffix: u32, // obtained from ValidatorStakeInfo
     ) -> DepositStakeComputedKeys {
         DepositStakeComputedKeys {
-            withdraw_authority_pda: self.pool.account.stake_deposit_authority,
+            withdraw_authority_pda: self.compute_withdraw_auth(program_id),
             validator_stake_account: self.compute_vsa(program_id, vote, validator_seed_suffix),
         }
     }
@@ -122,6 +122,7 @@ impl<'a> DepositStakeWithSlippage<'a> {
         ])
     }
 
+    // TODO: need to handle stake pools with permissioned deposits
     pub fn resolve_with_computed_keys(
         &self,
         DepositStakeComputedKeys {

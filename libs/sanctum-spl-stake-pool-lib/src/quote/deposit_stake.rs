@@ -51,11 +51,13 @@ impl QuoteDepositStake for StakePool {
             .ok_or(ProgramError::ArithmeticOverflow)?;
 
         let stake_deposit_fee = self
-            .stake_deposit_fee_ratio()
-            .apply(new_pool_tokens_from_stake)?;
+            .stake_deposit_fee_ratio()?
+            .apply(new_pool_tokens_from_stake)?
+            .fee_charged();
         let sol_deposit_fee = self
-            .sol_deposit_fee_ratio()
-            .apply(new_pool_tokens_from_sol)?;
+            .sol_deposit_fee_ratio()?
+            .apply(new_pool_tokens_from_sol)?
+            .fee_charged();
 
         let total_fee = stake_deposit_fee
             .checked_add(sol_deposit_fee)

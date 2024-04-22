@@ -1,4 +1,4 @@
-use sanctum_token_ratio::{CeilDiv, FloorDiv, MathError, U64BpsFee, U64Ratio};
+use sanctum_token_ratio::{CeilDiv, FloorDiv, MathError, U64BpsFee, U64FeeRatio, U64Ratio};
 use spl_stake_pool_interface::StakePool;
 
 use crate::{FeeToRatio, PctFeeToBpsFee};
@@ -6,9 +6,9 @@ use crate::{FeeToRatio, PctFeeToBpsFee};
 pub trait QuoteStakePool {
     fn mint_ratio(&self) -> FloorDiv<U64Ratio<u64, u64>>;
 
-    fn stake_deposit_fee_ratio(&self) -> CeilDiv<U64Ratio<u64, u64>>;
+    fn stake_deposit_fee_ratio(&self) -> Result<CeilDiv<U64FeeRatio<u64, u64>>, MathError>;
 
-    fn sol_deposit_fee_ratio(&self) -> CeilDiv<U64Ratio<u64, u64>>;
+    fn sol_deposit_fee_ratio(&self) -> Result<CeilDiv<U64FeeRatio<u64, u64>>, MathError>;
 
     fn stake_referral_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError>;
 }
@@ -18,11 +18,11 @@ impl<T: QuoteStakePool> QuoteStakePool for &T {
         (*self).mint_ratio()
     }
 
-    fn stake_deposit_fee_ratio(&self) -> CeilDiv<U64Ratio<u64, u64>> {
+    fn stake_deposit_fee_ratio(&self) -> Result<CeilDiv<U64FeeRatio<u64, u64>>, MathError> {
         (*self).stake_deposit_fee_ratio()
     }
 
-    fn sol_deposit_fee_ratio(&self) -> CeilDiv<U64Ratio<u64, u64>> {
+    fn sol_deposit_fee_ratio(&self) -> Result<CeilDiv<U64FeeRatio<u64, u64>>, MathError> {
         (*self).sol_deposit_fee_ratio()
     }
 
@@ -39,12 +39,12 @@ impl QuoteStakePool for StakePool {
         })
     }
 
-    fn stake_deposit_fee_ratio(&self) -> CeilDiv<U64Ratio<u64, u64>> {
-        self.stake_deposit_fee.fee_to_ratio()
+    fn stake_deposit_fee_ratio(&self) -> Result<CeilDiv<U64FeeRatio<u64, u64>>, MathError> {
+        self.stake_deposit_fee.to_fee_ratio()
     }
 
-    fn sol_deposit_fee_ratio(&self) -> CeilDiv<U64Ratio<u64, u64>> {
-        self.sol_deposit_fee.fee_to_ratio()
+    fn sol_deposit_fee_ratio(&self) -> Result<CeilDiv<U64FeeRatio<u64, u64>>, MathError> {
+        self.sol_deposit_fee.to_fee_ratio()
     }
 
     fn stake_referral_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError> {

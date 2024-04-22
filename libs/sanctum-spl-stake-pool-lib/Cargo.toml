@@ -6,7 +6,7 @@ license.workspace = true
 
 [dependencies]
 borsh = { workspace = true }
-sanctum-token-ratio = { workspace = true }
+sanctum-token-ratio = { workspace = true, features = ["onchain"] }
 solana-program = { workspace = true }
 solana-readonly-account = { workspace = true }
 spl_stake_pool_interface = { workspace = true }

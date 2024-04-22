@@ -3484,6 +3484,7 @@ name = "sanctum-spl-stake-pool-lib"
 version = "0.1.0"
 dependencies = [
  "borsh 0.10.3",
+ "sanctum-token-ratio",
  "solana-program",
  "solana-readonly-account",
  "spl_stake_pool_interface",

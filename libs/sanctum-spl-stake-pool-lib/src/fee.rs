@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use sanctum_token_ratio::{CeilDiv, FloorDiv, MathError, U64BpsFee, U64Ratio};
 use spl_stake_pool_interface::{Fee, FeeType};
 
 /// Newtype used to perform fraction comparisons between [`Fee`]s
@@ -119,3 +120,26 @@ impl PartialEq for EqFeeTypeOwned {
 }
 
 impl Eq for EqFeeTypeOwned {}
+
+pub trait FeeToRatio {
+    fn fee_to_ratio(&self) -> CeilDiv<U64Ratio<u64, u64>>;
+}
+
+impl FeeToRatio for Fee {
+    fn fee_to_ratio(&self) -> CeilDiv<U64Ratio<u64, u64>> {
+        CeilDiv(U64Ratio {
+            num: self.numerator,
+            denom: self.denominator,
+        })
+    }
+}
+
+pub trait PctFeeToBpsFee {
+    fn pct_fee_to_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError>;
+}
+
+impl PctFeeToBpsFee for u8 {
+    fn pct_fee_to_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError> {
+        Ok(FloorDiv(U64BpsFee::try_new(u16::from(*self) * 100)?))
+    }
+}

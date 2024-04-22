@@ -61,6 +61,7 @@ solana-version = "^1"
 # workspace members
 sanctum-solana-cli-utils = { path = "./sanctum-solana-cli-utils" }
 sanctum-solana-test-utils = { path = "./sanctum-solana-test-utils" }
+sanctum-token-ratio = { path = "./sanctum-token-ratio" }
 spl_associated_token_account_interface = { path = "./generated/spl_associated_token_account_interface" }
 spl_stake_pool_interface = { path = "./generated/spl_stake_pool_interface" }
 spl_token_interface = { path = "./generated/spl_token_interface" }

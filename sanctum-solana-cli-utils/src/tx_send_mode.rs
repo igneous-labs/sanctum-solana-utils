@@ -100,7 +100,7 @@ impl HandleTxArgs {
             sim_against_commitment: Some(CommitmentLevel::Processed),
             tx_cfm_commitment: Some(CommitmentLevel::Confirmed),
             skip_preflight: true,
-            max_retries: Some(1),
+            max_retries: None,
             min_context_slot: None,
         }
     }
@@ -122,7 +122,7 @@ impl HandleTxArgs {
     pub const fn optimal_tx_send(tx_cfm_commitment: CommitmentLevel) -> Self {
         Self {
             skip_preflight: true,
-            max_retries: Some(1),
+            max_retries: None, // use default behavior of having RPC fwd tx twice every sec until it expires or is confirmed
             tx_cfm_commitment: Some(tx_cfm_commitment),
             // dont-cares
             sim_against_commitment: None,

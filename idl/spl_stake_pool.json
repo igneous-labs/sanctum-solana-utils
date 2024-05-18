@@ -744,7 +744,7 @@
           "type": "u64"
         },
         {
-          "name": "dstEphemeralStakeSeed",
+          "name": "ephemeralStakeSeed",
           "type": "u64"
         },
         {
@@ -796,7 +796,7 @@
           "desc": "Source transient stake account to receive split and be redelegated"
         },
         {
-          "name": "dstEphemeralStakeAccount",
+          "name": "ephemeralStakeAccount",
           "isMut": true,
           "isSigner": false,
           "desc": "Uninitialized ephemeral stake account to receive redelegation"

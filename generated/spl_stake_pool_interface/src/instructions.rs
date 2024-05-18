@@ -3602,7 +3602,7 @@ pub struct RedelegateAccounts<'me, 'info> {
     ///Source transient stake account to receive split and be redelegated
     pub src_transient_stake_account: &'me AccountInfo<'info>,
     ///Uninitialized ephemeral stake account to receive redelegation
-    pub dst_ephemeral_stake_account: &'me AccountInfo<'info>,
+    pub ephemeral_stake_account: &'me AccountInfo<'info>,
     ///Destination transient stake account to receive ephemeral stake by merge
     pub dst_transient_stake_account: &'me AccountInfo<'info>,
     ///Destination canonical stake account to receive transient stake after activation
@@ -3637,7 +3637,7 @@ pub struct RedelegateKeys {
     ///Source transient stake account to receive split and be redelegated
     pub src_transient_stake_account: Pubkey,
     ///Uninitialized ephemeral stake account to receive redelegation
-    pub dst_ephemeral_stake_account: Pubkey,
+    pub ephemeral_stake_account: Pubkey,
     ///Destination transient stake account to receive ephemeral stake by merge
     pub dst_transient_stake_account: Pubkey,
     ///Destination canonical stake account to receive transient stake after activation
@@ -3665,7 +3665,7 @@ impl From<RedelegateAccounts<'_, '_>> for RedelegateKeys {
             reserve_stake: *accounts.reserve_stake.key,
             src_validator_stake_account: *accounts.src_validator_stake_account.key,
             src_transient_stake_account: *accounts.src_transient_stake_account.key,
-            dst_ephemeral_stake_account: *accounts.dst_ephemeral_stake_account.key,
+            ephemeral_stake_account: *accounts.ephemeral_stake_account.key,
             dst_transient_stake_account: *accounts.dst_transient_stake_account.key,
             dst_validator_stake_account: *accounts.dst_validator_stake_account.key,
             dst_vote_account: *accounts.dst_vote_account.key,
@@ -3716,7 +3716,7 @@ impl From<RedelegateKeys> for [AccountMeta; REDELEGATE_IX_ACCOUNTS_LEN] {
                 is_writable: true,
             },
             AccountMeta {
-                pubkey: keys.dst_ephemeral_stake_account,
+                pubkey: keys.ephemeral_stake_account,
                 is_signer: false,
                 is_writable: true,
             },
@@ -3773,7 +3773,7 @@ impl From<[Pubkey; REDELEGATE_IX_ACCOUNTS_LEN]> for RedelegateKeys {
             reserve_stake: pubkeys[4],
             src_validator_stake_account: pubkeys[5],
             src_transient_stake_account: pubkeys[6],
-            dst_ephemeral_stake_account: pubkeys[7],
+            ephemeral_stake_account: pubkeys[7],
             dst_transient_stake_account: pubkeys[8],
             dst_validator_stake_account: pubkeys[9],
             dst_vote_account: pubkeys[10],
@@ -3797,7 +3797,7 @@ impl<'info> From<RedelegateAccounts<'_, 'info>>
             accounts.reserve_stake.clone(),
             accounts.src_validator_stake_account.clone(),
             accounts.src_transient_stake_account.clone(),
-            accounts.dst_ephemeral_stake_account.clone(),
+            accounts.ephemeral_stake_account.clone(),
             accounts.dst_transient_stake_account.clone(),
             accounts.dst_validator_stake_account.clone(),
             accounts.dst_vote_account.clone(),
@@ -3821,7 +3821,7 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; REDELEGATE_IX_ACCOUNTS_LEN]>
             reserve_stake: &arr[4],
             src_validator_stake_account: &arr[5],
             src_transient_stake_account: &arr[6],
-            dst_ephemeral_stake_account: &arr[7],
+            ephemeral_stake_account: &arr[7],
             dst_transient_stake_account: &arr[8],
             dst_validator_stake_account: &arr[9],
             dst_vote_account: &arr[10],
@@ -3839,7 +3839,7 @@ pub const REDELEGATE_IX_DISCM: u8 = 22u8;
 pub struct RedelegateIxArgs {
     pub lamports: u64,
     pub src_transient_stake_seed: u64,
-    pub dst_ephemeral_stake_seed: u64,
+    pub ephemeral_stake_seed: u64,
     pub dst_transient_stake_seed: u64,
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -3943,8 +3943,8 @@ pub fn redelegate_verify_account_keys(
             &keys.src_transient_stake_account,
         ),
         (
-            accounts.dst_ephemeral_stake_account.key,
-            &keys.dst_ephemeral_stake_account,
+            accounts.ephemeral_stake_account.key,
+            &keys.ephemeral_stake_account,
         ),
         (
             accounts.dst_transient_stake_account.key,
@@ -3975,7 +3975,7 @@ pub fn redelegate_verify_writable_privileges<'me, 'info>(
         accounts.reserve_stake,
         accounts.src_validator_stake_account,
         accounts.src_transient_stake_account,
-        accounts.dst_ephemeral_stake_account,
+        accounts.ephemeral_stake_account,
         accounts.dst_transient_stake_account,
     ] {
         if !should_be_writable.is_writable {

@@ -183,8 +183,14 @@ pub fn estimate_compute_unit_limit(
     client: &RpcClient,
     tx: &impl SerializableTransaction,
 ) -> Result<u64, ClientError> {
-    client
-        .simulate_transaction_with_config(tx, EST_CU_SIM_TX_CONFIG)?
+    let sim_res = client.simulate_transaction_with_config(tx, EST_CU_SIM_TX_CONFIG)?;
+    if let Some(err) = sim_res.value.err {
+        return Err(ClientError::new_with_request(
+            solana_rpc_client_api::client_error::ErrorKind::TransactionError(err),
+            solana_rpc_client_api::request::RpcRequest::SimulateTransaction,
+        ));
+    }
+    sim_res
         .value
         .units_consumed
         .ok_or(ClientError::new_with_request(
@@ -200,9 +206,16 @@ pub async fn estimate_compute_unit_limit_nonblocking(
     client: &NonblockingRpcClient,
     tx: &impl SerializableTransaction,
 ) -> Result<u64, ClientError> {
-    client
+    let sim_res = client
         .simulate_transaction_with_config(tx, EST_CU_SIM_TX_CONFIG)
-        .await?
+        .await?;
+    if let Some(err) = sim_res.value.err {
+        return Err(ClientError::new_with_request(
+            solana_rpc_client_api::client_error::ErrorKind::TransactionError(err),
+            solana_rpc_client_api::request::RpcRequest::SimulateTransaction,
+        ));
+    }
+    sim_res
         .value
         .units_consumed
         .ok_or(ClientError::new_with_request(

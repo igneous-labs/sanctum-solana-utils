@@ -729,6 +729,129 @@
       ]
     },
     {
+      "name": "Redelegate",
+      "discriminant": {
+        "type": "u8",
+        "value": 22
+      },
+      "args": [
+        {
+          "name": "lamports",
+          "type": "u64"
+        },
+        {
+          "name": "srcTransientStakeSeed",
+          "type": "u64"
+        },
+        {
+          "name": "ephemeralStakeSeed",
+          "type": "u64"
+        },
+        {
+          "name": "dstTransientStakeSeed",
+          "type": "u64"
+        }
+      ],
+      "accounts": [
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool"
+        },
+        {
+          "name": "staker",
+          "isMut": false,
+          "isSigner": true,
+          "desc": "Current staker"
+        },
+        {
+          "name": "withdrawAuthority",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake pool withdraw authority"
+        },
+        {
+          "name": "validatorList",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Validator list"
+        },
+        {
+          "name": "reserveStake",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Reserve stake account, to withdraw rent exempt reserve from"
+        },
+        {
+          "name": "srcValidatorStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Source canonical stake account to split from"
+        },
+        {
+          "name": "srcTransientStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Source transient stake account to receive split and be redelegated"
+        },
+        {
+          "name": "ephemeralStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Uninitialized ephemeral stake account to receive redelegation"
+        },
+        {
+          "name": "dstTransientStakeAccount",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "Destination transient stake account to receive ephemeral stake by merge"
+        },
+        {
+          "name": "dstValidatorStakeAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Destination canonical stake account to receive transient stake after activation"
+        },
+        {
+          "name": "dstVoteAccount",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Destination validator vote account"
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Clock sysvar"
+        },
+        {
+          "name": "stakeHistory",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake history sysvar"
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake config sysvar"
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "System program"
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false,
+          "desc": "Stake program"
+        }
+      ]
+    },
+    {
       "name": "DepositStakeWithSlippage",
       "discriminant": {
         "type": "u8",

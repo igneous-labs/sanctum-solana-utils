@@ -31,6 +31,16 @@ use self::json_rpc::{
 
 mod json_rpc;
 
+/// A simulated solana RPC server backed by a [`BanksClient`]
+///
+/// Be sure to annotate tests using this with
+///
+/// `#[tokio::test(flavor = "multi_thread")]`
+///
+/// Else with a non-blocking/async solana `RpcClient`, you'll get no response + timeout on requests.
+///
+/// With a blocking/sync solana `RpcClient`, you'll get a panic with
+/// `can call blocking only when running on the multi-threaded runtime`
 #[derive(Clone)]
 pub struct BanksRpcServer {
     // TODO: change this to BanksServer when solana makes it easier

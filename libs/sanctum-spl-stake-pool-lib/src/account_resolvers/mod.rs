@@ -25,7 +25,9 @@ pub use update_validator_list_balance::*;
 
 // The resolvers here use the new experimental style of taking &DeserializedAccount as input
 pub mod deposit_stake_with_slippage;
+pub mod redelegate;
 pub mod withdraw_stake_with_slippage;
 
 pub use deposit_stake_with_slippage::*;
+pub use redelegate::*;
 pub use withdraw_stake_with_slippage::*;

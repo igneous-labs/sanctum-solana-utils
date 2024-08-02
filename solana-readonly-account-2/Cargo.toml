@@ -1,0 +1,21 @@
+[package]
+name = "solana-readonly-account-2"
+version = "2.0.0"
+edition = "2021"
+license.workspace = true
+
+[features]
+default = []
+keyed = ["dep:solana-program"] # TODO: change this to dep:solana-pubkey once https://github.com/anza-xyz/agave/pull/2394 is merged
+keyed-bytes = []
+solana-pubkey = ["dep:solana-program"] # TODO: change this to dep:solana-pubkey once https://github.com/anza-xyz/agave/pull/2394 is merged
+solana-program = ["dep:solana-program"]
+solana-sdk = ["dep:solana-sdk"]
+
+[dependencies]
+solana-program = { workspace = true, optional = true }
+solana-sdk = { workspace = true, optional = true }
+
+[dev-dependencies]
+solana-program = { workspace = true } # TODO: change this to solana-pubkey once https://github.com/anza-xyz/agave/pull/2394 is merged
+spl-token-2022 = { workspace = true }

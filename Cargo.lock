@@ -4531,6 +4531,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "solana-readonly-account-2"
+version = "2.0.0"
+dependencies = [
+ "solana-program",
+ "solana-sdk",
+ "spl-token-2022",
+]
+
+[[package]]
 name = "solana-remote-wallet"
 version = "1.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

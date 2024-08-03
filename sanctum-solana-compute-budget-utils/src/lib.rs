@@ -1,5 +1,5 @@
 use solana_sdk::{
-    address_lookup_table_account::AddressLookupTableAccount,
+    address_lookup_table::AddressLookupTableAccount,
     compute_budget::ComputeBudgetInstruction,
     hash::Hash,
     instruction::Instruction,

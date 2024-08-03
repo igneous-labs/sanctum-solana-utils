@@ -83,6 +83,7 @@ pub struct HandleTxArgs {
     pub tx_cfm_commitment: Option<CommitmentLevel>,
     pub min_context_slot: Option<u64>,
     pub max_retries: Option<usize>,
+    pub inner_instructions: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -102,6 +103,7 @@ impl HandleTxArgs {
             skip_preflight: true,
             max_retries: None,
             min_context_slot: None,
+            inner_instructions: false,
         }
     }
 
@@ -116,6 +118,7 @@ impl HandleTxArgs {
             skip_preflight: false,
             min_context_slot: None,
             max_retries: None,
+            inner_instructions: false,
         }
     }
 
@@ -129,6 +132,7 @@ impl HandleTxArgs {
             sig_verify: false,
             replace_recent_blockhash: false,
             min_context_slot: None,
+            inner_instructions: false,
         }
     }
 }
@@ -140,6 +144,7 @@ impl From<HandleTxArgs> for RpcSimulateTransactionConfig {
             replace_recent_blockhash,
             sim_against_commitment,
             min_context_slot,
+            inner_instructions,
             ..
         }: HandleTxArgs,
     ) -> Self {
@@ -150,6 +155,7 @@ impl From<HandleTxArgs> for RpcSimulateTransactionConfig {
             encoding: Some(UiTransactionEncoding::Base64),
             accounts: None,
             min_context_slot,
+            inner_instructions,
         }
     }
 }

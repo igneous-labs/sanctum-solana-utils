@@ -9,20 +9,9 @@ Reimplementation of [ReadableAccount](https://docs.rs/solana-sdk/latest/solana_s
 
 ## Library
 
-The 6 main account fields (key, lamports, data, owner, is_executable, rent_epoch) are split into a single getter trait each. This splitting allows for greater trait composability and flexibility.
+The 6 main account fields (key, lamports, data, owner, is_executable, rent_epoch) are split into individual getter traits. This splitting allows for greater trait composability and flexibility.
 
 For example, say you had a function that only requires the account's owner and this is a known static pubkey. Instead of having to fetch the full `Account` just to read its already-known owner field, or creating a dummy `Account`, you can simply define a newtype that only needs to implement `ReadonlyAccountOwner`, while still maintaining the ability to use this function with on-chain `AccountInfo`s.
-
-Since [solana_sdk::Account](https://docs.rs/solana-sdk/latest/solana_sdk/account/struct.Account.html) doesn't have its pubkey field, the following [`Keyed`](crate::keyed::Keyed) struct is defined in `feature = "keyed"` for off-chain use cases:
-
-```rust ignore
-pub struct Keyed<T> {
-    pub pubkey: Pubkey,
-    pub account: T,
-}
-```
-
-A similar feature `keyed-bytes` exists that stores the pubkey as `[u8; 32]` instead for zero dependencies.
 
 ## Usage
 
@@ -44,11 +33,36 @@ pub fn try_deserialize_token_account<A: ReadonlyAccountData>(
 
 By default, this crate has zero dependencies and only provides the trait definitions.
 
-Feature `solana-pubkey` enables support for solana's `Pubkey` types on top of raw `[u8; 32]` types.
+## Crate Features
 
-Feature `solana-program` impls the traits for `AccountInfo`
+### `keyed`
 
-Feature `solana-sdk` impls the traits for `Account` and `AccountSharedData`. Do not enable this feature in an on-chain program crate, or `cargo-build-sbf` will fail.
+Since many offchain account structs such as [solana_sdk::Account](https://docs.rs/solana-sdk/latest/solana_sdk/account/struct.Account.html) don't have a pubkey field, the following [`Keyed`](crate::keyed::Keyed) wrapper struct is defined to impl `ReadonlyAccountPubkey` and `ReadonlyAccountPubkeyBytes` for:
+
+```rust ignore
+pub struct Keyed<T> {
+    pub pubkey: Pubkey,
+    pub account: T,
+}
+```
+
+### `keyed-bytes`
+
+Similar to [keyed](#keyed) but using `[u8; 32]` instead of `Pubkey` for zero dependencies.
+
+### `solana-pubkey`
+
+Enables support for solana's `Pubkey` types on top of the raw `[u8; 32]` types.
+
+### `solana-program`
+
+impls the traits for `AccountInfo`
+
+### `solana-sdk`
+
+impls the traits for `Account` and `AccountSharedData`.
+
+Do NOT enable this feature in an on-chain program crate, or `cargo-build-sbf` will fail.
 
 ## Testing
 

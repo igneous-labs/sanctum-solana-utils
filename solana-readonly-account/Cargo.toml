@@ -23,8 +23,8 @@ solana-program = ["dep:solana-program"]
 solana-sdk = ["dep:solana-sdk"]
 
 [dependencies]
-solana-program = { workspace = true, optional = true }
-solana-sdk = { workspace = true, optional = true }
+solana-program = { version = ">=1", optional = true }
+solana-sdk = { version = ">=1", optional = true }
 
 [dev-dependencies]
 solana-program = { workspace = true } # TODO: change this to solana-pubkey once https://github.com/anza-xyz/agave/pull/2394 is merged

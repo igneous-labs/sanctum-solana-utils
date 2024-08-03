@@ -17,7 +17,7 @@ pub use paths::*;
 pub use tx::*;
 
 // re-export KeyedAccount
-pub use solana_readonly_account::sdk::KeyedAccount;
+pub use solana_readonly_account::keyed::Keyed;
 
 #[cfg(feature = "banks-rpc-server")]
 #[cfg_attr(docsrs, doc(cfg(feature = "banks-rpc-server")))]

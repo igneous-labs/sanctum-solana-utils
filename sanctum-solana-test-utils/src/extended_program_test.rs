@@ -2,7 +2,7 @@ use std::{io::Write, path::Path};
 
 use solana_program::{pubkey::Pubkey, system_program};
 use solana_program_test::ProgramTest;
-use solana_readonly_account::sdk::KeyedAccount;
+use solana_readonly_account::keyed::Keyed;
 use solana_sdk::{
     account::Account,
     bpf_loader_upgradeable::{self, UpgradeableLoaderState},
@@ -13,7 +13,7 @@ use crate::{default_rent_exempt_lamports, load_program_so, test_fixtures_dir, Ke
 /// For nice method syntax on [`ProgramTest`]
 pub trait ExtendedProgramTest {
     fn add_account_chained(self, address: Pubkey, account: Account) -> Self;
-    fn add_keyed_account(self, keyed_account: KeyedAccount) -> Self;
+    fn add_keyed_account(self, keyed_account: Keyed<Account>) -> Self;
     fn add_keyed_ui_account(self, keyed_ui_account: KeyedUiAccount) -> Self;
     fn add_account_from_file<P: AsRef<Path>>(self, json_file_path: P) -> Self;
     fn add_test_fixtures_account<P: AsRef<Path>>(self, relative_json_file_path: P) -> Self;
@@ -40,7 +40,7 @@ impl ExtendedProgramTest for ProgramTest {
         self
     }
 
-    fn add_keyed_account(self, KeyedAccount { pubkey, account }: KeyedAccount) -> Self {
+    fn add_keyed_account(self, Keyed { pubkey, account }: Keyed<Account>) -> Self {
         self.add_account_chained(pubkey, account)
     }
 

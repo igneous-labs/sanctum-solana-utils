@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_stake_pool_interface::{SetManagerKeys, StakePool};
 
 use crate::deserialize_stake_pool_checked;
@@ -20,7 +20,7 @@ pub struct SetManager<P> {
     pub new_manager_setting: NewManagerSetting,
 }
 
-impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> SetManager<P> {
+impl<P: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> SetManager<P> {
     pub fn resolve(&self) -> Result<SetManagerKeys, ProgramError> {
         let StakePool {
             manager,
@@ -38,7 +38,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> SetManager<P> {
             }
         };
         Ok(SetManagerKeys {
-            stake_pool: *self.stake_pool.pubkey(),
+            stake_pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
             manager,
             new_manager,
             new_manager_fee_account,

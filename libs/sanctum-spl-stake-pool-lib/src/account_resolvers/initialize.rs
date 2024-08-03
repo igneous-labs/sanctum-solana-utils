@@ -2,7 +2,7 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
-use solana_readonly_account::{ReadonlyAccountOwner, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountOwnerBytes, ReadonlyAccountPubkeyBytes};
 use spl_stake_pool_interface::{
     InitializeIxArgs, InitializeKeys, SplStakePoolProgramIx, INITIALIZE_IX_ACCOUNTS_LEN,
 };
@@ -28,7 +28,7 @@ pub struct InitializeWithDepositAuthArgs {
     pub program_id: Pubkey,
 }
 
-impl<M: ReadonlyAccountOwner + ReadonlyAccountPubkey> Initialize<M> {
+impl<M: ReadonlyAccountOwnerBytes + ReadonlyAccountPubkeyBytes> Initialize<M> {
     pub fn resolve_with_withdraw_auth(&self, withdraw_authority: Pubkey) -> InitializeKeys {
         InitializeKeys {
             stake_pool: self.stake_pool,
@@ -37,9 +37,9 @@ impl<M: ReadonlyAccountOwner + ReadonlyAccountPubkey> Initialize<M> {
             withdraw_authority,
             validator_list: self.validator_list,
             reserve_stake: self.reserve_stake,
-            pool_mint: *self.pool_token_mint.pubkey(),
+            pool_mint: Pubkey::new_from_array(self.pool_token_mint.pubkey_bytes()),
             manager_fee_account: self.manager_fee_account,
-            token_program: *self.pool_token_mint.owner(),
+            token_program: Pubkey::new_from_array(self.pool_token_mint.owner_bytes()),
         }
     }
 

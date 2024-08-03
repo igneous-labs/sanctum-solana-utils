@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_stake_pool_interface::{SetStakerKeys, StakePool};
 
 use crate::deserialize_stake_pool_checked;
@@ -10,12 +10,12 @@ pub struct SetStaker<P> {
     pub new_staker: Pubkey,
 }
 
-impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> SetStaker<P> {
+impl<P: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> SetStaker<P> {
     pub fn resolve_with_manager_signer(&self) -> Result<SetStakerKeys, ProgramError> {
         let StakePool { manager, .. } =
             deserialize_stake_pool_checked(self.stake_pool.data().as_ref())?;
         Ok(SetStakerKeys {
-            stake_pool: *self.stake_pool.pubkey(),
+            stake_pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
             signer: manager,
             new_staker: self.new_staker,
         })
@@ -25,7 +25,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> SetStaker<P> {
         let StakePool { staker, .. } =
             deserialize_stake_pool_checked(self.stake_pool.data().as_ref())?;
         Ok(SetStakerKeys {
-            stake_pool: *self.stake_pool.pubkey(),
+            stake_pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
             signer: staker,
             new_staker: self.new_staker,
         })

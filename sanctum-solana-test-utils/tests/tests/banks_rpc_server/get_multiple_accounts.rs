@@ -1,4 +1,4 @@
-use sanctum_solana_test_utils::{ExtendedProgramTest, KeyedAccount};
+use sanctum_solana_test_utils::{ExtendedProgramTest, Keyed};
 use solana_program::pubkey::Pubkey;
 use solana_program_test::ProgramTest;
 use solana_sdk::account::Account;
@@ -28,11 +28,11 @@ async fn get_multiple_accounts_basic() {
         rent_epoch: 0,
     };
     let pt = pt
-        .add_keyed_account(KeyedAccount {
+        .add_keyed_account(Keyed {
             pubkey: p1,
             account: a1.clone(),
         })
-        .add_keyed_account(KeyedAccount {
+        .add_keyed_account(Keyed {
             pubkey: p2,
             account: a2.clone(),
         });

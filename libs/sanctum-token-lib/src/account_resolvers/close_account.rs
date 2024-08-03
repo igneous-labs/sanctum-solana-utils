@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_token_interface::CloseAccountKeys;
 
 use crate::ReadonlyTokenAccount;
@@ -10,7 +10,7 @@ pub struct CloseAccountFreeAccounts<A> {
     pub to: Pubkey,
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> CloseAccountFreeAccounts<A> {
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> CloseAccountFreeAccounts<A> {
     pub fn resolve(&self) -> Result<CloseAccountKeys, ProgramError> {
         let Self { token_account, to } = self;
 
@@ -19,14 +19,14 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> CloseAccountFreeAccounts<A>
             .try_into_initialized()?;
 
         Ok(CloseAccountKeys {
-            token_account: *token_account.pubkey(),
+            token_account: Pubkey::new_from_array(token_account.pubkey_bytes()),
             authority: t.token_account_authority(),
             to: *to,
         })
     }
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<CloseAccountFreeAccounts<A>>
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<CloseAccountFreeAccounts<A>>
     for CloseAccountKeys
 {
     type Error = ProgramError;

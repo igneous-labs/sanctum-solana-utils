@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey, stake, sysvar};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use stake_program_interface::DelegateStakeKeys;
 
 use crate::ReadonlyStakeAccount;
@@ -10,7 +10,7 @@ pub struct DelegateStakeFreeAccounts<S> {
     pub vote: Pubkey,
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DelegateStakeFreeAccounts<S> {
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> DelegateStakeFreeAccounts<S> {
     pub fn resolve(&self) -> Result<DelegateStakeKeys, ProgramError> {
         self.resolve_to_free_keys().map(Into::into)
     }
@@ -21,14 +21,14 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DelegateStakeFreeAccounts<S
         let s = s.try_into_valid()?;
         let s = s.try_into_stake_or_initialized()?;
         Ok(DelegateStakeFreeKeys {
-            stake: *stake.pubkey(),
+            stake: Pubkey::new_from_array(stake.pubkey_bytes()),
             vote: *vote,
             stake_authority: s.stake_meta_authorized_staker(),
         })
     }
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<DelegateStakeFreeAccounts<S>>
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<DelegateStakeFreeAccounts<S>>
     for DelegateStakeKeys
 {
     type Error = ProgramError;

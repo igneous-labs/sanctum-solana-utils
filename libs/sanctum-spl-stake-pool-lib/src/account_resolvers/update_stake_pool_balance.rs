@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_stake_pool_interface::{StakePool, UpdateStakePoolBalanceKeys};
 
 use crate::{deserialize_stake_pool_checked, FindWithdrawAuthority};
@@ -9,7 +9,7 @@ pub struct UpdateStakePoolBalance<P> {
     pub stake_pool: P,
 }
 
-impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateStakePoolBalance<P> {
+impl<P: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> UpdateStakePoolBalance<P> {
     pub fn resolve_with_withdraw_auth(
         &self,
         withdraw_authority: Pubkey,
@@ -23,7 +23,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateStakePoolBalance<P> {
             ..
         } = deserialize_stake_pool_checked(self.stake_pool.data().as_ref())?;
         Ok(UpdateStakePoolBalanceKeys {
-            stake_pool: *self.stake_pool.pubkey(),
+            stake_pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
             withdraw_authority,
             validator_list,
             reserve_stake,
@@ -38,7 +38,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateStakePoolBalance<P> {
         program_id: &Pubkey,
     ) -> Result<UpdateStakePoolBalanceKeys, ProgramError> {
         let (withdraw_authority, _bump) = FindWithdrawAuthority {
-            pool: *self.stake_pool.pubkey(),
+            pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
         }
         .run_for_prog(program_id);
         self.resolve_with_withdraw_auth(withdraw_authority)

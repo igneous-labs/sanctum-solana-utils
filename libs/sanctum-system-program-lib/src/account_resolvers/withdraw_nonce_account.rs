@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey, sysvar};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use system_program_interface::WithdrawNonceAccountKeys;
 
 use crate::ReadonlyNonceAccount;
@@ -10,7 +10,7 @@ pub struct WithdrawNonceAccountFreeAccounts<N> {
     pub to: Pubkey,
 }
 
-impl<N: ReadonlyAccountData + ReadonlyAccountPubkey> WithdrawNonceAccountFreeAccounts<N> {
+impl<N: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> WithdrawNonceAccountFreeAccounts<N> {
     pub fn resolve(&self) -> Result<WithdrawNonceAccountKeys, ProgramError> {
         self.resolve_to_free_keys().map(Into::into)
     }
@@ -22,7 +22,7 @@ impl<N: ReadonlyAccountData + ReadonlyAccountPubkey> WithdrawNonceAccountFreeAcc
         let n = n.try_into_initialized()?;
         Ok(WithdrawNonceAccountFreeKeys {
             to: *to,
-            nonce: *nonce.pubkey(),
+            nonce: Pubkey::new_from_array(nonce.pubkey_bytes()),
             authority: n.nonce_data_authority(),
         })
     }

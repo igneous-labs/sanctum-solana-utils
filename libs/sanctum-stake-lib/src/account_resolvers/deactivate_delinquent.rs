@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use stake_program_interface::DeactivateDelinquentKeys;
 
 use crate::ReadonlyStakeAccount;
@@ -10,7 +10,7 @@ pub struct DeactivateDelinquentFreeAccounts<S> {
     pub reference_vote: Pubkey,
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DeactivateDelinquentFreeAccounts<S> {
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> DeactivateDelinquentFreeAccounts<S> {
     pub fn resolve(&self) -> Result<DeactivateDelinquentKeys, ProgramError> {
         let Self {
             stake,
@@ -20,15 +20,15 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DeactivateDelinquentFreeAcc
         let s = s.try_into_valid()?;
         let s = s.try_into_stake()?;
         Ok(DeactivateDelinquentKeys {
-            stake: *stake.pubkey(),
+            stake: Pubkey::new_from_array(stake.pubkey_bytes()),
             reference_vote: *reference_vote,
             vote: s.stake_stake_delegation_voter_pubkey(),
         })
     }
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<DeactivateDelinquentFreeAccounts<S>>
-    for DeactivateDelinquentKeys
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes>
+    TryFrom<DeactivateDelinquentFreeAccounts<S>> for DeactivateDelinquentKeys
 {
     type Error = ProgramError;
 

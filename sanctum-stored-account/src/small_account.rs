@@ -1,9 +1,9 @@
-use std::{error::Error, fmt::Display, hash::Hash, ops::Deref};
+use std::{error::Error, fmt::Display, hash::Hash};
 
 use solana_program::pubkey::Pubkey;
 use solana_readonly_account::{
     ReadonlyAccountData, ReadonlyAccountIsExecutable, ReadonlyAccountLamports,
-    ReadonlyAccountOwner, ReadonlyAccountRentEpoch,
+    ReadonlyAccountOwnerBytes, ReadonlyAccountRentEpoch,
 };
 
 pub const SMALL_ACCOUNT_DATA_MAX_LEN: u8 = 16;
@@ -36,7 +36,7 @@ impl SmallAccountFlags {
 
     pub const DATA_LEN_AND_MASK: u8 = 0b0001_1111;
 
-    pub fn try_new(is_executable: bool, data_len: usize) -> Result<Self, DataTooLong> {
+    pub const fn try_new(is_executable: bool, data_len: usize) -> Result<Self, DataTooLong> {
         if data_len > SMALL_ACCOUNT_DATA_MAX_LEN_USIZE {
             return Err(DataTooLong);
         }
@@ -45,15 +45,18 @@ impl SmallAccountFlags {
         } else {
             0b0000_0000
         };
-        let data_len: u8 = data_len.try_into().unwrap();
+        // as-safety: bounds checked aboved
+        let data_len: u8 = data_len as u8;
         Ok(Self(base | data_len))
     }
 
-    pub fn is_executable(&self) -> bool {
+    #[inline]
+    pub const fn is_executable(&self) -> bool {
         (self.0 & Self::IS_EXECUTABLE_AND_MASK) == Self::IS_EXECUTABLE_AND_MASK
     }
 
-    pub fn data_len(&self) -> u8 {
+    #[inline]
+    pub const fn data_len(&self) -> u8 {
         self.0 & Self::DATA_LEN_AND_MASK
     }
 }
@@ -102,63 +105,58 @@ impl SmallAccount {
         Ok(res)
     }
 
-    pub fn data_len(&self) -> u8 {
+    #[inline]
+    pub const fn data_len(&self) -> u8 {
         self.flags.data_len()
     }
 
+    #[inline]
     pub fn data_slice(&self) -> &[u8] {
         &self.data[..self.data_len().into()]
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SmallAccountDataRef<'a>(pub &'a [u8]);
-
-impl<'a> Deref for SmallAccountDataRef<'a> {
-    type Target = &'a [u8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 impl ReadonlyAccountData for SmallAccount {
-    type SliceDeref<'s> = &'s[u8]
-    where
-        Self: 's;
-
-    type DataDeref<'d> = SmallAccountDataRef<'d>
+    type DataDeref<'d> = &'d [u8]
     where
         Self: 'd;
 
+    #[inline]
     fn data(&self) -> Self::DataDeref<'_> {
-        SmallAccountDataRef(self.data_slice())
+        self.data_slice()
     }
 }
 
 impl ReadonlyAccountIsExecutable for SmallAccount {
-    fn executable(&self) -> bool {
+    #[inline]
+    fn is_executable(&self) -> bool {
         self.flags.is_executable()
     }
 }
 
 impl ReadonlyAccountLamports for SmallAccount {
+    #[inline]
     fn lamports(&self) -> u64 {
         self.lamports
     }
 }
 
-impl ReadonlyAccountOwner for SmallAccount {
-    fn owner(&self) -> &Pubkey {
-        &self.owner
+impl ReadonlyAccountOwnerBytes for SmallAccount {
+    #[inline]
+    fn owner_bytes(&self) -> [u8; 32] {
+        self.owner.to_bytes()
     }
 }
 
 impl ReadonlyAccountRentEpoch for SmallAccount {
+    #[inline]
     fn rent_epoch(&self) -> u64 {
         self.rent_epoch
     }
 }
+
+// impl Eq and Hash
+// ignore data in buffer past self.data_len()
 
 impl PartialEq for SmallAccount {
     fn eq(&self, other: &Self) -> bool {
@@ -216,9 +214,9 @@ mod tests {
                 executable
             }).unwrap();
 
-            prop_assert_eq!(*small.data(), data.as_slice());
-            prop_assert_eq!(small.executable(), executable);
-            prop_assert_eq!(*small.owner(), owner);
+            prop_assert_eq!(small.data(), data);
+            prop_assert_eq!(small.is_executable(), executable);
+            prop_assert_eq!(small.owner_bytes(), owner.to_bytes());
             prop_assert_eq!(small.lamports(), lamports);
             prop_assert_eq!(small.rent_epoch(), rent_epoch);
         }

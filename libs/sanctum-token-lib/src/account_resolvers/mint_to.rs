@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_token_interface::{MintToCheckedKeys, MintToKeys, SplTokenError};
 
 use crate::{ReadonlyMintAccount, ReadonlyTokenAccount};
@@ -11,8 +11,8 @@ pub struct MintToFreeAccounts<A, M> {
 }
 
 impl<
-        A: ReadonlyAccountData + ReadonlyAccountPubkey,
-        M: ReadonlyAccountData + ReadonlyAccountPubkey,
+        A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
+        M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
     > MintToFreeAccounts<A, M>
 {
     pub fn resolve(self) -> Result<MintToKeys, ProgramError> {
@@ -31,7 +31,7 @@ impl<
         let t = ReadonlyTokenAccount(&self.token_account)
             .try_into_valid()?
             .try_into_initialized()?;
-        if t.token_account_mint() != *self.mint.pubkey() {
+        if t.token_account_mint() != Pubkey::new_from_array(self.mint.pubkey_bytes()) {
             return Err(SplTokenError::MintMismatch.into());
         }
         Ok(())
@@ -39,8 +39,8 @@ impl<
 }
 
 impl<
-        A: ReadonlyAccountData + ReadonlyAccountPubkey,
-        M: ReadonlyAccountData + ReadonlyAccountPubkey,
+        A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
+        M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
     > TryFrom<MintToFreeAccounts<A, M>> for MintToKeys
 {
     type Error = ProgramError;
@@ -51,8 +51,8 @@ impl<
 }
 
 impl<
-        A: ReadonlyAccountData + ReadonlyAccountPubkey,
-        M: ReadonlyAccountData + ReadonlyAccountPubkey,
+        A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
+        M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
     > TryFrom<MintToFreeAccounts<A, M>> for MintToCheckedKeys
 {
     type Error = ProgramError;
@@ -68,11 +68,11 @@ pub struct MintToAccountsUncheckedTokenAccount<M> {
     pub mint: M,
 }
 
-impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> MintToAccountsUncheckedTokenAccount<M> {
+impl<M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> MintToAccountsUncheckedTokenAccount<M> {
     pub fn resolve(&self) -> Result<MintToKeys, ProgramError> {
         let authority = self.mint_authority()?;
         Ok(MintToKeys {
-            mint: *self.mint.pubkey(),
+            mint: Pubkey::new_from_array(self.mint.pubkey_bytes()),
             token_account: self.token_account,
             authority,
         })
@@ -81,7 +81,7 @@ impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> MintToAccountsUncheckedToke
     pub fn resolve_checked(&self) -> Result<MintToCheckedKeys, ProgramError> {
         let authority = self.mint_authority()?;
         Ok(MintToCheckedKeys {
-            mint: *self.mint.pubkey(),
+            mint: Pubkey::new_from_array(self.mint.pubkey_bytes()),
             token_account: self.token_account,
             authority,
         })
@@ -95,7 +95,7 @@ impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> MintToAccountsUncheckedToke
     }
 }
 
-impl<A: ReadonlyAccountPubkey, M: ReadonlyAccountData + ReadonlyAccountPubkey>
+impl<A: ReadonlyAccountPubkeyBytes, M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes>
     From<MintToFreeAccounts<A, M>> for MintToAccountsUncheckedTokenAccount<M>
 {
     fn from(
@@ -105,14 +105,14 @@ impl<A: ReadonlyAccountPubkey, M: ReadonlyAccountData + ReadonlyAccountPubkey>
         }: MintToFreeAccounts<A, M>,
     ) -> Self {
         Self {
-            token_account: *token_account.pubkey(),
+            token_account: Pubkey::new_from_array(token_account.pubkey_bytes()),
             mint,
         }
     }
 }
 
-impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<MintToAccountsUncheckedTokenAccount<M>>
-    for MintToKeys
+impl<M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes>
+    TryFrom<MintToAccountsUncheckedTokenAccount<M>> for MintToKeys
 {
     type Error = ProgramError;
 
@@ -121,8 +121,8 @@ impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<MintToAccountsUnche
     }
 }
 
-impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<MintToAccountsUncheckedTokenAccount<M>>
-    for MintToCheckedKeys
+impl<M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes>
+    TryFrom<MintToAccountsUncheckedTokenAccount<M>> for MintToCheckedKeys
 {
     type Error = ProgramError;
 

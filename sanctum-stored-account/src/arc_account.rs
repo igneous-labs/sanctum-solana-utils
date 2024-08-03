@@ -3,7 +3,7 @@ use std::sync::Arc;
 use solana_program::pubkey::Pubkey;
 use solana_readonly_account::{
     ReadonlyAccountData, ReadonlyAccountIsExecutable, ReadonlyAccountLamports,
-    ReadonlyAccountOwner, ReadonlyAccountRentEpoch,
+    ReadonlyAccountOwnerBytes, ReadonlyAccountRentEpoch,
 };
 
 /// An account with data pointed to with an Arc<[u8]> instead of Vec<u8>.
@@ -18,38 +18,39 @@ pub struct ArcAccount {
 }
 
 impl ReadonlyAccountData for ArcAccount {
-    type SliceDeref<'s> = Arc<[u8]>
-    where
-        Self: 's;
-
-    type DataDeref<'d> = &'d Arc<[u8]>
+    type DataDeref<'d> = &'d [u8]
     where
         Self: 'd;
 
+    #[inline]
     fn data(&self) -> Self::DataDeref<'_> {
         &self.data
     }
 }
 
 impl ReadonlyAccountIsExecutable for ArcAccount {
-    fn executable(&self) -> bool {
+    #[inline]
+    fn is_executable(&self) -> bool {
         self.executable
     }
 }
 
 impl ReadonlyAccountLamports for ArcAccount {
+    #[inline]
     fn lamports(&self) -> u64 {
         self.lamports
     }
 }
 
-impl ReadonlyAccountOwner for ArcAccount {
-    fn owner(&self) -> &Pubkey {
-        &self.owner
+impl ReadonlyAccountOwnerBytes for ArcAccount {
+    #[inline]
+    fn owner_bytes(&self) -> [u8; 32] {
+        self.owner.to_bytes()
     }
 }
 
 impl ReadonlyAccountRentEpoch for ArcAccount {
+    #[inline]
     fn rent_epoch(&self) -> u64 {
         self.rent_epoch
     }
@@ -79,9 +80,9 @@ mod tests {
                 executable
             };
 
-            prop_assert_eq!(acc.data().as_ref(), data.as_slice());
-            prop_assert_eq!(acc.executable(), executable);
-            prop_assert_eq!(*acc.owner(), owner);
+            prop_assert_eq!(acc.data(), data);
+            prop_assert_eq!(acc.is_executable(), executable);
+            prop_assert_eq!(acc.owner_bytes(), owner.to_bytes());
             prop_assert_eq!(acc.lamports(), lamports);
             prop_assert_eq!(acc.rent_epoch(), rent_epoch);
         }

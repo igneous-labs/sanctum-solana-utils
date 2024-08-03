@@ -4,6 +4,7 @@
 
 pub mod keyed;
 pub mod keyed_bytes;
+pub mod keyed_conv;
 pub mod program;
 pub mod pubkey;
 pub mod sdk;

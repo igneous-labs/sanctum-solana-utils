@@ -1,8 +1,18 @@
 [package]
-name = "solana-readonly-account-2"
+name = "solana-readonly-account"
+description = "Readonly solana account field getter traits extendable for both on-chain and off-chain structs"
 version = "2.0.0"
 edition = "2021"
 license.workspace = true
+readme = "README.md"
+keywords = ["sanctum", "solana", "account", "generics"]
+categories = ["rust-patterns"]
+
+include = ["/src", "/README.md"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []

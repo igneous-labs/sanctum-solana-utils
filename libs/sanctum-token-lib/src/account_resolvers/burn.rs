@@ -1,5 +1,5 @@
-use solana_program::program_error::ProgramError;
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_token_interface::{BurnCheckedKeys, BurnKeys};
 
 use crate::{InitializedTokenAccount, ReadonlyTokenAccount};
@@ -9,11 +9,11 @@ pub struct BurnFreeAccounts<A> {
     pub token_account: A,
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> BurnFreeAccounts<A> {
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> BurnFreeAccounts<A> {
     pub fn resolve(&self) -> Result<BurnKeys, ProgramError> {
         let t = self.initialized_token_account()?;
         Ok(BurnKeys {
-            token_account: *self.token_account.pubkey(),
+            token_account: Pubkey::new_from_array(self.token_account.pubkey_bytes()),
             authority: t.token_account_authority(),
             mint: t.token_account_mint(),
         })
@@ -22,7 +22,7 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> BurnFreeAccounts<A> {
     pub fn resolve_checked(&self) -> Result<BurnCheckedKeys, ProgramError> {
         let t = self.initialized_token_account()?;
         Ok(BurnCheckedKeys {
-            token_account: *self.token_account.pubkey(),
+            token_account: Pubkey::new_from_array(self.token_account.pubkey_bytes()),
             authority: t.token_account_authority(),
             mint: t.token_account_mint(),
         })
@@ -35,7 +35,9 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> BurnFreeAccounts<A> {
     }
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<BurnFreeAccounts<A>> for BurnKeys {
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<BurnFreeAccounts<A>>
+    for BurnKeys
+{
     type Error = ProgramError;
 
     fn try_from(value: BurnFreeAccounts<A>) -> Result<Self, Self::Error> {
@@ -43,7 +45,7 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<BurnFreeAccounts<A>
     }
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<BurnFreeAccounts<A>>
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<BurnFreeAccounts<A>>
     for BurnCheckedKeys
 {
     type Error = ProgramError;

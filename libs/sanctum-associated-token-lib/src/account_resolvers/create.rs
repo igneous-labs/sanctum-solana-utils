@@ -1,5 +1,5 @@
 use solana_program::{pubkey::Pubkey, system_program};
-use solana_readonly_account::{ReadonlyAccountOwner, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountOwnerBytes, ReadonlyAccountPubkeyBytes};
 use spl_associated_token_account_interface::CreateKeys;
 
 use crate::FindAtaAddressArgs;
@@ -11,7 +11,7 @@ pub struct CreateFreeArgs<M> {
     pub mint: M,
 }
 
-impl<M: ReadonlyAccountPubkey + ReadonlyAccountOwner> CreateFreeArgs<M> {
+impl<M: ReadonlyAccountOwnerBytes + ReadonlyAccountPubkeyBytes> CreateFreeArgs<M> {
     /// `.1` is bump seed of the ATA
     pub fn resolve(&self) -> (CreateKeys, u8) {
         let Self {
@@ -19,8 +19,8 @@ impl<M: ReadonlyAccountPubkey + ReadonlyAccountOwner> CreateFreeArgs<M> {
             wallet,
             mint,
         } = self;
-        let token_program = *mint.owner();
-        let mint = *mint.pubkey();
+        let token_program = Pubkey::new_from_array(mint.owner_bytes());
+        let mint = Pubkey::new_from_array(mint.pubkey_bytes());
         let (ata_to_create, bump) = FindAtaAddressArgs {
             wallet: *wallet,
             mint,

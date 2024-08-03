@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_token_interface::{FreezeAccountKeys, SplTokenError, ThawAccountKeys};
 
 use crate::{ReadonlyMintAccount, ReadonlyTokenAccount};
@@ -11,8 +11,8 @@ pub struct FreezeThawFreeAccounts<A, M> {
 }
 
 impl<
-        A: ReadonlyAccountData + ReadonlyAccountPubkey,
-        M: ReadonlyAccountData + ReadonlyAccountPubkey,
+        A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
+        M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
     > FreezeThawFreeAccounts<A, M>
 {
     pub fn resolve_freeze(self) -> Result<FreezeAccountKeys, ProgramError> {
@@ -31,7 +31,7 @@ impl<
         let t = ReadonlyTokenAccount(&self.token_account)
             .try_into_valid()?
             .try_into_initialized()?;
-        if t.token_account_mint() != *self.mint.pubkey() {
+        if t.token_account_mint() != Pubkey::new_from_array(self.mint.pubkey_bytes()) {
             return Err(SplTokenError::MintMismatch.into());
         }
         Ok(())
@@ -39,8 +39,8 @@ impl<
 }
 
 impl<
-        A: ReadonlyAccountData + ReadonlyAccountPubkey,
-        M: ReadonlyAccountData + ReadonlyAccountPubkey,
+        A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
+        M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
     > TryFrom<FreezeThawFreeAccounts<A, M>> for FreezeAccountKeys
 {
     type Error = ProgramError;
@@ -51,8 +51,8 @@ impl<
 }
 
 impl<
-        A: ReadonlyAccountData + ReadonlyAccountPubkey,
-        M: ReadonlyAccountData + ReadonlyAccountPubkey,
+        A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
+        M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes,
     > TryFrom<FreezeThawFreeAccounts<A, M>> for ThawAccountKeys
 {
     type Error = ProgramError;
@@ -68,11 +68,13 @@ pub struct FreezeThawAccountsUncheckedTokenAccount<M> {
     pub mint: M,
 }
 
-impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> FreezeThawAccountsUncheckedTokenAccount<M> {
+impl<M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes>
+    FreezeThawAccountsUncheckedTokenAccount<M>
+{
     pub fn resolve_freeze(&self) -> Result<FreezeAccountKeys, ProgramError> {
         let authority = self.mint_freeze_authority()?;
         Ok(FreezeAccountKeys {
-            mint: *self.mint.pubkey(),
+            mint: Pubkey::new_from_array(self.mint.pubkey_bytes()),
             token_account: self.token_account,
             authority,
         })
@@ -81,7 +83,7 @@ impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> FreezeThawAccountsUnchecked
     pub fn resolve_thaw(&self) -> Result<ThawAccountKeys, ProgramError> {
         let authority = self.mint_freeze_authority()?;
         Ok(ThawAccountKeys {
-            mint: *self.mint.pubkey(),
+            mint: Pubkey::new_from_array(self.mint.pubkey_bytes()),
             token_account: self.token_account,
             authority,
         })
@@ -96,7 +98,7 @@ impl<M: ReadonlyAccountData + ReadonlyAccountPubkey> FreezeThawAccountsUnchecked
     }
 }
 
-impl<A: ReadonlyAccountPubkey, M: ReadonlyAccountData + ReadonlyAccountPubkey>
+impl<A: ReadonlyAccountPubkeyBytes, M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes>
     From<FreezeThawFreeAccounts<A, M>> for FreezeThawAccountsUncheckedTokenAccount<M>
 {
     fn from(
@@ -106,13 +108,13 @@ impl<A: ReadonlyAccountPubkey, M: ReadonlyAccountData + ReadonlyAccountPubkey>
         }: FreezeThawFreeAccounts<A, M>,
     ) -> Self {
         Self {
-            token_account: *token_account.pubkey(),
+            token_account: Pubkey::new_from_array(token_account.pubkey_bytes()),
             mint,
         }
     }
 }
 
-impl<M: ReadonlyAccountData + ReadonlyAccountPubkey>
+impl<M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes>
     TryFrom<FreezeThawAccountsUncheckedTokenAccount<M>> for FreezeAccountKeys
 {
     type Error = ProgramError;
@@ -122,7 +124,7 @@ impl<M: ReadonlyAccountData + ReadonlyAccountPubkey>
     }
 }
 
-impl<M: ReadonlyAccountData + ReadonlyAccountPubkey>
+impl<M: ReadonlyAccountData + ReadonlyAccountPubkeyBytes>
     TryFrom<FreezeThawAccountsUncheckedTokenAccount<M>> for ThawAccountKeys
 {
     type Error = ProgramError;

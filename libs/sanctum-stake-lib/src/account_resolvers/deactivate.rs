@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey, sysvar};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use stake_program_interface::DeactivateKeys;
 
 use crate::ReadonlyStakeAccount;
@@ -9,7 +9,7 @@ pub struct DeactivateFreeAccounts<S> {
     pub stake: S,
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DeactivateFreeAccounts<S> {
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> DeactivateFreeAccounts<S> {
     pub fn resolve(&self) -> Result<DeactivateKeys, ProgramError> {
         self.resolve_to_free_keys().map(Into::into)
     }
@@ -21,13 +21,13 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> DeactivateFreeAccounts<S> {
         let s = s.try_into_stake_or_initialized()?;
         let stake_authority = s.stake_meta_authorized_staker();
         Ok(DeactivateFreeKeys {
-            stake: *stake.pubkey(),
+            stake: Pubkey::new_from_array(stake.pubkey_bytes()),
             stake_authority,
         })
     }
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<DeactivateFreeAccounts<S>>
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<DeactivateFreeAccounts<S>>
     for DeactivateKeys
 {
     type Error = ProgramError;

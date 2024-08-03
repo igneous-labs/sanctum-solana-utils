@@ -8,5 +8,5 @@ license.workspace = true
 borsh = { workspace = true }
 sanctum-token-ratio = { workspace = true, features = ["onchain"] }
 solana-program = { workspace = true }
-solana-readonly-account = { workspace = true }
+solana-readonly-account = { workspace = true, features = ["keyed"] }
 spl_stake_pool_interface = { workspace = true }

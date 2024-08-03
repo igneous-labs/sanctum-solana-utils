@@ -1,4 +1,4 @@
-use sanctum_solana_test_utils::{ExtendedProgramTest, KeyedAccount};
+use sanctum_solana_test_utils::{ExtendedProgramTest, Keyed};
 use solana_program::pubkey::Pubkey;
 use solana_program_test::ProgramTest;
 use solana_sdk::{account::Account, commitment_config::CommitmentConfig};
@@ -19,7 +19,7 @@ async fn get_account_info_basic() {
         executable: false,
         rent_epoch: 0,
     };
-    let pt = pt.add_keyed_account(KeyedAccount {
+    let pt = pt.add_keyed_account(Keyed {
         pubkey: p,
         account: a.clone(),
     });

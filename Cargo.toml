@@ -11,7 +11,7 @@ members = [
     "sanctum-solana-compute-budget-utils",
     "sanctum-stored-account",
     "sanctum-token-ratio",
-    "solana-readonly-account-2",
+    "solana-readonly-account",
 ]
 
 [workspace.package]
@@ -53,7 +53,6 @@ solana-cli-config = "^1"
 solana-client = "^1"
 solana-program = "^1"
 solana-program-test = "^1"
-solana-readonly-account = "^1.1"
 solana-rpc-client-api = "^1"
 solana-sdk = "^1"
 solana-transaction-status = "^1"
@@ -63,7 +62,7 @@ solana-version = "^1"
 sanctum-solana-cli-utils = { path = "./sanctum-solana-cli-utils" }
 sanctum-solana-test-utils = { path = "./sanctum-solana-test-utils" }
 sanctum-token-ratio = { path = "./sanctum-token-ratio" }
-solana-readonly-account-2 = { path = "./solana-readonly-account-2" }
+solana-readonly-account = { path = "./solana-readonly-account" }
 spl_associated_token_account_interface = { path = "./generated/spl_associated_token_account_interface" }
 spl_stake_pool_interface = { path = "./generated/spl_stake_pool_interface" }
 spl_token_interface = { path = "./generated/spl_token_interface" }

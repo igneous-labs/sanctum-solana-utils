@@ -1,5 +1,5 @@
 use solana_program::{program_option::COption, program_pack::Pack, pubkey::Pubkey};
-use solana_readonly_account::sdk::KeyedAccount;
+use solana_readonly_account::keyed::Keyed;
 use solana_sdk::account::Account;
 use spl_token::state::Mint;
 
@@ -16,7 +16,7 @@ pub trait TokenkegProgramTest {
 
 impl<T: ExtendedProgramTest> TokenkegProgramTest for T {
     fn add_tokenkeg_account(self, addr: Pubkey, account: spl_token::state::Account) -> Self {
-        self.add_keyed_account(KeyedAccount {
+        self.add_keyed_account(Keyed {
             pubkey: addr,
             account: account.into_account(),
         })
@@ -27,7 +27,7 @@ impl<T: ExtendedProgramTest> TokenkegProgramTest for T {
     }
 
     fn add_tokenkeg_mint_account(self, addr: Pubkey, mint: Mint) -> Self {
-        self.add_keyed_account(KeyedAccount {
+        self.add_keyed_account(Keyed {
             pubkey: addr,
             account: mint.into_account(),
         })

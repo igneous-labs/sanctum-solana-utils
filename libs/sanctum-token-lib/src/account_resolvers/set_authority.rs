@@ -1,5 +1,5 @@
-use solana_program::program_error::ProgramError;
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_token_interface::{AuthorityType, SetAuthorityKeys, SplTokenError};
 
 use crate::{ReadonlyMintAccount, ReadonlyTokenAccount};
@@ -10,7 +10,7 @@ pub struct SetAuthorityFreeArgs<A> {
     pub authority_type: AuthorityType,
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> SetAuthorityFreeArgs<A> {
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> SetAuthorityFreeArgs<A> {
     pub fn resolve(&self) -> Result<SetAuthorityKeys, ProgramError> {
         match self.authority_type {
             AuthorityType::FreezeAccount | AuthorityType::MintTokens => self.resolve_mint(),
@@ -39,7 +39,7 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> SetAuthorityFreeArgs<A> {
         };
         Ok(SetAuthorityKeys {
             authority,
-            account: *account.pubkey(),
+            account: Pubkey::new_from_array(account.pubkey_bytes()),
         })
     }
 
@@ -59,12 +59,12 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> SetAuthorityFreeArgs<A> {
         };
         Ok(SetAuthorityKeys {
             authority,
-            account: *account.pubkey(),
+            account: Pubkey::new_from_array(account.pubkey_bytes()),
         })
     }
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<SetAuthorityFreeArgs<A>>
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<SetAuthorityFreeArgs<A>>
     for SetAuthorityKeys
 {
     type Error = ProgramError;

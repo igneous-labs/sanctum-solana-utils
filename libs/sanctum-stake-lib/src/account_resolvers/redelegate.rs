@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey, stake};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use stake_program_interface::RedelegateKeys;
 
 use crate::ReadonlyStakeAccount;
@@ -11,7 +11,7 @@ pub struct RedelegateFreeAccounts<S> {
     pub vote: Pubkey,
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> RedelegateFreeAccounts<S> {
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> RedelegateFreeAccounts<S> {
     pub fn resolve_to_free_keys(&self) -> Result<RedelegateFreeKeys, ProgramError> {
         let Self {
             stake,
@@ -22,7 +22,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> RedelegateFreeAccounts<S> {
         let s = s.try_into_valid()?;
         let s = s.try_into_stake_or_initialized()?;
         Ok(RedelegateFreeKeys {
-            stake: *stake.pubkey(),
+            stake: Pubkey::new_from_array(stake.pubkey_bytes()),
             uninitialized_stake: *uninitialized_stake,
             vote: *vote,
             stake_authority: s.stake_meta_authorized_staker(),

@@ -1,0 +1,32 @@
+[package]
+name = "solana-readonly-account"
+description = "Readonly solana account field getter traits extendable for both on-chain and off-chain structs"
+version = "2.0.0"
+edition = "2021"
+license.workspace = true
+repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
+readme = "README.md"
+keywords = ["sanctum", "solana", "account", "generics"]
+categories = ["rust-patterns"]
+
+include = ["/src", "/README.md"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = []
+keyed = ["dep:solana-program"] # TODO: change this to dep:solana-pubkey once https://github.com/anza-xyz/agave/pull/2394 is merged
+keyed-bytes = []
+solana-pubkey = ["dep:solana-program"] # TODO: change this to dep:solana-pubkey once https://github.com/anza-xyz/agave/pull/2394 is merged
+solana-program = ["dep:solana-program"]
+solana-sdk = ["dep:solana-sdk"]
+
+[dependencies]
+solana-program = { version = ">=1", optional = true }
+solana-sdk = { version = ">=1", optional = true }
+
+[dev-dependencies]
+solana-program = { workspace = true } # TODO: change this to solana-pubkey once https://github.com/anza-xyz/agave/pull/2394 is merged
+spl-token-2022 = { workspace = true }

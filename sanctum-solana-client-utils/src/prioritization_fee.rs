@@ -40,6 +40,7 @@ pub const EST_CU_SIM_TX_CONFIG: RpcSimulateTransactionConfig = RpcSimulateTransa
     encoding: None,
     accounts: None,
     min_context_slot: None,
+    inner_instructions: false,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]

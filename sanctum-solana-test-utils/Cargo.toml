@@ -26,8 +26,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 solana-account-decoder = { workspace = true }
 solana-program = { workspace = true }
-solana-program-test = "^1.17" # Needed for ProgramTestContext::warp_forward_force_reward_interval_end
-solana-readonly-account = { workspace = true, features = ["solana-sdk"] }
+solana-program-test = { workspace = true }
+solana-readonly-account = { workspace = true, features = ["solana-sdk", "keyed"] }
 solana-sdk = { workspace = true }
 
 # optional

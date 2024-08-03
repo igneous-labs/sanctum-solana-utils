@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_token_interface::TransferCheckedKeys;
 
 use crate::ReadonlyTokenAccount;
@@ -10,7 +10,7 @@ pub struct TransferCheckedFreeAccounts<A> {
     pub to: Pubkey,
 }
 
-impl<A: ReadonlyAccountPubkey + ReadonlyAccountData> TransferCheckedFreeAccounts<A> {
+impl<A: ReadonlyAccountPubkeyBytes + ReadonlyAccountData> TransferCheckedFreeAccounts<A> {
     pub fn resolve(&self) -> Result<TransferCheckedKeys, ProgramError> {
         let Self { from, to } = self;
 
@@ -22,7 +22,7 @@ impl<A: ReadonlyAccountPubkey + ReadonlyAccountData> TransferCheckedFreeAccounts
         let authority = f.token_account_authority();
 
         Ok(TransferCheckedKeys {
-            from: *from.pubkey(),
+            from: Pubkey::new_from_array(from.pubkey_bytes()),
             mint,
             to: *to,
             authority,
@@ -30,7 +30,7 @@ impl<A: ReadonlyAccountPubkey + ReadonlyAccountData> TransferCheckedFreeAccounts
     }
 }
 
-impl<A: ReadonlyAccountPubkey + ReadonlyAccountData> TryFrom<TransferCheckedFreeAccounts<A>>
+impl<A: ReadonlyAccountPubkeyBytes + ReadonlyAccountData> TryFrom<TransferCheckedFreeAccounts<A>>
     for TransferCheckedKeys
 {
     type Error = ProgramError;

@@ -1,7 +1,7 @@
 //! TODO: can_merge() util fn
 
 use solana_program::{program_error::ProgramError, pubkey::Pubkey, sysvar};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use stake_program_interface::MergeKeys;
 
 use crate::ReadonlyStakeAccount;
@@ -19,7 +19,7 @@ pub struct MergeFreeAccountsFromFetched<F> {
     pub to: Pubkey,
 }
 
-impl<F: ReadonlyAccountData + ReadonlyAccountPubkey> MergeFreeAccountsFromFetched<F> {
+impl<F: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> MergeFreeAccountsFromFetched<F> {
     pub fn resolve(&self) -> Result<MergeKeys, ProgramError> {
         self.resolve_to_free_keys().map(Into::into)
     }
@@ -27,14 +27,14 @@ impl<F: ReadonlyAccountData + ReadonlyAccountPubkey> MergeFreeAccountsFromFetche
     pub fn resolve_to_free_keys(&self) -> Result<MergeFreeKeys, ProgramError> {
         let Self { from, to } = self;
         Ok(MergeFreeKeys {
-            from: *from.pubkey(),
+            from: Pubkey::new_from_array(from.pubkey_bytes()),
             to: *to,
             stake_authority: read_stake_authority_checked(from)?,
         })
     }
 }
 
-impl<F: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<MergeFreeAccountsFromFetched<F>>
+impl<F: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<MergeFreeAccountsFromFetched<F>>
     for MergeKeys
 {
     type Error = ProgramError;
@@ -50,7 +50,7 @@ pub struct MergeFreeAccountsToFetched<T> {
     pub to: T,
 }
 
-impl<T: ReadonlyAccountData + ReadonlyAccountPubkey> MergeFreeAccountsToFetched<T> {
+impl<T: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> MergeFreeAccountsToFetched<T> {
     pub fn resolve(&self) -> Result<MergeKeys, ProgramError> {
         self.resolve_to_free_keys().map(Into::into)
     }
@@ -59,13 +59,13 @@ impl<T: ReadonlyAccountData + ReadonlyAccountPubkey> MergeFreeAccountsToFetched<
         let Self { from, to } = self;
         Ok(MergeFreeKeys {
             from: *from,
-            to: *to.pubkey(),
+            to: Pubkey::new_from_array(to.pubkey_bytes()),
             stake_authority: read_stake_authority_checked(to)?,
         })
     }
 }
 
-impl<T: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<MergeFreeAccountsToFetched<T>>
+impl<T: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<MergeFreeAccountsToFetched<T>>
     for MergeKeys
 {
     type Error = ProgramError;

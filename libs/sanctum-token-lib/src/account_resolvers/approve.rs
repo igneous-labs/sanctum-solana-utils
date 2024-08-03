@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_token_interface::{ApproveCheckedKeys, ApproveKeys};
 
 use crate::{InitializedTokenAccount, ReadonlyTokenAccount};
@@ -10,11 +10,11 @@ pub struct ApproveFreeAccounts<A> {
     pub delegate: Pubkey,
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> ApproveFreeAccounts<A> {
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> ApproveFreeAccounts<A> {
     pub fn resolve(&self) -> Result<ApproveKeys, ProgramError> {
         let authority = self.initialized_token_account()?.token_account_authority();
         Ok(ApproveKeys {
-            token_account: *self.token_account.pubkey(),
+            token_account: Pubkey::new_from_array(self.token_account.pubkey_bytes()),
             delegate: self.delegate,
             authority,
         })
@@ -25,7 +25,7 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> ApproveFreeAccounts<A> {
         let authority = t.token_account_authority();
         let mint = t.token_account_mint();
         Ok(ApproveCheckedKeys {
-            token_account: *self.token_account.pubkey(),
+            token_account: Pubkey::new_from_array(self.token_account.pubkey_bytes()),
             delegate: self.delegate,
             authority,
             mint,
@@ -39,7 +39,7 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> ApproveFreeAccounts<A> {
     }
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<ApproveFreeAccounts<A>>
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<ApproveFreeAccounts<A>>
     for ApproveKeys
 {
     type Error = ProgramError;
@@ -49,7 +49,7 @@ impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<ApproveFreeAccounts
     }
 }
 
-impl<A: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<ApproveFreeAccounts<A>>
+impl<A: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<ApproveFreeAccounts<A>>
     for ApproveCheckedKeys
 {
     type Error = ProgramError;

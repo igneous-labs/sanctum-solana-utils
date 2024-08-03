@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey, sysvar};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use stake_program_interface::WithdrawKeys;
 
 use crate::ReadonlyStakeAccount;
@@ -10,7 +10,7 @@ pub struct WithdrawFreeAccounts<S> {
     pub to: Pubkey,
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> WithdrawFreeAccounts<S> {
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> WithdrawFreeAccounts<S> {
     pub fn resolve(&self) -> Result<WithdrawKeys, ProgramError> {
         self.resolve_to_free_keys().map(Into::into)
     }
@@ -22,14 +22,14 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> WithdrawFreeAccounts<S> {
         let s = s.try_into_stake_or_initialized()?;
         let withdraw_authority = s.stake_meta_authorized_withdrawer();
         Ok(WithdrawFreeKeys {
-            from: *from.pubkey(),
+            from: Pubkey::new_from_array(from.pubkey_bytes()),
             to: *to,
             withdraw_authority,
         })
     }
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> TryFrom<WithdrawFreeAccounts<S>>
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> TryFrom<WithdrawFreeAccounts<S>>
     for WithdrawKeys
 {
     type Error = ProgramError;

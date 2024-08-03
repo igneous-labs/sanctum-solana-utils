@@ -1,7 +1,7 @@
 use solana_program::{
     program_error::ProgramError, pubkey::Pubkey, stake::state::StakeAuthorize, sysvar,
 };
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use stake_program_interface::AuthorizeKeys;
 
 use crate::{ReadonlyStakeAccount, StakeOrInitializedStakeAccount};
@@ -11,7 +11,7 @@ pub struct AuthorizeFreeAccounts<S> {
     pub stake: S,
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeFreeAccounts<S> {
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> AuthorizeFreeAccounts<S> {
     pub fn resolve(&self, stake_authorize: StakeAuthorize) -> Result<AuthorizeKeys, ProgramError> {
         self.resolve_to_free_keys(stake_authorize).map(Into::into)
     }
@@ -36,7 +36,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> AuthorizeFreeAccounts<S> {
         let s = s.try_into_stake_or_initialized()?;
         let authority = authority_getter(&s);
         Ok(AuthorizeFreeKeys {
-            stake: *stake.pubkey(),
+            stake: Pubkey::new_from_array(stake.pubkey_bytes()),
             authority,
         })
     }

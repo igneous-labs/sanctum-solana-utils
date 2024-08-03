@@ -40,7 +40,7 @@ impl From<SmallAccount> for Account {
             data: value.data_slice().into(),
             lamports,
             owner,
-            executable: value.executable(),
+            executable: value.is_executable(),
             rent_epoch,
         }
     }
@@ -111,7 +111,7 @@ mod tests {
     use sanctum_solana_test_utils::proptest_utils::pubkey;
     use solana_readonly_account::{
         ReadonlyAccountData, ReadonlyAccountIsExecutable, ReadonlyAccountLamports,
-        ReadonlyAccountOwner, ReadonlyAccountRentEpoch,
+        ReadonlyAccountOwnerBytes, ReadonlyAccountRentEpoch,
     };
     use solana_sdk::account::Account;
 
@@ -128,9 +128,9 @@ mod tests {
         ) {
             let account = Account { lamports, data, owner, executable, rent_epoch };
             let stored: StoredAccount = account.clone().into();
-            prop_assert_eq!(&**account.data(), &**stored.data());
-            prop_assert_eq!(account.executable(), stored.executable());
-            prop_assert_eq!(account.owner(), stored.owner());
+            prop_assert_eq!(account.data(), stored.data());
+            prop_assert_eq!(account.is_executable(), stored.is_executable());
+            prop_assert_eq!(account.owner_bytes(), stored.owner_bytes());
             prop_assert_eq!(account.lamports(), stored.lamports());
             prop_assert_eq!(account.rent_epoch(), stored.rent_epoch());
 

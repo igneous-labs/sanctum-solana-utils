@@ -4,7 +4,7 @@ use solana_program::{
     stake::state::{Authorized, Delegation, Lockup, Meta, Stake, StakeStateV2},
     stake_history::Epoch,
 };
-use solana_readonly_account::sdk::KeyedAccount;
+use solana_readonly_account::keyed::Keyed;
 use solana_sdk::{account::Account, stake::stake_flags::StakeFlags};
 
 use crate::{est_rent_exempt_lamports, ExtendedProgramTest, IntoAccount};
@@ -95,7 +95,7 @@ pub trait StakeProgramTest {
 
 impl<T: ExtendedProgramTest> StakeProgramTest for T {
     fn add_stake_account(self, addr: Pubkey, account: StakeStateAndLamports) -> Self {
-        self.add_keyed_account(KeyedAccount {
+        self.add_keyed_account(Keyed {
             pubkey: addr,
             account: account.into_account(),
         })

@@ -6,7 +6,7 @@ use solana_program::{
     pubkey::Pubkey,
     stake, sysvar,
 };
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use spl_stake_pool_interface::{
     SplStakePoolProgramIx, StakePool, UpdateValidatorListBalanceIxArgs,
     UpdateValidatorListBalanceKeys, ValidatorStakeInfo,
@@ -30,7 +30,7 @@ pub struct UpdateValidatorListBalanceFromSubsliceArgs {
     pub no_merge: bool,
 }
 
-impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateValidatorListBalance<P> {
+impl<P: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> UpdateValidatorListBalance<P> {
     pub fn resolve_with_withdraw_auth(
         &self,
         withdraw_authority: Pubkey,
@@ -41,7 +41,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateValidatorListBalance<
             ..
         } = deserialize_stake_pool_checked(self.stake_pool.data().as_ref())?;
         Ok(UpdateValidatorListBalanceKeys {
-            stake_pool: *self.stake_pool.pubkey(),
+            stake_pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
             withdraw_authority,
             validator_list,
             reserve_stake,
@@ -56,7 +56,7 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateValidatorListBalance<
         program_id: &Pubkey,
     ) -> Result<UpdateValidatorListBalanceKeys, ProgramError> {
         let (withdraw_authority, _bump) = FindWithdrawAuthority {
-            pool: *self.stake_pool.pubkey(),
+            pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
         }
         .run_for_prog(program_id);
         self.resolve_with_withdraw_auth(withdraw_authority)
@@ -104,14 +104,14 @@ impl<P: ReadonlyAccountData + ReadonlyAccountPubkey> UpdateValidatorListBalance<
                  }| {
                     let (vsa, _bump) =
                         FindValidatorStakeAccount::new(FindValidatorStakeAccountArgs {
-                            pool: *self.stake_pool.pubkey(),
+                            pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
                             vote: *vote_account_address,
                             seed: NonZeroU32::new(*validator_seed_suffix),
                         })
                         .run_for_prog(&program_id);
                     let (tsa, _bump) =
                         FindTransientStakeAccount::new(FindTransientStakeAccountArgs {
-                            pool: *self.stake_pool.pubkey(),
+                            pool: Pubkey::new_from_array(self.stake_pool.pubkey_bytes()),
                             vote: *vote_account_address,
                             seed: *transient_seed_suffix,
                         })

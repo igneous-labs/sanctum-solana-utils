@@ -1,9 +1,7 @@
-use solana_program::pubkey::Pubkey;
 use solana_readonly_account::{
     ReadonlyAccountData, ReadonlyAccountIsExecutable, ReadonlyAccountLamports,
-    ReadonlyAccountOwner, ReadonlyAccountRentEpoch,
+    ReadonlyAccountOwnerBytes, ReadonlyAccountRentEpoch,
 };
-use std::{ops::Deref, sync::Arc};
 
 #[cfg(feature = "solana-sdk")]
 #[cfg_attr(docsrs, doc(cfg(feature = "solana-sdk")))]
@@ -27,60 +25,32 @@ impl Default for StoredAccount {
     }
 }
 
-pub enum StoredAccountDataDeref<'a> {
-    Small(SmallAccountDataRef<'a>),
-    Arc(&'a Arc<[u8]>),
-}
+impl ReadonlyAccountData for StoredAccount {
+    type DataDeref<'d> = &'d [u8]
+    where
+        Self: 'd;
 
-impl<'a> Deref for StoredAccountDataDeref<'a> {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
+    #[inline]
+    fn data(&self) -> Self::DataDeref<'_> {
         match self {
-            Self::Arc(a) => a,
-            Self::Small(s) => **s,
+            Self::Arc(a) => a.data(),
+            Self::Small(s) => s.data(),
         }
     }
 }
 
-// Newtype to workaround cannot return reference to temporary
-pub struct StoredAccountDataRef<'a>(pub StoredAccountDataDeref<'a>);
-
-impl<'a> Deref for StoredAccountDataRef<'a> {
-    type Target = StoredAccountDataDeref<'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl ReadonlyAccountData for StoredAccount {
-    type SliceDeref<'s> = StoredAccountDataDeref<'s>
-    where
-        Self: 's;
-
-    type DataDeref<'d> = StoredAccountDataRef<'d>
-    where
-        Self: 'd;
-
-    fn data(&self) -> Self::DataDeref<'_> {
-        StoredAccountDataRef(match self {
-            Self::Arc(a) => StoredAccountDataDeref::Arc(a.data()),
-            Self::Small(s) => StoredAccountDataDeref::Small(s.data()),
-        })
-    }
-}
-
 impl ReadonlyAccountIsExecutable for StoredAccount {
-    fn executable(&self) -> bool {
+    #[inline]
+    fn is_executable(&self) -> bool {
         match self {
-            Self::Arc(a) => a.executable(),
-            Self::Small(s) => s.executable(),
+            Self::Arc(a) => a.is_executable(),
+            Self::Small(s) => s.is_executable(),
         }
     }
 }
 
 impl ReadonlyAccountLamports for StoredAccount {
+    #[inline]
     fn lamports(&self) -> u64 {
         match self {
             Self::Arc(a) => a.lamports(),
@@ -89,16 +59,18 @@ impl ReadonlyAccountLamports for StoredAccount {
     }
 }
 
-impl ReadonlyAccountOwner for StoredAccount {
-    fn owner(&self) -> &Pubkey {
+impl ReadonlyAccountOwnerBytes for StoredAccount {
+    #[inline]
+    fn owner_bytes(&self) -> [u8; 32] {
         match self {
-            Self::Arc(a) => a.owner(),
-            Self::Small(s) => s.owner(),
+            Self::Arc(a) => a.owner_bytes(),
+            Self::Small(s) => s.owner_bytes(),
         }
     }
 }
 
 impl ReadonlyAccountRentEpoch for StoredAccount {
+    #[inline]
     fn rent_epoch(&self) -> u64 {
         match self {
             Self::Arc(a) => a.rent_epoch(),

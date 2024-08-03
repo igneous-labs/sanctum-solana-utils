@@ -1,5 +1,5 @@
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
-use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkey};
+use solana_readonly_account::{ReadonlyAccountData, ReadonlyAccountPubkeyBytes};
 use stake_program_interface::{SetLockupCheckedKeys, SetLockupKeys};
 
 use crate::{ReadonlyStakeAccount, StakeOrInitializedStakeAccount};
@@ -9,7 +9,7 @@ pub struct SetLockupFreeAccounts<S> {
     pub stake: S,
 }
 
-impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> SetLockupFreeAccounts<S> {
+impl<S: ReadonlyAccountData + ReadonlyAccountPubkeyBytes> SetLockupFreeAccounts<S> {
     pub fn resolve_withdrawer(&self) -> Result<SetLockupKeys, ProgramError> {
         self.resolve_with_authority_getter(
             StakeOrInitializedStakeAccount::stake_meta_authorized_withdrawer,
@@ -40,7 +40,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> SetLockupFreeAccounts<S> {
     ) -> Result<SetLockupKeys, ProgramError> {
         let Self { stake } = self;
         Ok(SetLockupKeys {
-            stake: *stake.pubkey(),
+            stake: Pubkey::new_from_array(stake.pubkey_bytes()),
             authority: self.get_authority_checked(getter)?,
         })
     }
@@ -51,7 +51,7 @@ impl<S: ReadonlyAccountData + ReadonlyAccountPubkey> SetLockupFreeAccounts<S> {
     ) -> Result<SetLockupCheckedKeys, ProgramError> {
         let Self { stake } = self;
         Ok(SetLockupCheckedKeys {
-            stake: *stake.pubkey(),
+            stake: Pubkey::new_from_array(stake.pubkey_bytes()),
             authority: self.get_authority_checked(getter)?,
         })
     }

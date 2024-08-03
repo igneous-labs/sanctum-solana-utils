@@ -50,16 +50,12 @@ mod test_utils {
     pub struct AccountData<'a>(pub &'a [u8]);
 
     impl<'a> ReadonlyAccountData for AccountData<'a> {
-        type SliceDeref<'s> = &'s [u8]
-        where
-            Self: 's;
-
-        type DataDeref<'d> = &'d &'d [u8]
+        type DataDeref<'d> = &'d [u8]
         where
             Self: 'd;
 
         fn data(&self) -> Self::DataDeref<'_> {
-            &self.0
+            self.0
         }
     }
 }

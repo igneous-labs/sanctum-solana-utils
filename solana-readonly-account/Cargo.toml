@@ -4,6 +4,7 @@ description = "Readonly solana account field getter traits extendable for both o
 version = "2.0.0"
 edition = "2021"
 license.workspace = true
+repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
 readme = "README.md"
 keywords = ["sanctum", "solana", "account", "generics"]
 categories = ["rust-patterns"]

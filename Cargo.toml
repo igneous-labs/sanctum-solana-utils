@@ -3,6 +3,10 @@ resolver = "2"
 
 members = [
     "generated/*",
+    "kzg-consume-set/sanctum-solana-kcsc",
+    "kzg-consume-set/sanctum-solana-kcsov",
+    "kzg-consume-set/sanctum-solana-kcsp",
+    "kzg-consume-set/test-programs/*",
     "libs/*",
     "sanctum-misc-utils",
     "sanctum-solana-cli-utils",
@@ -58,8 +62,18 @@ solana-sdk = ">=1.18"
 solana-transaction-status = ">=1.18"
 solana-version = ">=1.18"
 
+# arkworks
+# just do no-default-features for everything so we dont end up
+# accidentally enabling std or rand
+ark-bn254 = { version = "^0.4", default-features = false }
+ark-ec = { version = "^0.4", default-features = false }
+ark-ff = { version = "^0.4", default-features = false }
+ark-serialize = { version = "^0.4", default-features = false }
+
 # workspace members
 sanctum-solana-cli-utils = { path = "./sanctum-solana-cli-utils" }
+sanctum-solana-kcsc = { path = "./kzg-consume-set/sanctum-solana-kcsc" }
+sanctum-solana-kcsov = { path = "./kzg-consume-set/sanctum-solana-kcsov" }
 sanctum-solana-test-utils = { path = "./sanctum-solana-test-utils" }
 sanctum-token-ratio = { path = "./sanctum-token-ratio" }
 solana-readonly-account = { path = "./solana-readonly-account" }

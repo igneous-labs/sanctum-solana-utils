@@ -1,0 +1,19 @@
+[package]
+name = "sanctum-solana-kcsov"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[features]
+default = []
+std = ["ark-bn254/std", "ark-ff/std"]
+
+[dependencies]
+ark-bn254 = { workspace = true, default-features = false, features = ["curve"] }
+ark-ff = { workspace = true, default-features = false }
+solana-program = { workspace = true } # TODO: change this to the syscalls only crate once thats factored out
+
+[dev-dependencies]
+ark-serialize = { workspace = true }
+proptest = { workspace = true }
+sanctum-solana-kcsc = { workspace = true }

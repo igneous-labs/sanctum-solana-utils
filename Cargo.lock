@@ -2164,6 +2164,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "kzg-hasher-test"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "ark-serialize",
+ "sanctum-solana-kcsc",
+ "sanctum-solana-kcsov",
+ "sanctum-solana-test-utils",
+ "solana-program",
+ "solana-program-test",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3511,6 +3527,38 @@ name = "sanctum-solana-compute-budget-utils"
 version = "0.1.0"
 dependencies = [
  "solana-sdk",
+]
+
+[[package]]
+name = "sanctum-solana-kcsc"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+]
+
+[[package]]
+name = "sanctum-solana-kcsov"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "ark-serialize",
+ "proptest",
+ "sanctum-solana-kcsc",
+ "solana-program",
+]
+
+[[package]]
+name = "sanctum-solana-kcsp"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff",
+ "ark-serialize",
+ "proptest",
+ "sanctum-solana-kcsc",
 ]
 
 [[package]]

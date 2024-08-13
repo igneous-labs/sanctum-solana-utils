@@ -6,9 +6,9 @@ use ark_ff::PrimeField;
 ///
 /// ## Notes
 ///
-/// - Like all [`PrimeField`]s in `ark`, [`ark_bn254::Fr`] is in montogomery form, but serialized
-///   as the BigInt little endian by calling [`PrimeField::into_bigint()`] first. E.g. the internal bytes of 2 is 4 huge u64s,
-///   but is serialized as `[2u8, 0u8, ..., 0u8]`
+/// - Like all [`PrimeField`]s in `ark`, [`ark_bn254::Fr`] is in Montgomery form, but serialized
+///   as a BigInt little endian by calling [`PrimeField::into_bigint()`] first.
+///    E.g. the internal bytes of `2` is 4 huge u64s, but is serialized as `[2u8, 0u8, ..., 0u8]`
 ///  
 /// - This fn was created bec the `solana_program` implementation `convert_endianness_64` has an unnecessary `Vec` allocation
 #[inline]

@@ -1,12 +1,17 @@
 use core::fmt::Display;
 
 use solana_program::alt_bn128::{
-    compression::prelude::{G1, G2},
+    compression::{
+        prelude::{G1, G2, G2_COMPRESSED},
+        AltBn128CompressionError,
+    },
     prelude::*,
     AltBn128Error,
 };
 
-use crate::G2_GEN_AFFINE_UNCOMPRESSED_BE;
+use crate::{AltBn128G1G2Pairing, KCSCCompress, G2_GEN_AFFINE_UNCOMPRESSED_BE};
+
+use super::{KCSCCMut, KCSCCOwned};
 
 /// KZG Consume Set Commitment Uncompressed.
 ///
@@ -22,16 +27,36 @@ impl<'a> KCSCU<'a> {
         Self(a)
     }
 
+    #[inline]
+    pub const fn as_buf(&self) -> &[u8; G2] {
+        self.0
+    }
+
     /// Returns the pairing result to compare against
     /// $e(Z(\tau), \pi)$ to verify that all the roots of $Z(x)$
     /// are part of the committed set
     #[inline]
     pub fn expected_pairing(&self) -> Result<[u8; ALT_BN128_PAIRING_OUTPUT_LEN], AltBn128Error> {
-        const INPUT: crate::AltBn128G1G2Pairing =
-            crate::AltBn128G1G2Pairing::new_zeroes().with_g1_gen();
+        const INPUT: AltBn128G1G2Pairing = AltBn128G1G2Pairing::new_zeroes().with_g1_gen();
         INPUT.with_g2_pt(self.0).exec()
     }
 
+    #[inline]
+    pub fn compress(&self) -> Result<KCSCCOwned, AltBn128CompressionError> {
+        let mut res = KCSCCOwned::new_unchecked([0; G2_COMPRESSED]);
+        self.compress_into(res.borrowed_mut())?;
+        Ok(res)
+    }
+
+    #[inline]
+    pub fn compress_into<'i>(
+        &self,
+        into: KCSCCMut<'i>,
+    ) -> Result<KCSCCMut<'i>, AltBn128CompressionError> {
+        KCSCCompress::new(*self, into).exec()
+    }
+
+    /// Returns if the committed set is empty
     #[inline]
     pub const fn is_empty(&self) -> bool {
         let mut res = true;
@@ -70,7 +95,7 @@ impl<'a> KCSCU<'a> {
 /// The other types can be converted into this.
 #[repr(transparent)]
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct KCSCUMut<'a>(&'a mut [u8; G2]);
+pub struct KCSCUMut<'a>(pub(crate) &'a mut [u8; G2]);
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum KCSConsumeError {

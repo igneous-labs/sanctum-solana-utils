@@ -13,15 +13,17 @@ pub const G1_GEN: G1Affine = G1Affine::new_unchecked(G1_GENERATOR_X, G1_GENERATO
 /// Can be obtained with `<G2Affine as ark_ec::AffineRepr>::generator()` but re-exported for use in const contexts
 pub const G2_GEN: G2Affine = G2Affine::new_unchecked(G2_GENERATOR_X, G2_GENERATOR_Y);
 
+pub const HASH_SIZE: usize = 32;
+
 pub trait ToHash {
-    fn to_hash(&self) -> [u8; 32];
+    fn to_hash(&self) -> [u8; HASH_SIZE];
 }
 
 impl<T> ToHash for &T
 where
     T: ToHash + ?Sized,
 {
-    fn to_hash(&self) -> [u8; 32] {
+    fn to_hash(&self) -> [u8; HASH_SIZE] {
         (*self).to_hash()
     }
 }
@@ -36,7 +38,7 @@ where
 /// - Fr is Montgomery form of inner BigInt
 /// - this fn takes ~2500 CUs onchain
 #[inline]
-pub const fn fr_from_hash(hash: [u8; 32]) -> Fr {
+pub const fn fr_from_hash(hash: [u8; HASH_SIZE]) -> Fr {
     let [u0, u1, u2, mut u3]: [[u8; 8]; 4] = unsafe { core::mem::transmute(hash) };
     let u0 = u64::from_le_bytes(u0);
     let u1 = u64::from_le_bytes(u1);

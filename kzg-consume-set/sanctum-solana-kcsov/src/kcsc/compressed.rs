@@ -61,6 +61,11 @@ impl<'a> KCSCCMut<'a> {
     pub const fn borrowed(&self) -> KCSCC<'_> {
         KCSCC::new_unchecked(self.0)
     }
+
+    #[inline]
+    pub fn replace(&mut self, new: KCSCC) -> KCSCCOwned {
+        KCSCCOwned::new_unchecked(core::mem::replace(self.0, *new.0))
+    }
 }
 
 #[repr(transparent)]

@@ -1,5 +1,6 @@
 use ark_bn254::Fr;
 use ark_ff::PrimeField;
+use solana_program::alt_bn128::prelude::ALT_BN128_FIELD_SIZE;
 
 /// Convert a [`ark_bn254::Fr`] to a big endian U256,
 /// the form the solana syscalls expect.
@@ -12,8 +13,8 @@ use ark_ff::PrimeField;
 ///  
 /// - This fn was created bec the `solana_program` implementation `convert_endianness_64` has an unnecessary `Vec` allocation
 #[inline]
-pub fn fr_to_be(fr: &Fr) -> [u8; 32] {
-    let mut res = [0u8; 32];
+pub fn fr_to_be(fr: &Fr) -> [u8; ALT_BN128_FIELD_SIZE] {
+    let mut res = [0u8; ALT_BN128_FIELD_SIZE];
     let bi = fr.into_bigint();
     for i in 0..4 {
         let s = i * 8;
@@ -34,7 +35,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn fr_to_be_matches_solana_impl(rand_bytes: [u8; 32]) {
+        fn fr_to_be_matches_solana_impl(rand_bytes: [u8; ALT_BN128_FIELD_SIZE]) {
             let fr = fr_from_hash(rand_bytes);
 
             let mut expected_bytes = vec![];

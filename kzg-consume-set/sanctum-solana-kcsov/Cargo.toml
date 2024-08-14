@@ -11,9 +11,9 @@ std = ["ark-bn254/std", "ark-ff/std"]
 [dependencies]
 ark-bn254 = { workspace = true, default-features = false, features = ["curve"] }
 ark-ff = { workspace = true, default-features = false }
+sanctum-solana-kcsc = { workspace = true }
 solana-program = { workspace = true } # TODO: change this to the syscalls only crate once thats factored out
 
 [dev-dependencies]
 ark-serialize = { workspace = true }
 proptest = { workspace = true }
-sanctum-solana-kcsc = { workspace = true }

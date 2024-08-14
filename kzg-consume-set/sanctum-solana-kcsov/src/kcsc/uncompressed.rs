@@ -132,6 +132,11 @@ impl<'a> KCSCUMut<'a> {
         KCSCU::new_unchecked(self.0)
     }
 
+    #[inline]
+    pub fn replace(&mut self, new: KCSCU) -> KCSCUOwned {
+        KCSCUOwned::new_unchecked(core::mem::replace(self.0, *new.0))
+    }
+
     /// Verifies that the roots of polynomial $p(x)$ are indeed
     /// members of the committed set and then updates `self`
     /// to represent the new proof of the new set with these roots removed.

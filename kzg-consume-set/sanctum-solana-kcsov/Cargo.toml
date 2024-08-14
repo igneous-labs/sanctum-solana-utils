@@ -14,6 +14,9 @@ ark-ff = { workspace = true, default-features = false }
 sanctum-solana-kcsc = { workspace = true }
 solana-program = { workspace = true } # TODO: change this to the syscalls only crate once thats factored out
 
-[dev-dependencies]
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+ark-ec = { workspace = true, default-features = false }
 ark-serialize = { workspace = true }
+
+[dev-dependencies]
 proptest = { workspace = true }

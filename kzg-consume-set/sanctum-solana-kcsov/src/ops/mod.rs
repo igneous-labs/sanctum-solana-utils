@@ -8,7 +8,7 @@ mod g1_scalar_mul;
 mod hash;
 mod kcsc_compress;
 mod kcsc_decompress;
-mod pairing;
+mod pairing_eq_check;
 mod poly;
 
 pub use g1_add::*;
@@ -16,5 +16,5 @@ pub use g1_scalar_mul::*;
 pub use hash::*;
 pub use kcsc_compress::*;
 pub use kcsc_decompress::*;
-pub use pairing::*;
+pub use pairing_eq_check::*;
 pub use poly::*;

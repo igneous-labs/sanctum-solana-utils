@@ -3,9 +3,9 @@ mod tests {
     use ark_bn254::{
         g1::{G1_GENERATOR_X, G1_GENERATOR_Y},
         g2::{G2_GENERATOR_X, G2_GENERATOR_Y},
-        Config, Fr, G1Affine, G2Affine,
+        Config, Fq12, Fr, G1Affine, G2Affine,
     };
-    use ark_ec::{bn::Bn, pairing::Pairing};
+    use ark_ec::{bn::Bn, pairing::Pairing, CurveGroup};
     use ark_ff::{Field, One, Zero};
     use proptest::{prop_assert_eq, prop_assert_ne, proptest};
     use sanctum_solana_kcsc::fr_from_hash;
@@ -49,12 +49,14 @@ mod tests {
             let p1_arg = G1_GEN * tau - G1_GEN * r1;
             let p1_pairing = <Bn<Config> as Pairing>::pairing(p1_arg, p1);
             prop_assert_eq!(expected_pairing, p1_pairing);
+            prop_assert_eq!(Fq12::ONE, <Bn<Config> as Pairing>::multi_pairing([-G1_GEN, p1_arg.into_affine()], [commit_g2_pt, p1]).0);
 
             // r2 proof
             let p2 = G2_GEN * tau - G2_GEN * r1;
             let p2_arg = G1_GEN * tau - G1_GEN * r2;
             let p2_pairing = <Bn<Config> as Pairing>::pairing(p2_arg, p2);
             prop_assert_eq!(expected_pairing, p2_pairing);
+            prop_assert_eq!(Fq12::ONE, <Bn<Config> as Pairing>::multi_pairing([-G1_GEN, p2_arg.into_affine()], [commit_g2_pt, p2]).0);
 
             // r1&r2 simultaneous proof
             let pboth = G2_GEN;
@@ -64,12 +66,14 @@ mod tests {
                 .reduce(|a, b| a + b).unwrap();
             let pboth_pairing = <Bn<Config> as Pairing>::pairing(pboth_arg, pboth);
             prop_assert_eq!(expected_pairing, pboth_pairing);
+            prop_assert_eq!(Fq12::ONE, <Bn<Config> as Pairing>::multi_pairing([-G1_GEN, pboth_arg.into_affine()], [commit_g2_pt, pboth.into()]).0);
 
             if is_fake_diff {
                 let pfake = G2_GEN * fake_proof_scalar;
                 let pfake_arg = G1_GEN * tau - G1_GEN * fake;
                 let pfake_pairing = <Bn<Config> as Pairing>::pairing(pfake_arg, pfake);
                 prop_assert_ne!(expected_pairing, pfake_pairing);
+                prop_assert_ne!(Fq12::ONE, <Bn<Config> as Pairing>::multi_pairing([-G1_GEN, pfake_arg.into_affine()], [commit_g2_pt, pfake]).0);
             }
 
             // consume r2 then prove r1
@@ -77,12 +81,14 @@ mod tests {
             let p1_only = G2_GEN;
             let p1_only_pairing = <Bn<Config> as Pairing>::pairing(p1_arg, p1_only);
             prop_assert_eq!(<Bn<Config> as Pairing>::pairing(G1_GEN, p1_only_commit), p1_only_pairing);
+            prop_assert_eq!(Fq12::ONE, <Bn<Config> as Pairing>::multi_pairing([-G1_GEN, p1_arg.into()], [p1_only_commit, p1_only.into()]).0);
 
             // consume r1 then prove r2
             let p2_only_commit = p1;
             let p2_only = G2_GEN;
             let p2_only_pairing = <Bn<Config> as Pairing>::pairing(p2_arg, p2_only);
             prop_assert_eq!(<Bn<Config> as Pairing>::pairing(G1_GEN, p2_only_commit), p2_only_pairing);
+            prop_assert_eq!(Fq12::ONE, <Bn<Config> as Pairing>::multi_pairing([-G1_GEN, p2_arg.into()], [p2_only_commit, p2_only.into()]).0);
         }
     }
 }

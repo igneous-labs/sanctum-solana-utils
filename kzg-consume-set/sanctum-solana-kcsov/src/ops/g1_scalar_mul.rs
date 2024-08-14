@@ -1,7 +1,7 @@
 use ark_bn254::Fr;
 use solana_program::alt_bn128::{compression::prelude::G1, prelude::*, AltBn128Error};
 
-use crate::{fr_to_be, G1_GEN_AFFINE_UNCOMPRESSED_BE};
+use crate::{fr_to_be, FR, G1_GEN_AFFINE_UNCOMPRESSED_BE};
 
 // DO NOT USE `solana_program::alt_bn128::prelude::ALT_BN128_MULTIPLICATION_INPUT_LEN`, IT SEEMS WRONG - 128 instead of 96
 const ALT_BN128_MULTIPLICATION_INPUT_LEN: usize = 96;
@@ -34,11 +34,11 @@ impl AltBn128G1ScalarMul {
     }
 
     #[inline]
-    pub const fn with_scalar(mut self, scalar_be: &[u8; ALT_BN128_FIELD_SIZE]) -> Self {
+    pub const fn with_scalar(mut self, scalar_be: &[u8; FR]) -> Self {
         // TODO: check if sol_memmove syscall uses less CUs, tho that makes it no longer const
         // TODO: replace with array fns once https://github.com/rust-lang/rust/issues/80697 is active
         let mut i = 0;
-        while i < ALT_BN128_FIELD_SIZE {
+        while i < FR {
             self.0[G1 + i] = scalar_be[i];
             i += 1;
         }
@@ -75,8 +75,9 @@ impl AltBn128G1ScalarMul {
     ) -> Result<(), AltBn128Error> {
         #[cfg(not(target_os = "solana"))]
         {
-            let _ = into;
-            panic!("only available on target_os = 'solana'")
+            let v = solana_program::alt_bn128::prelude::alt_bn128_multiplication(self.as_buf())?;
+            into.copy_from_slice(&v);
+            Ok(())
         }
 
         #[cfg(target_os = "solana")]

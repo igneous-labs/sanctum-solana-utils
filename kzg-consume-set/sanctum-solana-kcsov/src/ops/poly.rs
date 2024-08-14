@@ -2,11 +2,9 @@ use core::{borrow::Borrow, fmt::Display};
 
 use ark_bn254::Fr;
 use ark_ff::Field;
-use solana_program::alt_bn128::{
-    compression::prelude::G1, prelude::ALT_BN128_FIELD_SIZE, AltBn128Error,
-};
+use solana_program::alt_bn128::{compression::prelude::G1, AltBn128Error};
 
-use crate::AltBn128G1ScalarMul;
+use crate::{AltBn128G1ScalarMul, FR};
 
 use super::AltBn128G1Add;
 
@@ -70,7 +68,7 @@ pub fn poly_from_roots<const DP1: usize>(roots: &[Fr]) -> Result<[Fr; DP1], Poly
 ///
 /// If `itr` is created by zipping two iterators, it'll evaluate up to the min of either iterator's length
 #[inline]
-pub fn eval_poly_pwrs_of_tau_g1<S: Borrow<[u8; ALT_BN128_FIELD_SIZE]>, P: Borrow<[u8; G1]>>(
+pub fn eval_poly_pwrs_of_tau_g1<S: Borrow<[u8; FR]>, P: Borrow<[u8; G1]>>(
     mut itr: impl Iterator<Item = (S, P)>,
 ) -> Result<[u8; G1], AltBn128Error> {
     // TODO: switch to try_reduce once stable

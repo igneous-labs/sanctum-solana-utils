@@ -5,11 +5,10 @@ use solana_program::alt_bn128::{
         prelude::{G1, G2, G2_COMPRESSED},
         AltBn128CompressionError,
     },
-    prelude::*,
     AltBn128Error,
 };
 
-use crate::{AltBn128G1G2Pairing, KCSCCompress, G2_GEN_AFFINE_UNCOMPRESSED_BE};
+use crate::{AltBn128G1G2PairingEqCheck, KCSCCompress, G2_GEN_AFFINE_UNCOMPRESSED_BE};
 
 use super::{KCSCCMut, KCSCCOwned};
 
@@ -30,15 +29,6 @@ impl<'a> KCSCU<'a> {
     #[inline]
     pub const fn as_buf(&self) -> &[u8; G2] {
         self.0
-    }
-
-    /// Returns the pairing result to compare against
-    /// $e(Z(\tau), \pi)$ to verify that all the roots of $Z(x)$
-    /// are part of the committed set
-    #[inline]
-    pub fn expected_pairing(&self) -> Result<[u8; ALT_BN128_PAIRING_OUTPUT_LEN], AltBn128Error> {
-        const INPUT: AltBn128G1G2Pairing = AltBn128G1G2Pairing::new_zeroes().with_g1_gen();
-        INPUT.with_g2_pt(self.0).exec()
     }
 
     #[inline]
@@ -80,12 +70,14 @@ impl<'a> KCSCU<'a> {
         poly_proof: &[u8; G2],
         z_tau_g1: &[u8; G1],
     ) -> Result<bool, AltBn128Error> {
-        let expected = self.expected_pairing()?;
-        let calculated = crate::AltBn128G1G2Pairing::new_zeroes()
-            .with_g1_pt(z_tau_g1)
-            .with_g2_pt(poly_proof)
-            .exec()?;
-        Ok(expected == calculated)
+        const INPUT: AltBn128G1G2PairingEqCheck =
+            AltBn128G1G2PairingEqCheck::new_zeroes().with_g1a_g1_gen();
+
+        INPUT
+            .with_g2a(self.0)
+            .with_g1b(z_tau_g1)
+            .with_g2b(poly_proof)
+            .exec()
     }
 }
 

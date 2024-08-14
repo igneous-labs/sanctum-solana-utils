@@ -16,9 +16,15 @@ impl<'f, 'i> KCSCCompress<'f, 'i> {
 
     #[inline]
     pub fn exec(self) -> Result<KCSCCMut<'i>, AltBn128CompressionError> {
+        let Self { from, mut into } = self;
+
         #[cfg(not(target_os = "solana"))]
         {
-            panic!("only available on target_os = 'solana'")
+            let arr = solana_program::alt_bn128::compression::prelude::alt_bn128_g2_compress(
+                from.as_buf(),
+            )?;
+            into.replace(crate::KCSCC::new_unchecked(&arr));
+            Ok(into)
         }
 
         #[cfg(target_os = "solana")]
@@ -28,13 +34,13 @@ impl<'f, 'i> KCSCCompress<'f, 'i> {
             let result = unsafe {
                 solana_program::syscalls::sol_alt_bn128_compression(
                     ALT_BN128_G2_COMPRESS,
-                    self.from.as_buf() as *const _ as *const u8,
+                    from.as_buf() as *const _ as *const u8,
                     G2 as u64,
-                    self.into.0 as *mut _ as *mut u8,
+                    into.0 as *mut _ as *mut u8,
                 )
             };
             match result {
-                0 => Ok(self.into),
+                0 => Ok(into),
                 _ => Err(AltBn128CompressionError::UnexpectedError),
             }
         }

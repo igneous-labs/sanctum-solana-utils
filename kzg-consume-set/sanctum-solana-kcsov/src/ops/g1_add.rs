@@ -59,8 +59,9 @@ impl AltBn128G1Add {
     ) -> Result<(), AltBn128Error> {
         #[cfg(not(target_os = "solana"))]
         {
-            let _ = into;
-            panic!("only available on target_os = 'solana'")
+            let v = solana_program::alt_bn128::prelude::alt_bn128_addition(self.as_buf())?;
+            into.copy_from_slice(&v);
+            Ok(())
         }
 
         #[cfg(target_os = "solana")]

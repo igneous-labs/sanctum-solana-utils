@@ -8,14 +8,16 @@ use crate::{u256_be_sub, FQ, G1_GEN_AFFINE_UNCOMPRESSED_BE, G2_GEN_AFFINE_UNCOMP
 
 pub const ALT_BN128_PAIRING_EQ_CHECK_LEN: usize = 2 * ALT_BN128_PAIRING_ELEMENT_LEN;
 
-/// Verifies that e(g1a, g2a) = e(g1b, g2b) by verifying that
-/// e(-g1a, g2a) = e(g1b, g2b) using the
-/// verify e(w, x) * e(y, z) * ... = 1 syscall
+/// Verifies that `e(g1a, g2a) = e(g1b, g2b)` by verifying that
+/// `e(-g1a, g2a) * e(g1b, g2b) =  1` using the
+/// `verify e(w, x) * e(y, z) * ... = 1` syscall
 ///
 /// Because
+/// ```
 /// e(g1a, g2a) = e(g1b, g2b)
 /// 1 = -e(g1a, g2a) * e(g1b, g2b)
 /// 1 = e(-g1a, g2a) * e(g1b, g2b) (bilinearity)
+/// ```
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct AltBn128G1G2PairingEqCheck([u8; ALT_BN128_PAIRING_EQ_CHECK_LEN]);
@@ -73,7 +75,7 @@ impl AltBn128G1G2PairingEqCheck {
     }
 
     #[inline]
-    pub const fn with_g2a_gen(self) -> Self {
+    pub const fn with_g2a_g2_gen(self) -> Self {
         self.with_g2a(&G2_GEN_AFFINE_UNCOMPRESSED_BE)
     }
 
@@ -107,7 +109,7 @@ impl AltBn128G1G2PairingEqCheck {
     }
 
     #[inline]
-    pub const fn with_g2b_gen(self) -> Self {
+    pub const fn with_g2b_g2_gen(self) -> Self {
         self.with_g2b(&G2_GEN_AFFINE_UNCOMPRESSED_BE)
     }
 

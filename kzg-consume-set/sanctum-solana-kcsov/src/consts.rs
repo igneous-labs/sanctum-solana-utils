@@ -1,7 +1,5 @@
 use solana_program::alt_bn128::compression::prelude::{G1, G2};
 
-use crate::u256_be_sub;
-
 /// Size of base field in bytes
 pub const FQ: usize = 32;
 
@@ -31,18 +29,10 @@ pub const G1_GEN_Y_BE: [u8; FQ] = {
     res
 };
 
-/// -2 in base field q, big-endian
-pub const NEG_G1_GEN_Y_BE: [u8; FQ] = u256_be_sub(&Q_BE, &G1_GEN_Y_BE);
-
 /// G1 generator (1, 2) in (x, y) form, big-endian.
 ///
 /// This is the form expected by the sol_syscalls
 pub const G1_GEN_AFFINE_UNCOMPRESSED_BE: [u8; G1] = coord_pair(G1_GEN_X_BE, G1_GEN_Y_BE);
-
-/// -G1 generator (1, -2 in base field q) in (x, y) form, big-endian.
-///
-/// This is the form expected by the sol_syscalls
-pub const NEG_G1_GEN_AFFINE_UNCOMPRESSED_BE: [u8; G1] = coord_pair(G1_GEN_X_BE, NEG_G1_GEN_Y_BE);
 
 /// Size of quadratic extension in bytes (2 * FQ)
 pub const FQ2: usize = 64;

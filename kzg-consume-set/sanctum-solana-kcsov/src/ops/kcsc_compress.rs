@@ -16,10 +16,9 @@ impl<'f, 'i> KCSCCompress<'f, 'i> {
 
     #[inline]
     pub fn exec(self) -> Result<KCSCCMut<'i>, AltBn128CompressionError> {
-        let Self { from, mut into } = self;
-
         #[cfg(not(target_os = "solana"))]
         {
+            let Self { from, mut into } = self;
             let arr = solana_program::alt_bn128::compression::prelude::alt_bn128_g2_compress(
                 from.as_buf(),
             )?;
@@ -31,6 +30,7 @@ impl<'f, 'i> KCSCCompress<'f, 'i> {
         {
             use solana_program::alt_bn128::compression::prelude::*;
 
+            let Self { from, into } = self;
             let result = unsafe {
                 solana_program::syscalls::sol_alt_bn128_compression(
                     ALT_BN128_G2_COMPRESS,

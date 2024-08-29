@@ -1,5 +1,5 @@
 [package]
-name = "kzg-hasher-test"
+name = "kzg-general-test"
 version = "0.1.0"
 edition = "2021"
 license.workspace = true
@@ -10,9 +10,12 @@ crate-type = ["cdylib", "lib"]
 [dependencies]
 ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
+sanctum-macros = { workspace = true }
 sanctum-solana-kcsc = { workspace = true }
 sanctum-solana-kcsov = { workspace = true }
 solana-program = { workspace = true }
+system_program_interface = { workspace = true }
+sanctum-system-program-lib = { workspace = true }
 
 [dev-dependencies]
 ark-ff = { workspace = true }

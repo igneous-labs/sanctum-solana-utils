@@ -10,13 +10,13 @@ use crate::FR;
 ///
 /// - Like all [`PrimeField`]s in `ark`, [`ark_bn254::Fr`] is in Montgomery form, but serialized
 ///   as a BigInt little endian by calling [`PrimeField::into_bigint()`] first.
-///    E.g. the internal bytes of `2` is 4 huge u64s, but is serialized as `[2u8, 0u8, ..., 0u8]`
+///   E.g. the internal bytes of `2` is 4 huge u64s, but is serialized as `[2u8, 0u8, ..., 0u8]`
 ///  
 /// - This fn was created bec the `solana_program` implementation `convert_endianness_64` has an unnecessary `Vec` allocation
 #[inline]
 pub fn fr_to_be(fr: &Fr) -> [u8; FR] {
     let mut res = [0u8; FR];
-    let bi = fr.into_bigint();
+    let bi = fr.into_bigint(); // this would be a const fn if into_bigint() was const
     for i in 0..4 {
         let s = i * 8;
         res[s..s + 8].copy_from_slice(&bi.0[3 - i].to_be_bytes());

@@ -69,8 +69,9 @@ pub fn poly_from_roots<const DP1: usize>(roots: &[Fr]) -> Result<[Fr; DP1], Poly
 /// If `itr` is created by zipping two iterators, it'll evaluate up to the min of either iterator's length
 #[inline]
 pub fn eval_poly_pwrs_of_tau_g1<S: Borrow<[u8; FR]>, P: Borrow<[u8; G1]>>(
-    mut itr: impl Iterator<Item = (S, P)>,
+    itr: impl IntoIterator<Item = (S, P)>,
 ) -> Result<[u8; G1], AltBn128Error> {
+    let mut itr = itr.into_iter();
     // TODO: switch to try_reduce once stable
     let constant = itr.next().map_or_else(
         || Err(AltBn128Error::InvalidInputData),

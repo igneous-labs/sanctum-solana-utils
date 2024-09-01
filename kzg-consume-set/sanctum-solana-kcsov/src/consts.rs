@@ -4,7 +4,7 @@ use solana_program::alt_bn128::compression::prelude::{G1, G2};
 pub const FQ: usize = 32;
 
 /// Size of scalar field in bytes
-pub const FR: usize = 32;
+pub const FR: usize = sanctum_solana_kcsc::FR;
 
 // value obtained using
 // little-endian output of ark_bn254::Fq::MODULUS.serialize_uncompressed.serialize_uncompressed(..)

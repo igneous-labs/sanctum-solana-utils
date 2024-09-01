@@ -13,7 +13,7 @@ pub const ALT_BN128_PAIRING_EQ_CHECK_LEN: usize = 2 * ALT_BN128_PAIRING_ELEMENT_
 /// `verify e(w, x) * e(y, z) * ... = 1` syscall
 ///
 /// Because
-/// ```
+/// ```ignore
 /// e(g1a, g2a) = e(g1b, g2b)
 /// 1 = -e(g1a, g2a) * e(g1b, g2b)
 /// 1 = e(-g1a, g2a) * e(g1b, g2b) (bilinearity)

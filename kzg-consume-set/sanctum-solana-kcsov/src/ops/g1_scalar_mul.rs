@@ -1,7 +1,8 @@
 use ark_bn254::Fr;
+use sanctum_solana_kcsc::fr_to_be;
 use solana_program::alt_bn128::{compression::prelude::G1, prelude::*, AltBn128Error};
 
-use crate::{fr_to_be, FR, G1_GEN_AFFINE_UNCOMPRESSED_BE};
+use crate::{FR, G1_GEN_AFFINE_UNCOMPRESSED_BE};
 
 // DO NOT USE `solana_program::alt_bn128::prelude::ALT_BN128_MULTIPLICATION_INPUT_LEN`, IT SEEMS WRONG - 128 instead of 96
 const ALT_BN128_MULTIPLICATION_INPUT_LEN: usize = 96;

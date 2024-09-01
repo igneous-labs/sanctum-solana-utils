@@ -8,20 +8,8 @@ mod kcsc;
 mod ops;
 mod utils;
 
+use utils::*;
+
 pub use consts::*;
 pub use kcsc::*;
 pub use ops::*;
-pub use utils::*;
-
-#[cfg(test)]
-pub mod test_utils {
-    /// Copied from
-    /// https://docs.rs/solana-program/latest/src/solana_program/alt_bn128/mod.rs.html#200-236
-    /// for checking impls against solana's
-    pub fn convert_endianness_64(bytes: &[u8]) -> Vec<u8> {
-        bytes
-            .chunks(32)
-            .flat_map(|b| b.iter().copied().rev().collect::<Vec<u8>>())
-            .collect::<Vec<u8>>()
-    }
-}

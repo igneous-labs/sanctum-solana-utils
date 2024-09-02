@@ -8,6 +8,7 @@ license.workspace = true
 ark-bn254 = { workspace = true, default-features = false, features = ["curve"] }
 ark-ec = { workspace = true }
 ark-ff = { workspace = true, default-features = false }
+ark-poly = { workspace = true, default-features = false }
 sanctum-solana-kcsc = { workspace = true }
 
 [dev-dependencies]

@@ -3657,6 +3657,7 @@ dependencies = [
  "ark-bn254",
  "ark-ec",
  "ark-ff",
+ "ark-poly",
  "ark-serialize",
  "proptest",
  "sanctum-solana-kcsc",

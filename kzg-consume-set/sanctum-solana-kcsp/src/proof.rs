@@ -50,10 +50,10 @@ pub fn gen_proof_for_quotient_poly_roots(
     quotient_poly_roots: &[impl Borrow<Fr>],
     powers_of_tau_g2: &[G2Affine],
 ) -> Result<G2Projective, ProofGenErr> {
-    //let p = std::time::Instant::now();
-    // TODO: poly_from_roots() takes up most of the time for large polys, need to make it faster
+    //  let p = std::time::Instant::now();
+    // poly_from_roots() take around the same time as gen_proof_for_quotient_poly_coeffs()
     let quotient_poly_coeffs = poly_from_roots(quotient_poly_roots);
-    //eprintln!("poly_from_roots took: {}ms", p.elapsed().as_millis());
+    // eprintln!("poly_from_roots took: {}ms", p.elapsed().as_millis());
     gen_proof_for_quotient_poly_coeffs(&quotient_poly_coeffs, powers_of_tau_g2)
 }
 
@@ -120,36 +120,40 @@ pub fn gen_proof_with_all_roots_and_items_to_prove(
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
+    // only run in release mode, debug mode is way too slow
+    #[cfg(not(debug_assertions))]
+    mod perf_tests {
+        use std::time::Instant;
 
-    use ark_ff::{BigInteger256, Field};
-    use sanctum_solana_kcsc::G2_GEN;
+        use ark_ff::{BigInteger256, Field};
+        use sanctum_solana_kcsc::G2_GEN;
 
-    use super::*;
+        use super::super::*;
 
-    const N: usize = 65_536;
+        const N: usize = 65_536;
 
-    fn powers_of_tau_g2() -> Vec<G2Affine> {
-        let tau = Fr::ONE.double();
-        let mut res = Vec::with_capacity(N);
-        res.push(G2Affine::from(G2_GEN));
-        (1..N).fold(res, |mut res, _p| {
-            res.push(G2Affine::from(*res.last().unwrap() * tau));
-            res
-        })
-    }
+        fn powers_of_tau_g2() -> Vec<G2Affine> {
+            let tau = Fr::ONE.double();
+            let mut res = Vec::with_capacity(N);
+            res.push(G2Affine::from(G2_GEN));
+            (1..N).fold(res, |mut res, _p| {
+                res.push(G2Affine::from(*res.last().unwrap() * tau));
+                res
+            })
+        }
 
-    #[test]
-    fn perf_sanity_check() {
-        let p = Instant::now();
-        let powers_of_tau_g2 = powers_of_tau_g2();
-        eprintln!("powers_of_tau_g2 took: {}ms", p.elapsed().as_millis());
-        let all_roots: Vec<_> = (0..N - 1)
-            .map(|x| Fr::from(BigInteger256::from(x as u32)))
-            .collect();
-        let roots_to_prove = (69..169).map(|x| Fr::from(BigInteger256::from(x as u32)));
-        let p = Instant::now();
-        let _ = gen_proof_with_roots(&all_roots, roots_to_prove, &powers_of_tau_g2).unwrap();
-        eprintln!("gen_proof_with_roots took: {}ms", p.elapsed().as_millis());
+        #[test]
+        fn perf_sanity_check() {
+            let p = Instant::now();
+            let powers_of_tau_g2 = powers_of_tau_g2();
+            eprintln!("powers_of_tau_g2 took: {}ms", p.elapsed().as_millis());
+            let all_roots: Vec<_> = (0..N - 1)
+                .map(|x| Fr::from(BigInteger256::from(x as u32)))
+                .collect();
+            let roots_to_prove = (69..169).map(|x| Fr::from(BigInteger256::from(x as u32)));
+            let p = Instant::now();
+            let _ = gen_proof_with_roots(&all_roots, roots_to_prove, &powers_of_tau_g2).unwrap();
+            eprintln!("gen_proof_with_roots took: {}ms", p.elapsed().as_millis());
+        }
     }
 }

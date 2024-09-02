@@ -69,6 +69,7 @@ solana-version = ">=1.18"
 ark-bn254 = { version = "^0.4", default-features = false }
 ark-ec = { version = "^0.4", default-features = false }
 ark-ff = { version = "^0.4", default-features = false }
+ark-poly = { version = "^0.4", default-features = false }
 ark-serialize = { version = "^0.4", default-features = false }
 
 # workspace members

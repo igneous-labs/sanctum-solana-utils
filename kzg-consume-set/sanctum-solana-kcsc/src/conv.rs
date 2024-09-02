@@ -10,8 +10,14 @@ pub const FR: usize = 32;
 /// Size of packed uncompressed affine G1 point (x, y) in bytes
 pub const G1: usize = 64;
 
+/// Size of compressed G1 point in bytes
+pub const G1_COMPRESSED: usize = 32;
+
 /// Size of packed uncompressed affine G2 point (x, y) in bytes
 pub const G2: usize = 128;
+
+/// Size of compressed G2 point in bytes
+pub const G2_COMPRESSED: usize = 64;
 
 /// Convert a [`ark_bn254::Fr`] to a big endian U256,
 /// the form the solana syscalls expect.
@@ -60,6 +66,18 @@ pub fn be_to_g1(be: [u8; G1]) -> Result<G1Affine, SerializationError> {
 }
 
 #[inline]
+pub fn g1_to_be_compressed(g1: &G1Affine) -> [u8; G1_COMPRESSED] {
+    curve_to_be_compressed(g1)
+}
+
+#[inline]
+pub fn be_compressed_to_g1(
+    be_compressed: [u8; G1_COMPRESSED],
+) -> Result<G1Affine, SerializationError> {
+    be_compressed_to_curve(be_compressed)
+}
+
+#[inline]
 pub fn g2_to_be(g2: &G2Affine) -> [u8; G2] {
     curve_to_be(g2)
 }
@@ -67,6 +85,18 @@ pub fn g2_to_be(g2: &G2Affine) -> [u8; G2] {
 #[inline]
 pub fn be_to_g2(be: [u8; G2]) -> Result<G2Affine, SerializationError> {
     be_to_curve(be)
+}
+
+#[inline]
+pub fn g2_to_be_compressed(g2: &G2Affine) -> [u8; G2_COMPRESSED] {
+    curve_to_be_compressed(g2)
+}
+
+#[inline]
+pub fn be_compressed_to_g2(
+    be_compressed: [u8; G2_COMPRESSED],
+) -> Result<G2Affine, SerializationError> {
+    be_compressed_to_curve(be_compressed)
 }
 
 #[inline]
@@ -79,6 +109,15 @@ fn curve_to_be<C: CanonicalSerialize, const N: usize>(c: &C) -> [u8; N] {
     res
 }
 
+#[inline]
+fn curve_to_be_compressed<C: CanonicalSerialize, const N: usize>(c: &C) -> [u8; N] {
+    let mut res = [0u8; N];
+    // unwrap-safety: make sure N is of the correct dimension
+    c.serialize_compressed(res.as_mut()).unwrap();
+    res.reverse();
+    res
+}
+
 /// Errors if provided bytes represent an invalid curve point
 #[inline]
 fn be_to_curve<C: CanonicalDeserialize, const N: usize>(
@@ -87,6 +126,15 @@ fn be_to_curve<C: CanonicalDeserialize, const N: usize>(
     be[..N / 2].reverse();
     be[N / 2..].reverse();
     C::deserialize_uncompressed(be.as_slice())
+}
+
+/// Errors if provided bytes represent an invalid curve point
+#[inline]
+fn be_compressed_to_curve<C: CanonicalDeserialize, const N: usize>(
+    mut be_compressed: [u8; N],
+) -> Result<C, SerializationError> {
+    be_compressed.reverse();
+    C::deserialize_compressed(be_compressed.as_slice())
 }
 
 #[cfg(test)]
@@ -143,6 +191,22 @@ mod tests {
         fn g2_to_be_roundtrip(rand_multiplier_bytes: [u8; FR]) {
             let g2 = G2_GEN * fr_from_hash(rand_multiplier_bytes);
             assert_eq!(g2, be_to_g2(g2_to_be(&g2.into())).unwrap());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn g1_to_be_compressed_roundtrip(rand_multiplier_bytes: [u8; FR]) {
+            let g1 = G1_GEN * fr_from_hash(rand_multiplier_bytes);
+            assert_eq!(g1, be_compressed_to_g1(g1_to_be_compressed(&g1.into())).unwrap());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn g2_to_be_compressed_roundtrip(rand_multiplier_bytes: [u8; FR]) {
+            let g2 = G2_GEN * fr_from_hash(rand_multiplier_bytes);
+            assert_eq!(g2, be_compressed_to_g2(g2_to_be_compressed(&g2.into())).unwrap());
         }
     }
 }

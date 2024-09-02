@@ -28,7 +28,11 @@ impl std::error::Error for PolyFromRootsErr {}
 
 /// Given all the roots of a polynomial, output the coefficient array in ascending powers
 ///
-/// i.e. with max degree 2 (DP1 = 3) $x^2 + 2x + 3$ -> [3, 2, 1], $x + 2$ -> [2, 1, 0]
+/// i.e. with max degree 2 (DP1 = 3) $x^2 + 2x + 3$ -> [3, 2, 1], $x + 2$ -> [2, 1, 0].
+///
+/// This just does the naive n^2 thing of multiplying everything out,
+/// meant to be used for small calculations onchain such as for calculating $z(\tau)G1$
+/// for a small number of roots to verify
 ///
 /// Generics:
 /// - `DP1` - degree plus one. Maximum degree of the output polynomial + 1

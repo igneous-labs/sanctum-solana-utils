@@ -1,3 +1,10 @@
+mod poly;
+mod proof;
+
+pub use poly::*;
+pub use proof::*;
+
+/*
 #[cfg(test)]
 mod tests {
     use ark_bn254::{
@@ -92,3 +99,4 @@ mod tests {
         }
     }
 }
+ */

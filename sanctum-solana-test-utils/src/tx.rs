@@ -46,12 +46,13 @@ pub fn extract_tx_err(banks_client_err: BanksClientError) -> TransactionError {
     }
 }
 
-pub fn assert_custom_err<E: Into<ProgramError> + Display + Copy>(
+pub fn assert_custom_err<E: Into<ProgramError> + Display>(
     banks_client_err: BanksClientError,
     expected_err: E,
 ) {
     let ix_err = extract_ix_err(banks_client_err);
     let actual_code = extract_ix_err_code(&ix_err);
+    let expected_err_disp = format!("{expected_err}");
     let expected_program_err: ProgramError = expected_err.into();
     let expected_code = match expected_program_err {
         ProgramError::Custom(c) => c,
@@ -59,7 +60,7 @@ pub fn assert_custom_err<E: Into<ProgramError> + Display + Copy>(
     };
     assert_eq!(
         actual_code, expected_code,
-        "Expected: {expected_err}. Actual: {ix_err}"
+        "Expected: {expected_err_disp}. Actual: {ix_err}"
     );
 }
 

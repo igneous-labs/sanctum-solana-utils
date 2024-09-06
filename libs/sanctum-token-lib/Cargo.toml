@@ -7,11 +7,10 @@ repository = "https://github.com/igneous-labs/sanctum-solana-utils.git"
 
 [dependencies]
 solana-program = { workspace = true }
-solana-readonly-account = { workspace = true }
+solana-readonly-account = { workspace = true, features = ["solana-program"] }
 spl_token_interface = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
 sanctum-solana-test-utils = { workspace = true, features = ["token-2022", "proptest"] }
-solana-readonly-account = { workspace = true, features = ["solana-program"] }
 spl-token-2022 = { workspace = true }

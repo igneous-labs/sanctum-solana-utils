@@ -33,10 +33,10 @@ pub struct ParseNamedSigner<'a> {
 ///
 /// # Details
 /// - `Box<dyn Signer>` is not `Clone`, `Send`, or `Sync`, `Box<dyn Error>` is not `Send`, `Sync`, or `'static`,
-/// so you can't actually use this fn as a [`clap::builder::TypedValueParser`] in an Args struct.
-/// Guess you can type the arg to a `String` first and then run this afterwards.
+///    so you can't actually use this fn as a [`clap::builder::TypedValueParser`] in an Args struct.
+///    Guess you can type the arg to a `String` first and then run this afterwards.
 /// - Same thing for `Box<dyn Error>` returned by [`solana_clap_utils::keypair::signer_from_path`],
-/// so this messes with usage in async/multithread contexts
+///   so this messes with usage in async/multithread contexts
 ///
 /// See https://docs.rs/solana-clap-utils/latest/src/solana_clap_utils/keypair.rs.html#752-820 for more details.
 pub fn parse_named_signer(

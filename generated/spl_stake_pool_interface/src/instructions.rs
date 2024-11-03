@@ -24,6 +24,7 @@ pub enum SplStakePoolProgramIx {
     SetFundingAuthority(SetFundingAuthorityIxArgs),
     IncreaseAdditionalValidatorStake(IncreaseAdditionalValidatorStakeIxArgs),
     DecreaseAdditionalValidatorStake(DecreaseAdditionalValidatorStakeIxArgs),
+    Redelegate(RedelegateIxArgs),
     DepositStakeWithSlippage(DepositStakeWithSlippageIxArgs),
     WithdrawStakeWithSlippage(WithdrawStakeWithSlippageIxArgs),
     DepositSolWithSlippage(DepositSolWithSlippageIxArgs),
@@ -67,6 +68,9 @@ impl SplStakePoolProgramIx {
                     DecreaseAdditionalValidatorStakeIxArgs::deserialize(&mut reader)?,
                 ))
             }
+            REDELEGATE_IX_DISCM => Ok(Self::Redelegate(RedelegateIxArgs::deserialize(
+                &mut reader,
+            )?)),
             DEPOSIT_STAKE_WITH_SLIPPAGE_IX_DISCM => Ok(Self::DepositStakeWithSlippage(
                 DepositStakeWithSlippageIxArgs::deserialize(&mut reader)?,
             )),
@@ -126,6 +130,10 @@ impl SplStakePoolProgramIx {
             }
             Self::DecreaseAdditionalValidatorStake(args) => {
                 writer.write_all(&[DECREASE_ADDITIONAL_VALIDATOR_STAKE_IX_DISCM])?;
+                args.serialize(&mut writer)
+            }
+            Self::Redelegate(args) => {
+                writer.write_all(&[REDELEGATE_IX_DISCM])?;
                 args.serialize(&mut writer)
             }
             Self::DepositStakeWithSlippage(args) => {
@@ -3574,6 +3582,423 @@ pub fn decrease_additional_validator_stake_verify_account_privileges<'me, 'info>
 ) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
     decrease_additional_validator_stake_verify_writable_privileges(accounts)?;
     decrease_additional_validator_stake_verify_signer_privileges(accounts)?;
+    Ok(())
+}
+pub const REDELEGATE_IX_ACCOUNTS_LEN: usize = 16;
+#[derive(Copy, Clone, Debug)]
+pub struct RedelegateAccounts<'me, 'info> {
+    ///Stake pool
+    pub stake_pool: &'me AccountInfo<'info>,
+    ///Current staker
+    pub staker: &'me AccountInfo<'info>,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: &'me AccountInfo<'info>,
+    ///Validator list
+    pub validator_list: &'me AccountInfo<'info>,
+    ///Reserve stake account, to withdraw rent exempt reserve from
+    pub reserve_stake: &'me AccountInfo<'info>,
+    ///Source canonical stake account to split from
+    pub src_validator_stake_account: &'me AccountInfo<'info>,
+    ///Source transient stake account to receive split and be redelegated
+    pub src_transient_stake_account: &'me AccountInfo<'info>,
+    ///Uninitialized ephemeral stake account to receive redelegation
+    pub ephemeral_stake_account: &'me AccountInfo<'info>,
+    ///Destination transient stake account to receive ephemeral stake by merge
+    pub dst_transient_stake_account: &'me AccountInfo<'info>,
+    ///Destination canonical stake account to receive transient stake after activation
+    pub dst_validator_stake_account: &'me AccountInfo<'info>,
+    ///Destination validator vote account
+    pub dst_vote_account: &'me AccountInfo<'info>,
+    ///Clock sysvar
+    pub clock: &'me AccountInfo<'info>,
+    ///Stake history sysvar
+    pub stake_history: &'me AccountInfo<'info>,
+    ///Stake config sysvar
+    pub stake_config: &'me AccountInfo<'info>,
+    ///System program
+    pub system_program: &'me AccountInfo<'info>,
+    ///Stake program
+    pub stake_program: &'me AccountInfo<'info>,
+}
+#[derive(Copy, Clone, Debug)]
+pub struct RedelegateKeys {
+    ///Stake pool
+    pub stake_pool: Pubkey,
+    ///Current staker
+    pub staker: Pubkey,
+    ///Stake pool withdraw authority
+    pub withdraw_authority: Pubkey,
+    ///Validator list
+    pub validator_list: Pubkey,
+    ///Reserve stake account, to withdraw rent exempt reserve from
+    pub reserve_stake: Pubkey,
+    ///Source canonical stake account to split from
+    pub src_validator_stake_account: Pubkey,
+    ///Source transient stake account to receive split and be redelegated
+    pub src_transient_stake_account: Pubkey,
+    ///Uninitialized ephemeral stake account to receive redelegation
+    pub ephemeral_stake_account: Pubkey,
+    ///Destination transient stake account to receive ephemeral stake by merge
+    pub dst_transient_stake_account: Pubkey,
+    ///Destination canonical stake account to receive transient stake after activation
+    pub dst_validator_stake_account: Pubkey,
+    ///Destination validator vote account
+    pub dst_vote_account: Pubkey,
+    ///Clock sysvar
+    pub clock: Pubkey,
+    ///Stake history sysvar
+    pub stake_history: Pubkey,
+    ///Stake config sysvar
+    pub stake_config: Pubkey,
+    ///System program
+    pub system_program: Pubkey,
+    ///Stake program
+    pub stake_program: Pubkey,
+}
+impl From<RedelegateAccounts<'_, '_>> for RedelegateKeys {
+    fn from(accounts: RedelegateAccounts) -> Self {
+        Self {
+            stake_pool: *accounts.stake_pool.key,
+            staker: *accounts.staker.key,
+            withdraw_authority: *accounts.withdraw_authority.key,
+            validator_list: *accounts.validator_list.key,
+            reserve_stake: *accounts.reserve_stake.key,
+            src_validator_stake_account: *accounts.src_validator_stake_account.key,
+            src_transient_stake_account: *accounts.src_transient_stake_account.key,
+            ephemeral_stake_account: *accounts.ephemeral_stake_account.key,
+            dst_transient_stake_account: *accounts.dst_transient_stake_account.key,
+            dst_validator_stake_account: *accounts.dst_validator_stake_account.key,
+            dst_vote_account: *accounts.dst_vote_account.key,
+            clock: *accounts.clock.key,
+            stake_history: *accounts.stake_history.key,
+            stake_config: *accounts.stake_config.key,
+            system_program: *accounts.system_program.key,
+            stake_program: *accounts.stake_program.key,
+        }
+    }
+}
+impl From<RedelegateKeys> for [AccountMeta; REDELEGATE_IX_ACCOUNTS_LEN] {
+    fn from(keys: RedelegateKeys) -> Self {
+        [
+            AccountMeta {
+                pubkey: keys.stake_pool,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.staker,
+                is_signer: true,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.withdraw_authority,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.validator_list,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.reserve_stake,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.src_validator_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.src_transient_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.ephemeral_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.dst_transient_stake_account,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: keys.dst_validator_stake_account,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.dst_vote_account,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.clock,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_history,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_config,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.system_program,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: keys.stake_program,
+                is_signer: false,
+                is_writable: false,
+            },
+        ]
+    }
+}
+impl From<[Pubkey; REDELEGATE_IX_ACCOUNTS_LEN]> for RedelegateKeys {
+    fn from(pubkeys: [Pubkey; REDELEGATE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: pubkeys[0],
+            staker: pubkeys[1],
+            withdraw_authority: pubkeys[2],
+            validator_list: pubkeys[3],
+            reserve_stake: pubkeys[4],
+            src_validator_stake_account: pubkeys[5],
+            src_transient_stake_account: pubkeys[6],
+            ephemeral_stake_account: pubkeys[7],
+            dst_transient_stake_account: pubkeys[8],
+            dst_validator_stake_account: pubkeys[9],
+            dst_vote_account: pubkeys[10],
+            clock: pubkeys[11],
+            stake_history: pubkeys[12],
+            stake_config: pubkeys[13],
+            system_program: pubkeys[14],
+            stake_program: pubkeys[15],
+        }
+    }
+}
+impl<'info> From<RedelegateAccounts<'_, 'info>>
+    for [AccountInfo<'info>; REDELEGATE_IX_ACCOUNTS_LEN]
+{
+    fn from(accounts: RedelegateAccounts<'_, 'info>) -> Self {
+        [
+            accounts.stake_pool.clone(),
+            accounts.staker.clone(),
+            accounts.withdraw_authority.clone(),
+            accounts.validator_list.clone(),
+            accounts.reserve_stake.clone(),
+            accounts.src_validator_stake_account.clone(),
+            accounts.src_transient_stake_account.clone(),
+            accounts.ephemeral_stake_account.clone(),
+            accounts.dst_transient_stake_account.clone(),
+            accounts.dst_validator_stake_account.clone(),
+            accounts.dst_vote_account.clone(),
+            accounts.clock.clone(),
+            accounts.stake_history.clone(),
+            accounts.stake_config.clone(),
+            accounts.system_program.clone(),
+            accounts.stake_program.clone(),
+        ]
+    }
+}
+impl<'me, 'info> From<&'me [AccountInfo<'info>; REDELEGATE_IX_ACCOUNTS_LEN]>
+    for RedelegateAccounts<'me, 'info>
+{
+    fn from(arr: &'me [AccountInfo<'info>; REDELEGATE_IX_ACCOUNTS_LEN]) -> Self {
+        Self {
+            stake_pool: &arr[0],
+            staker: &arr[1],
+            withdraw_authority: &arr[2],
+            validator_list: &arr[3],
+            reserve_stake: &arr[4],
+            src_validator_stake_account: &arr[5],
+            src_transient_stake_account: &arr[6],
+            ephemeral_stake_account: &arr[7],
+            dst_transient_stake_account: &arr[8],
+            dst_validator_stake_account: &arr[9],
+            dst_vote_account: &arr[10],
+            clock: &arr[11],
+            stake_history: &arr[12],
+            stake_config: &arr[13],
+            system_program: &arr[14],
+            stake_program: &arr[15],
+        }
+    }
+}
+pub const REDELEGATE_IX_DISCM: u8 = 22u8;
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct RedelegateIxArgs {
+    pub lamports: u64,
+    pub src_transient_stake_seed: u64,
+    pub ephemeral_stake_seed: u64,
+    pub dst_transient_stake_seed: u64,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct RedelegateIxData(pub RedelegateIxArgs);
+impl From<RedelegateIxArgs> for RedelegateIxData {
+    fn from(args: RedelegateIxArgs) -> Self {
+        Self(args)
+    }
+}
+impl RedelegateIxData {
+    pub fn deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        let mut reader = buf;
+        let mut maybe_discm_buf = [0u8; 1];
+        reader.read_exact(&mut maybe_discm_buf)?;
+        let maybe_discm = maybe_discm_buf[0];
+        if maybe_discm != REDELEGATE_IX_DISCM {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "discm does not match. Expected: {:?}. Received: {:?}",
+                    REDELEGATE_IX_DISCM, maybe_discm
+                ),
+            ));
+        }
+        Ok(Self(RedelegateIxArgs::deserialize(&mut reader)?))
+    }
+    pub fn serialize<W: std::io::Write>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(&[REDELEGATE_IX_DISCM])?;
+        self.0.serialize(&mut writer)
+    }
+    pub fn try_to_vec(&self) -> std::io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        self.serialize(&mut data)?;
+        Ok(data)
+    }
+}
+pub fn redelegate_ix_with_program_id(
+    program_id: Pubkey,
+    keys: RedelegateKeys,
+    args: RedelegateIxArgs,
+) -> std::io::Result<Instruction> {
+    let metas: [AccountMeta; REDELEGATE_IX_ACCOUNTS_LEN] = keys.into();
+    let data: RedelegateIxData = args.into();
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::from(metas),
+        data: data.try_to_vec()?,
+    })
+}
+pub fn redelegate_ix(keys: RedelegateKeys, args: RedelegateIxArgs) -> std::io::Result<Instruction> {
+    redelegate_ix_with_program_id(crate::ID, keys, args)
+}
+pub fn redelegate_invoke_with_program_id(
+    program_id: Pubkey,
+    accounts: RedelegateAccounts<'_, '_>,
+    args: RedelegateIxArgs,
+) -> ProgramResult {
+    let keys: RedelegateKeys = accounts.into();
+    let ix = redelegate_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction(&ix, accounts)
+}
+pub fn redelegate_invoke(
+    accounts: RedelegateAccounts<'_, '_>,
+    args: RedelegateIxArgs,
+) -> ProgramResult {
+    redelegate_invoke_with_program_id(crate::ID, accounts, args)
+}
+pub fn redelegate_invoke_signed_with_program_id(
+    program_id: Pubkey,
+    accounts: RedelegateAccounts<'_, '_>,
+    args: RedelegateIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    let keys: RedelegateKeys = accounts.into();
+    let ix = redelegate_ix_with_program_id(program_id, keys, args)?;
+    invoke_instruction_signed(&ix, accounts, seeds)
+}
+pub fn redelegate_invoke_signed(
+    accounts: RedelegateAccounts<'_, '_>,
+    args: RedelegateIxArgs,
+    seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    redelegate_invoke_signed_with_program_id(crate::ID, accounts, args, seeds)
+}
+pub fn redelegate_verify_account_keys(
+    accounts: RedelegateAccounts<'_, '_>,
+    keys: RedelegateKeys,
+) -> Result<(), (Pubkey, Pubkey)> {
+    for (actual, expected) in [
+        (accounts.stake_pool.key, &keys.stake_pool),
+        (accounts.staker.key, &keys.staker),
+        (accounts.withdraw_authority.key, &keys.withdraw_authority),
+        (accounts.validator_list.key, &keys.validator_list),
+        (accounts.reserve_stake.key, &keys.reserve_stake),
+        (
+            accounts.src_validator_stake_account.key,
+            &keys.src_validator_stake_account,
+        ),
+        (
+            accounts.src_transient_stake_account.key,
+            &keys.src_transient_stake_account,
+        ),
+        (
+            accounts.ephemeral_stake_account.key,
+            &keys.ephemeral_stake_account,
+        ),
+        (
+            accounts.dst_transient_stake_account.key,
+            &keys.dst_transient_stake_account,
+        ),
+        (
+            accounts.dst_validator_stake_account.key,
+            &keys.dst_validator_stake_account,
+        ),
+        (accounts.dst_vote_account.key, &keys.dst_vote_account),
+        (accounts.clock.key, &keys.clock),
+        (accounts.stake_history.key, &keys.stake_history),
+        (accounts.stake_config.key, &keys.stake_config),
+        (accounts.system_program.key, &keys.system_program),
+        (accounts.stake_program.key, &keys.stake_program),
+    ] {
+        if actual != expected {
+            return Err((*actual, *expected));
+        }
+    }
+    Ok(())
+}
+pub fn redelegate_verify_writable_privileges<'me, 'info>(
+    accounts: RedelegateAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_writable in [
+        accounts.validator_list,
+        accounts.reserve_stake,
+        accounts.src_validator_stake_account,
+        accounts.src_transient_stake_account,
+        accounts.ephemeral_stake_account,
+        accounts.dst_transient_stake_account,
+    ] {
+        if !should_be_writable.is_writable {
+            return Err((should_be_writable, ProgramError::InvalidAccountData));
+        }
+    }
+    Ok(())
+}
+pub fn redelegate_verify_signer_privileges<'me, 'info>(
+    accounts: RedelegateAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    for should_be_signer in [accounts.staker] {
+        if !should_be_signer.is_signer {
+            return Err((should_be_signer, ProgramError::MissingRequiredSignature));
+        }
+    }
+    Ok(())
+}
+pub fn redelegate_verify_account_privileges<'me, 'info>(
+    accounts: RedelegateAccounts<'me, 'info>,
+) -> Result<(), (&'me AccountInfo<'info>, ProgramError)> {
+    redelegate_verify_writable_privileges(accounts)?;
+    redelegate_verify_signer_privileges(accounts)?;
     Ok(())
 }
 pub const DEPOSIT_STAKE_WITH_SLIPPAGE_IX_ACCOUNTS_LEN: usize = 15;

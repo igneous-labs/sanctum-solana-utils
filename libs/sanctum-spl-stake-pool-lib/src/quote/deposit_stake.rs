@@ -4,26 +4,20 @@ use spl_stake_pool_interface::StakePool;
 
 use crate::{QuoteStakePool, StakeAccountDataForQuoting};
 
-/// All in terms of newly minted pool tokens
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct DepositStakeQuote {
-    pub manager: u64,
-    pub referrer: u64,
-    pub user: u64,
-}
+use super::DepositQuote;
 
 pub trait QuoteDepositStake {
     fn quote_deposit_stake(
         &self,
         stake_account: &StakeAccountDataForQuoting,
-    ) -> Result<DepositStakeQuote, ProgramError>;
+    ) -> Result<DepositQuote, ProgramError>;
 }
 
 impl<T: QuoteDepositStake> QuoteDepositStake for &T {
     fn quote_deposit_stake(
         &self,
         stake_account: &StakeAccountDataForQuoting,
-    ) -> Result<DepositStakeQuote, ProgramError> {
+    ) -> Result<DepositQuote, ProgramError> {
         (*self).quote_deposit_stake(stake_account)
     }
 }
@@ -35,7 +29,7 @@ impl QuoteDepositStake for StakePool {
             staked_lamports,
             unstaked_lamports,
         }: &StakeAccountDataForQuoting,
-    ) -> Result<DepositStakeQuote, ProgramError> {
+    ) -> Result<DepositQuote, ProgramError> {
         // copied from
         // https://github.com/solana-labs/solana-program-library/blob/3e35101763097b5b3d21686191132e5d930f5b23/stake-pool/program/src/processor.rs#L2831-L2874
 
@@ -80,7 +74,7 @@ impl QuoteDepositStake for StakePool {
             .checked_sub(referrer)
             .ok_or(ProgramError::ArithmeticOverflow)?;
 
-        Ok(DepositStakeQuote {
+        Ok(DepositQuote {
             manager,
             referrer,
             user,

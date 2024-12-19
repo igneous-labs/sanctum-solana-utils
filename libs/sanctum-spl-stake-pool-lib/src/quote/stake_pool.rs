@@ -11,6 +11,8 @@ pub trait QuoteStakePool {
     fn sol_deposit_fee_ratio(&self) -> Result<CeilDiv<U64FeeRatio<u64, u64>>, MathError>;
 
     fn stake_referral_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError>;
+
+    fn sol_referral_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError>;
 }
 
 impl<T: QuoteStakePool> QuoteStakePool for &T {
@@ -28,6 +30,10 @@ impl<T: QuoteStakePool> QuoteStakePool for &T {
 
     fn stake_referral_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError> {
         (*self).stake_referral_bps_fee()
+    }
+
+    fn sol_referral_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError> {
+        (*self).sol_referral_bps_fee()
     }
 }
 
@@ -49,5 +55,9 @@ impl QuoteStakePool for StakePool {
 
     fn stake_referral_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError> {
         self.stake_referral_fee.pct_fee_to_bps_fee()
+    }
+
+    fn sol_referral_bps_fee(&self) -> Result<FloorDiv<U64BpsFee>, MathError> {
+        self.sol_referral_fee.pct_fee_to_bps_fee()
     }
 }

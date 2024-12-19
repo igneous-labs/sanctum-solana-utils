@@ -4334,7 +4334,7 @@ pub fn withdraw_stake_with_slippage_verify_account_privileges<'me, 'info>(
     withdraw_stake_with_slippage_verify_signer_privileges(accounts)?;
     Ok(())
 }
-pub const DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN: usize = 9;
+pub const DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN: usize = 10;
 #[derive(Copy, Clone, Debug)]
 pub struct DepositSolWithSlippageAccounts<'me, 'info> {
     ///Stake pool
@@ -4349,6 +4349,8 @@ pub struct DepositSolWithSlippageAccounts<'me, 'info> {
     pub mint_to: &'me AccountInfo<'info>,
     ///Manager fee account
     pub manager_fee_account: &'me AccountInfo<'info>,
+    ///LST token account ro receive referral fees
+    pub referral_fee_dest: &'me AccountInfo<'info>,
     ///Pool token mint
     pub pool_mint: &'me AccountInfo<'info>,
     ///System program
@@ -4370,6 +4372,8 @@ pub struct DepositSolWithSlippageKeys {
     pub mint_to: Pubkey,
     ///Manager fee account
     pub manager_fee_account: Pubkey,
+    ///LST token account ro receive referral fees
+    pub referral_fee_dest: Pubkey,
     ///Pool token mint
     pub pool_mint: Pubkey,
     ///System program
@@ -4386,6 +4390,7 @@ impl From<DepositSolWithSlippageAccounts<'_, '_>> for DepositSolWithSlippageKeys
             deposit_from: *accounts.deposit_from.key,
             mint_to: *accounts.mint_to.key,
             manager_fee_account: *accounts.manager_fee_account.key,
+            referral_fee_dest: *accounts.referral_fee_dest.key,
             pool_mint: *accounts.pool_mint.key,
             system_program: *accounts.system_program.key,
             token_program: *accounts.token_program.key,
@@ -4426,6 +4431,11 @@ impl From<DepositSolWithSlippageKeys> for [AccountMeta; DEPOSIT_SOL_WITH_SLIPPAG
                 is_writable: true,
             },
             AccountMeta {
+                pubkey: keys.referral_fee_dest,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
                 pubkey: keys.pool_mint,
                 is_signer: false,
                 is_writable: true,
@@ -4452,9 +4462,10 @@ impl From<[Pubkey; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACCOUNTS_LEN]> for DepositSolWit
             deposit_from: pubkeys[3],
             mint_to: pubkeys[4],
             manager_fee_account: pubkeys[5],
-            pool_mint: pubkeys[6],
-            system_program: pubkeys[7],
-            token_program: pubkeys[8],
+            referral_fee_dest: pubkeys[6],
+            pool_mint: pubkeys[7],
+            system_program: pubkeys[8],
+            token_program: pubkeys[9],
         }
     }
 }
@@ -4469,6 +4480,7 @@ impl<'info> From<DepositSolWithSlippageAccounts<'_, 'info>>
             accounts.deposit_from.clone(),
             accounts.mint_to.clone(),
             accounts.manager_fee_account.clone(),
+            accounts.referral_fee_dest.clone(),
             accounts.pool_mint.clone(),
             accounts.system_program.clone(),
             accounts.token_program.clone(),
@@ -4486,9 +4498,10 @@ impl<'me, 'info> From<&'me [AccountInfo<'info>; DEPOSIT_SOL_WITH_SLIPPAGE_IX_ACC
             deposit_from: &arr[3],
             mint_to: &arr[4],
             manager_fee_account: &arr[5],
-            pool_mint: &arr[6],
-            system_program: &arr[7],
-            token_program: &arr[8],
+            referral_fee_dest: &arr[6],
+            pool_mint: &arr[7],
+            system_program: &arr[8],
+            token_program: &arr[9],
         }
     }
 }
@@ -4597,6 +4610,7 @@ pub fn deposit_sol_with_slippage_verify_account_keys(
         (accounts.deposit_from.key, &keys.deposit_from),
         (accounts.mint_to.key, &keys.mint_to),
         (accounts.manager_fee_account.key, &keys.manager_fee_account),
+        (accounts.referral_fee_dest.key, &keys.referral_fee_dest),
         (accounts.pool_mint.key, &keys.pool_mint),
         (accounts.system_program.key, &keys.system_program),
         (accounts.token_program.key, &keys.token_program),
@@ -4616,6 +4630,7 @@ pub fn deposit_sol_with_slippage_verify_writable_privileges<'me, 'info>(
         accounts.deposit_from,
         accounts.mint_to,
         accounts.manager_fee_account,
+        accounts.referral_fee_dest,
         accounts.pool_mint,
     ] {
         if !should_be_writable.is_writable {

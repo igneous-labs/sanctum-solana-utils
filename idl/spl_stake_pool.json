@@ -984,6 +984,12 @@
           "desc": "Manager fee account"
         },
         {
+          "name": "referralFeeDest",
+          "isMut": true,
+          "isSigner": false,
+          "desc": "LST token account ro receive referral fees"
+        },
+        {
           "name": "poolMint",
           "isMut": true,
           "isSigner": false,

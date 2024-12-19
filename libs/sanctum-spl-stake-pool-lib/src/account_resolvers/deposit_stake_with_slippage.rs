@@ -16,14 +16,18 @@ use spl_stake_pool_interface::{
     DepositStakeWithSlippageKeys, StakePool,
 };
 
-use crate::{FindValidatorStakeAccount, FindValidatorStakeAccountArgs, FindWithdrawAuthority};
+use crate::{
+    FindDepositAuthority, FindValidatorStakeAccount, FindValidatorStakeAccountArgs,
+    FindWithdrawAuthority,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct DepositStakeWithSlippage<'a> {
     pub pool: Keyed<&'a StakePool>,
     /// The stake account to deposit. Must have authorities transferred to the pool's
-    /// stake deposit authority beforehand. This can be done using [`Self::stake_authorize_prefix_ixs`]
-    /// or just use [`Self::full_ix_seq`] to get the fully formed instruction sequence
+    /// stake deposit authority before the actual DepositStake instruction is executed.
+    /// This can be done using [`Self::stake_authorize_prefix_ixs`] or just use
+    /// [`Self::full_ix_seq`] to get the fully formed instruction sequence
     pub stake_depositing: Keyed<&'a StakeStateV2>,
     pub mint_to: Pubkey,
     pub referral_fee_dest: Pubkey,
@@ -31,6 +35,7 @@ pub struct DepositStakeWithSlippage<'a> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DepositStakeComputedKeys {
+    pub deposit_authority_pda: Pubkey,
     pub withdraw_authority_pda: Pubkey,
     pub validator_stake_account: Pubkey,
 }
@@ -60,6 +65,14 @@ impl<'a> DepositStakeWithSlippage<'a> {
         validator_stake_account
     }
 
+    pub fn compute_deposit_authority_pda(&self, program_id: &Pubkey) -> Pubkey {
+        let (deposit_authority_pda, _bump) = FindDepositAuthority {
+            pool: self.pool.pubkey,
+        }
+        .run_for_prog(program_id);
+        deposit_authority_pda
+    }
+
     pub fn compute_keys(
         &self,
         program_id: &Pubkey,
@@ -67,6 +80,7 @@ impl<'a> DepositStakeWithSlippage<'a> {
         validator_seed_suffix: u32, // obtained from ValidatorStakeInfo
     ) -> DepositStakeComputedKeys {
         DepositStakeComputedKeys {
+            deposit_authority_pda: self.compute_deposit_authority_pda(program_id),
             withdraw_authority_pda: self.compute_withdraw_auth(program_id),
             validator_stake_account: self.compute_vsa(program_id, vote, validator_seed_suffix),
         }
@@ -79,17 +93,33 @@ impl<'a> DepositStakeWithSlippage<'a> {
         validator_seed_suffix: u32,
         min_tokens_out: u64,
     ) -> Result<[Instruction; 3], ProgramError> {
-        let computed_keys = self.compute_keys(program_id, vote, validator_seed_suffix);
         let [stake_auth_staker, stake_auth_withdrawer] = self.stake_authorize_prefix_ixs()?;
         Ok([
             stake_auth_staker,
             stake_auth_withdrawer,
-            deposit_stake_with_slippage_ix_with_program_id(
-                *program_id,
-                self.resolve_with_computed_keys(computed_keys),
-                DepositStakeWithSlippageIxArgs { min_tokens_out },
-            )?,
+            self.full_ix(program_id, vote, validator_seed_suffix, min_tokens_out)?,
         ])
+    }
+
+    pub fn full_ix(
+        &self,
+        program_id: &Pubkey,
+        vote: Pubkey,
+        validator_seed_suffix: u32,
+        min_tokens_out: u64,
+    ) -> Result<Instruction, ProgramError> {
+        const STAKE_DEPOSIT_AUTH_IDX: usize = 2;
+
+        let computed_keys = self.compute_keys(program_id, vote, validator_seed_suffix);
+        let mut ix = deposit_stake_with_slippage_ix_with_program_id(
+            *program_id,
+            self.resolve_with_computed_keys(computed_keys),
+            DepositStakeWithSlippageIxArgs { min_tokens_out },
+        )?;
+        if ix.accounts[STAKE_DEPOSIT_AUTH_IDX].pubkey != computed_keys.deposit_authority_pda {
+            ix.accounts[STAKE_DEPOSIT_AUTH_IDX].is_signer = true;
+        }
+        Ok(ix)
     }
 
     pub fn stake_authorize_prefix_ixs(&self) -> Result<[Instruction; 2], ProgramError> {
@@ -122,12 +152,12 @@ impl<'a> DepositStakeWithSlippage<'a> {
         ])
     }
 
-    // TODO: need to handle stake pools with permissioned deposits
     pub fn resolve_with_computed_keys(
         &self,
         DepositStakeComputedKeys {
             withdraw_authority_pda,
             validator_stake_account,
+            deposit_authority_pda: _,
         }: DepositStakeComputedKeys,
     ) -> DepositStakeWithSlippageKeys {
         let Self {

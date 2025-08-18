@@ -1,3 +1,7 @@
+# ARCHIVE NOTICE
+
+See issue #73 on why
+
 # sanctum-solana-utils
 
 Collection of utility libraries for onchain and offchain solana development.

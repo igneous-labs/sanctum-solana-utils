@@ -1,0 +1,13 @@
+[package]
+name = "sanctum-solana-kcsc"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+ark-bn254 = { workspace = true, default-features = false, features = ["curve"] }
+ark-ff = { workspace = true, default-features = false }
+ark-serialize = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
